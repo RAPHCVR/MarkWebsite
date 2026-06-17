@@ -1,0 +1,545 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: btcpay
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: btcpay-postgres-init
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+data:
+  01-create-databases.sql: |
+    CREATE DATABASE btcpayservermainnet;
+    CREATE DATABASE nbxplorermainnet;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: btcpay-postgres
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-postgres
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: btcpay-postgres
+    app.kubernetes.io/part-of: marky-payments
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: btcpay-postgres
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-postgres
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  serviceName: btcpay-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: btcpay-postgres
+      app.kubernetes.io/part-of: marky-payments
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: btcpay-postgres
+        app.kubernetes.io/part-of: marky-payments
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: btcpayserver/postgres:18.1-1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: postgres
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -U postgres
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -U postgres
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: btcpay-postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn-custom
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: btcpay-bitcoind
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-bitcoind
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: btcpay-bitcoind
+    app.kubernetes.io/part-of: marky-payments
+  ports:
+    - name: rpc
+      port: 43782
+      targetPort: rpc
+    - name: p2p
+      port: 39388
+      targetPort: p2p
+    - name: zmq-block
+      port: 28332
+      targetPort: zmq-block
+    - name: zmq-tx
+      port: 28333
+      targetPort: zmq-tx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: btcpay-bitcoind
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-bitcoind
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  serviceName: btcpay-bitcoind
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: btcpay-bitcoind
+      app.kubernetes.io/part-of: marky-payments
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: btcpay-bitcoind
+        app.kubernetes.io/part-of: marky-payments
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bitcoind
+          image: btcpayserver/bitcoin:29.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 43782
+              name: rpc
+            - containerPort: 39388
+              name: p2p
+            - containerPort: 28332
+              name: zmq-block
+            - containerPort: 28333
+              name: zmq-tx
+          env:
+            - name: BITCOIN_NETWORK
+              value: mainnet
+            - name: BITCOIN_RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: BITCOIN_RPC_USER
+            - name: BITCOIN_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: BITCOIN_RPC_PASSWORD
+            - name: BITCOIN_EXTRA_ARGS
+              value: |
+                server=1
+                listen=1
+                discover=1
+                txindex=0
+                prune=55000
+                blockfilterindex=1
+                peerblockfilters=1
+                whitelist=10.0.0.0/8
+                whitelist=172.16.0.0/12
+                whitelist=192.168.0.0/16
+                rpcbind=0.0.0.0
+                rpcallowip=10.0.0.0/8
+                rpcallowip=172.16.0.0/12
+                rpcallowip=192.168.0.0/16
+                rpcport=43782
+                rpcuser=$(BITCOIN_RPC_USER)
+                rpcpassword=$(BITCOIN_RPC_PASSWORD)
+                port=39388
+                zmqpubrawblock=tcp://0.0.0.0:28332
+                zmqpubrawtx=tcp://0.0.0.0:28333
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
+            periodSeconds: 20
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: bitcoin-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: bitcoin-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn-custom
+        resources:
+          requests:
+            storage: 90Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: btcpay-nbxplorer
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-nbxplorer
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: btcpay-nbxplorer
+    app.kubernetes.io/part-of: marky-payments
+  ports:
+    - name: http
+      port: 32838
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: btcpay-nbxplorer
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-nbxplorer
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  serviceName: btcpay-nbxplorer
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: btcpay-nbxplorer
+      app.kubernetes.io/part-of: marky-payments
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: btcpay-nbxplorer
+        app.kubernetes.io/part-of: marky-payments
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nbxplorer
+          image: nicolasdorier/nbxplorer:2.5.30
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 32838
+              name: http
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: POSTGRES_PASSWORD
+            - name: BITCOIN_RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: BITCOIN_RPC_USER
+            - name: BITCOIN_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: BITCOIN_RPC_PASSWORD
+          args:
+            - --network=mainnet
+            - --chains=btc
+            - --bind=0.0.0.0
+            - --port=32838
+            - --datadir=/datadir
+            - --noauth
+            - --postgres=User ID=postgres;Password=$(POSTGRES_PASSWORD);Host=btcpay-postgres;Port=5432;Application Name=nbxplorer;Database=nbxplorermainnet
+            - --btcrpcurl=http://btcpay-bitcoind:43782/
+            - --btcrpcuser=$(BITCOIN_RPC_USER)
+            - --btcrpcpassword=$(BITCOIN_RPC_PASSWORD)
+            - --btcnodeendpoint=btcpay-bitcoind:39388
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: nbxplorer-data
+              mountPath: /datadir
+  volumeClaimTemplates:
+    - metadata:
+        name: nbxplorer-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn-custom
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: btcpay-server
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-server
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: btcpay-server
+    app.kubernetes.io/part-of: marky-payments
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: btcpay-server
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-server
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  serviceName: btcpay-server
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: btcpay-server
+      app.kubernetes.io/part-of: marky-payments
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: btcpay-server
+        app.kubernetes.io/part-of: marky-payments
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: btcpay-server
+          image: btcpayserver/btcpayserver:2.2.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 49392
+              name: http
+          env:
+            - name: BTCPAY_NETWORK
+              value: mainnet
+            - name: BTCPAY_BIND
+              value: 0.0.0.0:49392
+            - name: BTCPAY_ROOTPATH
+              value: /
+            - name: BTCPAY_EXTERNALURL
+              value: https://pay.markshnaknaks.com/
+            - name: BTCPAY_DOCKERDEPLOYMENT
+              value: "false"
+            - name: BTCPAY_CHAINS
+              value: btc
+            - name: BTCPAY_BTCEXPLORERURL
+              value: http://btcpay-nbxplorer:32838/
+            - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+              value: "true"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-core-secrets
+                  key: POSTGRES_PASSWORD
+            - name: BTCPAY_POSTGRES
+              value: User ID=postgres;Password=$(POSTGRES_PASSWORD);Host=btcpay-postgres;Port=5432;Application Name=btcpayserver;Database=btcpayservermainnet
+            - name: BTCPAY_EXPLORERPOSTGRES
+              value: User ID=postgres;Password=$(POSTGRES_PASSWORD);Host=btcpay-postgres;Port=5432;Application Name=btcpayserver;Database=nbxplorermainnet
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 60
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 150m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: btcpay-data
+              mountPath: /datadir
+  volumeClaimTemplates:
+    - metadata:
+        name: btcpay-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn-custom
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: btcpay-server
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-server
+    app.kubernetes.io/part-of: marky-payments
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: pay.markshnaknaks.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: btcpay-server
+                port:
+                  name: http

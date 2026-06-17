@@ -20,6 +20,42 @@ test("homepage renders all key sections without horizontal overflow", async ({ p
   expect(hasHorizontalOverflow).toBe(false);
 });
 
+test("homepage exposes crawlable SEO discovery metadata", async ({ page, request }) => {
+  await page.goto("/");
+
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com",
+  );
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    "https://markshnaknaks.com/images/mark-portrait-sketch.png",
+  );
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    "content",
+    "summary_large_image",
+  );
+
+  const jsonLd = await page.locator('script[type="application/ld+json"]').textContent();
+  const structuredData = JSON.parse(jsonLd || "{}") as {
+    "@graph"?: Array<{ "@type"?: string; sameAs?: string[] }>;
+  };
+  expect(structuredData["@graph"]?.some((entry) => entry["@type"] === "ProfilePage")).toBe(true);
+  expect(
+    structuredData["@graph"]?.some((entry) =>
+      entry.sameAs?.includes("https://instagram.com/markshnaknaks"),
+    ),
+  ).toBe(true);
+
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.status()).toBe(200);
+  expect(await sitemap.text()).toContain("https://markshnaknaks.com");
+
+  const manifest = await request.get("/manifest.webmanifest");
+  expect(manifest.status()).toBe(200);
+  expect(await manifest.text()).toContain("Marky @markshnaknaks");
+});
+
 test("interactive elements are named and external links are hardened", async ({ page }) => {
   await page.goto("/");
 

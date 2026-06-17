@@ -61,16 +61,14 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/raphcvr/markwebsite:latest
-          imagePullPolicy: Always
+          image: ghcr.io/raphcvr/markwebsite@sha256:7c72bf26f475e29a8fbfaed95fc4e96e569ba060b7c8fa81cbe63b63cf2be4b6
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
               name: http
           env:
             - name: NODE_ENV
               value: production
-            - name: NEXT_PUBLIC_SALES_ENABLED
-              value: "false"
           envFrom:
             - secretRef:
                 name: marky-payments
@@ -114,8 +112,12 @@ spec:
           volumeMounts:
             - mountPath: /tmp
               name: tmp
+            - mountPath: /app/.next/cache
+              name: next-cache
       volumes:
         - name: tmp
+          emptyDir: {}
+        - name: next-cache
           emptyDir: {}
 ---
 apiVersion: networking.k8s.io/v1

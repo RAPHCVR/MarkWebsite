@@ -82,6 +82,14 @@ function getHref(product: Product) {
   );
 }
 
+function canShowCryptoCheckout(product: Product) {
+  return (
+    paymentConfig.salesEnabled &&
+    paymentConfig.crypto.btcpay.configured &&
+    product.status !== "coming-soon"
+  );
+}
+
 export function ProductCards() {
   return (
     <SectionShell
@@ -127,6 +135,7 @@ export function ProductCards() {
           const disabled = product.status === "coming-soon";
           const href = getHref(product);
           const safeHref = disabled ? "#photo-packs" : href;
+          const showCryptoCheckout = canShowCryptoCheckout(product);
 
           return (
             <article
@@ -182,16 +191,35 @@ export function ProductCards() {
                   ))}
                 </ul>
 
-                <a
-                  href={safeHref}
-                  {...getExternalLinkProps(safeHref)}
-                  aria-disabled={disabled}
-                  className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 aria-disabled:pointer-events-none aria-disabled:bg-pink-200 aria-disabled:text-pink-800"
-                >
-                  {disabled ? <Lock className="size-4" aria-hidden="true" /> : <ProviderIcon className="size-4" aria-hidden="true" />}
-                  {cta}
-                  {!disabled ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
-                </a>
+                <div className="mt-5 grid gap-2">
+                  <a
+                    href={safeHref}
+                    {...getExternalLinkProps(safeHref)}
+                    aria-disabled={disabled}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 aria-disabled:pointer-events-none aria-disabled:bg-pink-200 aria-disabled:text-pink-800"
+                  >
+                    {disabled ? <Lock className="size-4" aria-hidden="true" /> : <ProviderIcon className="size-4" aria-hidden="true" />}
+                    {cta}
+                    {!disabled ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
+                  </a>
+                  {showCryptoCheckout ? (
+                    <form method="post" action={paymentConfig.crypto.btcpay.checkoutRoute}>
+                      <input type="hidden" name="product" value={product.slug} />
+                      <button
+                        type="submit"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-amber-200 bg-white px-4 text-sm font-black text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-100"
+                      >
+                        <span
+                          className="flex size-5 items-center justify-center text-[var(--brand-color)]"
+                          style={brandIconStyle("bitcoin")}
+                        >
+                          <BrandIcon name="bitcoin" className="size-4" />
+                        </span>
+                        Pay with Bitcoin
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
               </div>
             </article>
           );
@@ -257,7 +285,7 @@ export function ProductCards() {
             Non-custodial crypto checkout as a secondary path once wallets and backups are set.
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            BTC and Lightning first
+            BTC on-chain first
           </p>
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">

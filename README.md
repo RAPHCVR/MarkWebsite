@@ -55,7 +55,7 @@ Current live links:
 - TikTok: `https://tiktok.com/@markshnaknaks`
 - Telegram channel: `https://t.me/markreyvakh`
 - Telegram chat/support: `https://t.me/+BTVcC_RjdWJhYWEy`
-- X: `https://x.com/MarkyReyvakh`
+- X: `https://x.com/MarkyReykvakh`
 
 Stripe fields can be stored per product:
 
@@ -64,7 +64,7 @@ Stripe fields can be stored per product:
 - `stripePriceId`
 - `stripePaymentLinkId`
 
-Public buying is disabled unless `NEXT_PUBLIC_SALES_ENABLED=true`.
+Public buying is disabled unless `SALES_ENABLED=true` and `NEXT_PUBLIC_SALES_ENABLED=true`.
 
 Optional non-Stripe destinations:
 
@@ -84,7 +84,7 @@ Recommended launch path:
 
 - Use Stripe Payment Links first for SFW photo packs if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables, but public buying stays paused until the products and legal pages are final.
 - Move to Stripe Checkout Sessions later if the site needs a cart, webhooks, automatic delivery, coupons tied to accounts, or richer order metadata.
-- Use BTCPay Server as the best self-hosted crypto option if low fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set.
+- Use BTCPay Server as the best self-hosted crypto option if low fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the Bitcoin node is synced, and the store has a BTC wallet/payment method configured.
 - Use Telegram for channel updates, VIP invites, support, custom requests and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
 - Keep Stripe products clearly non-explicit: cosplay sets, outfit previews, soft creator photos, and clean paid packs. If the offer changes, review payment-provider rules before launch.
 
@@ -95,8 +95,18 @@ BTCPAY_SERVER_URL=https://pay.markshnaknaks.com
 BTCPAY_STORE_ID=...
 BTCPAY_API_KEY=...
 BTCPAY_WEBHOOK_SECRET=...
+SALES_ENABLED=true
 NEXT_PUBLIC_SALES_ENABLED=true
 ```
+
+BTCPay production checklist before enabling crypto on the public site:
+
+- `pay.markshnaknaks.com/api/v1/health` returns 200.
+- Bitcoin Core is out of Initial Block Download.
+- NBXplorer reports BTC as connected/synced.
+- The Marky store has a BTC on-chain payment method.
+- The wallet seed/xpub backup is stored outside the repo.
+- A small invoice creation smoke test succeeds.
 
 No Stripe secret key is required in the frontend repo for Payment Links. If Checkout Sessions are added later, the secret key must live only in Kubernetes secrets or a server-side env store. Rotate any live secret key that has been pasted into chat, logs or local notes.
 

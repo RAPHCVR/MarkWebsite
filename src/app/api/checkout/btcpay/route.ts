@@ -15,10 +15,34 @@ function requiredEnv(name: string) {
   return value;
 }
 
+async function readProductSlug(request: NextRequest) {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const body = (await request.json().catch(() => null)) as {
+      product?: string;
+    } | null;
+
+    return body?.product;
+  }
+
+  if (
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType.includes("multipart/form-data")
+  ) {
+    const form = await request.formData();
+    const product = form.get("product");
+
+    return typeof product === "string" ? product : undefined;
+  }
+
+  return undefined;
+}
+
 export async function GET() {
   return NextResponse.json(
     { error: "Use POST to create a BTCPay invoice" },
-    { status: 405 },
+    { status: 405, headers: { Allow: "POST" } },
   );
 }
 
@@ -30,14 +54,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = (await request.json().catch(() => null)) as {
-    product?: string;
-  } | null;
-  const productSlug = body?.product;
+  const productSlug = await readProductSlug(request);
   const product = products.find((item) => item.slug === productSlug);
 
   if (!product) {
     return NextResponse.json({ error: "Unknown product" }, { status: 404 });
+  }
+
+  if (product.status === "coming-soon") {
+    return NextResponse.json(
+      { error: "This product is not available yet" },
+      { status: 409 },
+    );
   }
 
   try {
@@ -62,7 +90,7 @@ export async function POST(request: NextRequest) {
           source: "markshnaknaks.com",
         },
         checkout: {
-          redirectURL: `${request.nextUrl.origin}/#photo-packs`,
+          redirectURL: `${request.nextUrl.origin}/checkout/crypto-return?orderId=${encodeURIComponent(orderId)}`,
         },
       }),
     });
@@ -83,7 +111,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.redirect(invoice.checkoutLink);
+    return NextResponse.redirect(invoice.checkoutLink, 303);
   } catch {
     return NextResponse.json(
       { error: "BTCPay checkout is not configured yet" },

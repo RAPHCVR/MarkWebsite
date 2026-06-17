@@ -23,19 +23,68 @@ const pacifico = Pacifico({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.publicUrl),
-  title: `${siteConfig.brandName} - Your Kitten Master`,
-  description:
-    `${siteConfig.brandName}'s SFW creator storefront: cosplay, soft drops, photo packs and collabs.`,
+  applicationName: siteConfig.brandName,
+  title: {
+    default: siteConfig.title,
+    template: `%s | ${siteConfig.brandName}`,
+  },
+  description: siteConfig.description,
+  keywords: [
+    "Marky",
+    "markshnaknaks",
+    "@markshnaknaks",
+    "cosplay creator",
+    "photo packs",
+    "creator storefront",
+    "social links",
+  ],
+  authors: [{ name: siteConfig.brandName, url: siteConfig.publicUrl }],
+  creator: siteConfig.brandName,
+  publisher: siteConfig.brandName,
+  category: "creator storefront",
   openGraph: {
-    title: `${siteConfig.brandName} - Your Kitten Master`,
-    description:
-      "SFW cosplay drops, social links, photo pack previews and collab requests.",
+    title: siteConfig.title,
+    description: siteConfig.shortDescription,
     url: siteConfig.publicUrl,
     siteName: siteConfig.brandName,
     type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: siteConfig.socialImage,
+        alt: `${siteConfig.brandName} ${siteConfig.handle}`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.title,
+    description: siteConfig.shortDescription,
+    creator: siteConfig.handle,
+    images: [
+      {
+        url: siteConfig.socialImage,
+        alt: `${siteConfig.brandName} ${siteConfig.handle}`,
+      },
+    ],
   },
   alternates: {
     canonical: siteConfig.publicUrl,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  icons: {
+    icon: siteConfig.iconImage,
+    apple: siteConfig.iconImage,
   },
 };
 
