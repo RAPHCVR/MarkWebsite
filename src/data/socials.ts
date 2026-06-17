@@ -46,7 +46,7 @@ export const socials: SocialLink[] = [
   },
   {
     label: "X / Twitter",
-    handle: "@MarkyReykvakh",
+    handle: "@MarkyReyvakh",
     href: siteConfig.xUrl,
     description: "Quick updates, reposts and drop notes.",
     cta: "Follow on X",

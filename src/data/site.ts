@@ -9,7 +9,7 @@ export const siteConfig = {
   tiktokUrl: "https://tiktok.com/@markshnaknaks",
   telegramChannelUrl: "https://t.me/markreyvakh",
   telegramChatUrl: "https://t.me/+BTVcC_RjdWJhYWEy",
-  xUrl: "https://x.com/MarkyReykvakh",
+  xUrl: "https://x.com/MarkyReyvakh",
   onlyFansUrl: "",
 } as const;
 

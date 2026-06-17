@@ -55,7 +55,7 @@ Current live links:
 - TikTok: `https://tiktok.com/@markshnaknaks`
 - Telegram channel: `https://t.me/markreyvakh`
 - Telegram chat/support: `https://t.me/+BTVcC_RjdWJhYWEy`
-- X: `https://x.com/MarkyReykvakh`
+- X: `https://x.com/MarkyReyvakh`
 
 Stripe fields can be stored per product:
 
