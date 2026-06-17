@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+output
+test-results
+playwright-report
+coverage
+.env*
+npm-debug.log*
+Dockerfile
+docker-compose*.yml

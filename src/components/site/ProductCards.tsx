@@ -1,0 +1,278 @@
+import {
+  ArrowRight,
+  Check,
+  CreditCard,
+  Gem,
+  Lock,
+  Send,
+  WalletCards,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import {
+  BrandIcon,
+  brandIconStyle,
+} from "@/components/site/BrandIcon";
+import { SectionShell } from "@/components/site/SectionShell";
+import { paymentConfig } from "@/data/payments";
+import { products, type Product } from "@/data/products";
+import type { BrandIconKey } from "@/lib/brand-icons";
+import { getExternalLinkProps } from "@/lib/links";
+
+const accentClass: Record<Product["accent"], string> = {
+  lace: "from-mark-200 via-mark-100 to-white",
+  catboy: "from-mark-300 via-mark-200 to-mark-50",
+  backstage: "from-mark-100 via-white to-mark-200",
+  vip: "from-mark-500 via-mark-300 to-mark-50",
+};
+
+const providerIcon = {
+  stripe: CreditCard,
+  crypto: WalletCards,
+  telegram: Send,
+  soon: Lock,
+};
+
+const providerLabel = {
+  stripe: "photo pack",
+  crypto: "crypto option",
+  telegram: "VIP channel",
+  soon: "preview",
+};
+
+const providerBrandIcon: Partial<Record<Product["checkoutProvider"], BrandIconKey>> = {
+  stripe: "stripe",
+  telegram: "telegram",
+};
+
+function getCta(product: Product) {
+  if (!paymentConfig.salesEnabled) {
+    return product.status === "coming-soon" ? "Preview soon" : "Preview pack";
+  }
+
+  if (product.status === "coming-soon") {
+    return "Preview soon";
+  }
+
+  if (product.checkoutProvider === "stripe" && product.stripePaymentLink) {
+    return "Buy with Stripe";
+  }
+
+  if (product.checkoutProvider === "crypto" && product.cryptoCheckoutUrl) {
+    return "Buy with crypto";
+  }
+
+  if (product.checkoutProvider === "telegram" && product.telegramVipUrl) {
+    return "Join VIP";
+  }
+
+  return "Preview pack";
+}
+
+function getHref(product: Product) {
+  if (!paymentConfig.salesEnabled) {
+    return "#contact";
+  }
+
+  return (
+    product.stripePaymentLink ||
+    product.cryptoCheckoutUrl ||
+    product.telegramVipUrl ||
+    "#contact"
+  );
+}
+
+export function ProductCards() {
+  return (
+    <SectionShell
+      id="photo-packs"
+      eyebrow="Shop preview"
+      title="Photo pack shop"
+      description="Cute cosplay drops, soft previews and VIP requests."
+      className="pt-8"
+    >
+      <div className="mb-5 flex flex-wrap gap-3">
+        {["Preview lineup", "Private delivery", "SFW packs"].map((item) => (
+          <Badge
+            key={item}
+            variant="outline"
+            className="h-9 rounded-full border-pink-200 bg-white/70 px-4 font-bold text-pink-700 shadow-sm"
+          >
+            <Check className="size-3.5" aria-hidden="true" />
+            {item}
+          </Badge>
+        ))}
+      </div>
+
+      <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_18rem]">
+        <div>
+          <div className="mb-4 grid gap-3 rounded-3xl border border-pink-100 bg-white/72 p-3 shadow-sm backdrop-blur sm:grid-cols-3">
+            {[
+              ["4 packs", "First lineup"],
+              ["Private", "Site link or Telegram follow-up"],
+              ["SFW", "Clean storefront"],
+            ].map(([value, label]) => (
+              <div key={value} className="rounded-2xl bg-pink-50/70 px-4 py-3">
+                <p className="text-sm font-black text-pink-700">{value}</p>
+                <p className="mt-1 text-xs font-bold text-rose-950/55">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-2">
+        {products.map((product) => {
+          const ProviderIcon = providerIcon[product.checkoutProvider];
+          const providerLogo = providerBrandIcon[product.checkoutProvider];
+          const cta = getCta(product);
+          const disabled = product.status === "coming-soon";
+          const href = getHref(product);
+          const safeHref = disabled ? "#photo-packs" : href;
+
+          return (
+            <article
+              key={product.slug}
+              className="group overflow-hidden rounded-3xl border border-pink-100 bg-white/76 shadow-sm backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-pink-300 hover:shadow-[0_24px_60px_rgba(236,72,153,0.16)]"
+            >
+              <div className={`relative h-52 overflow-hidden bg-gradient-to-br ${accentClass[product.accent]}`}>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.95),rgba(255,255,255,0)_24%),radial-gradient(circle_at_72%_36%,rgba(255,255,255,0.7),rgba(255,255,255,0)_18%)]" />
+                <div className="absolute left-4 top-4 flex size-10 items-center justify-center rounded-2xl bg-rose-950/76 text-white shadow-lg backdrop-blur">
+                  <Lock className="size-4" aria-hidden="true" />
+                </div>
+                <Badge className="absolute right-4 top-4 rounded-full bg-white/86 px-3 font-bold text-pink-700 shadow-sm backdrop-blur">
+                  {product.badge}
+                </Badge>
+                <div className="absolute bottom-5 left-5 right-5">
+                  <div className="mb-3 flex items-center gap-2 text-pink-500">
+                    {providerLogo ? (
+                      <span
+                        className="flex size-7 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm"
+                        style={brandIconStyle(providerLogo)}
+                      >
+                        <BrandIcon name={providerLogo} className="size-4" />
+                      </span>
+                    ) : (
+                      <Gem className="size-5" aria-hidden="true" />
+                    )}
+                    <span className="text-sm font-black uppercase tracking-[0.18em]">
+                      {providerLabel[product.checkoutProvider]}
+                    </span>
+                  </div>
+                  <div className="h-16 rounded-3xl border border-white/70 bg-white/42 shadow-inner backdrop-blur-sm" />
+                </div>
+              </div>
+
+              <div className="p-5">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h3 className="text-xl font-black leading-tight text-rose-950">
+                    {product.title}
+                  </h3>
+                  <span className="rounded-full bg-pink-50 px-3 py-1 text-sm font-black text-pink-700">
+                    {product.price}
+                  </span>
+                </div>
+                <p className="min-h-16 text-sm leading-6 text-rose-950/65">
+                  {product.description}
+                </p>
+                <ul className="mt-4 space-y-2">
+                  {product.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-2 text-sm font-semibold text-rose-950/72">
+                      <Check className="size-4 text-pink-500" aria-hidden="true" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <a
+                  href={safeHref}
+                  {...getExternalLinkProps(safeHref)}
+                  aria-disabled={disabled}
+                  className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 aria-disabled:pointer-events-none aria-disabled:bg-pink-200 aria-disabled:text-pink-800"
+                >
+                  {disabled ? <Lock className="size-4" aria-hidden="true" /> : <ProviderIcon className="size-4" aria-hidden="true" />}
+                  {cta}
+                  {!disabled ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
+                </a>
+              </div>
+            </article>
+          );
+        })}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-pink-100 bg-white/76 p-5 shadow-sm backdrop-blur">
+          <h3 className="flex items-center gap-2 text-xl font-black text-pink-700">
+            <CreditCard className="size-5" aria-hidden="true" />
+            Drop access
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-rose-950/65">
+            Card checkout stays the main flow. Crypto can be added as a secondary option. Telegram stays for VIP, support and delivery follow-up.
+          </p>
+          <div className="mt-4 space-y-3">
+            {[
+              ["Delivery", "Private site link or Telegram follow-up."],
+              ["Support", "Requests and order help through Telegram."],
+              ["Checkout", "Card first, crypto optional."],
+            ].map(([title, text]) => (
+              <div key={title} className="rounded-2xl border border-pink-100 bg-white/76 p-3">
+                <p className="text-sm font-black text-rose-950">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-rose-950/58">{text}</p>
+              </div>
+            ))}
+          </div>
+          <a
+            href={paymentConfig.telegram.requestBotUrl || "#contact"}
+            {...getExternalLinkProps(paymentConfig.telegram.requestBotUrl || "#contact")}
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 text-sm font-black text-pink-700 transition hover:border-pink-300 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+          >
+            <Send className="size-4" aria-hidden="true" />
+            Request custom drop
+          </a>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
+          <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("stripe")}>
+            <BrandIcon name="stripe" className="size-5" />
+          </span>
+          <h3 className="mt-4 text-lg font-black text-rose-950">Card checkout</h3>
+          <p className="mt-2 text-sm leading-6 text-rose-950/65">
+            Best launch option for card payments, invoices and accounting.
+          </p>
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
+            Secure hosted checkout
+          </p>
+        </div>
+        <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
+          <div className="flex gap-2">
+            <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("bitcoin")}>
+              <BrandIcon name="bitcoin" className="size-5" />
+            </span>
+            <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("litecoin")}>
+              <BrandIcon name="litecoin" className="size-5" />
+            </span>
+          </div>
+          <h3 className="mt-4 text-lg font-black text-rose-950">BTCPay Server</h3>
+          <p className="mt-2 text-sm leading-6 text-rose-950/65">
+            Non-custodial crypto checkout as a secondary path once wallets and backups are set.
+          </p>
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
+            BTC and Lightning first
+          </p>
+        </div>
+        <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
+          <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("telegram")}>
+            <BrandIcon name="telegram" className="size-5" />
+          </span>
+          <h3 className="mt-4 text-lg font-black text-rose-950">Telegram VIP</h3>
+          <p className="mt-2 text-sm leading-6 text-rose-950/65">
+            Announcements, support, private invites and delivery follow-up.
+          </p>
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
+            Updates and private invites
+          </p>
+        </div>
+      </div>
+    </SectionShell>
+  );
+}
