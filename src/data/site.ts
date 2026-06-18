@@ -9,8 +9,11 @@ export const siteConfig = {
     "Marky's SFW creator storefront for cosplay drops, social links, photo pack previews and collab requests.",
   shortDescription:
     "SFW cosplay drops, social links, photo pack previews and collabs.",
-  socialImage: "/images/mark-portrait-sketch.png",
-  iconImage: "/images/mark-chibi-sketch.png",
+  socialImage: "/images/marky-og.png",
+  iconImage: "/favicon.png",
+  appleTouchIconImage: "/apple-touch-icon.png",
+  manifestIconImage: "/images/marky-icon-512.png",
+  logoImage: "/images/marky-logo.png",
   portraitImage: "/images/mark-portrait-sketch.png",
   collabEmail: "collabs@markshnaknaks.com",
   instagramUrl: "https://instagram.com/markshnaknaks",

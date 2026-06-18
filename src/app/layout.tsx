@@ -52,6 +52,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: siteConfig.socialImage,
+        width: 1200,
+        height: 630,
         alt: `${siteConfig.brandName} ${siteConfig.handle}`,
       },
     ],
@@ -83,8 +85,20 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: siteConfig.iconImage,
-    apple: siteConfig.iconImage,
+    icon: [
+      {
+        url: siteConfig.iconImage,
+        sizes: "96x96",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: siteConfig.appleTouchIconImage,
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
   },
 };
 

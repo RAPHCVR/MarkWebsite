@@ -2,6 +2,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  isOrdersDatabaseConfigured,
+  recordBtcpayWebhookEvent,
+} from "@/lib/server/orders";
+
 export const runtime = "nodejs";
 
 function isValidSignature(body: string, signature: string | null, secret: string) {
@@ -37,6 +42,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
+  if (!isOrdersDatabaseConfigured()) {
+    return NextResponse.json(
+      { error: "Order database is not configured" },
+      { status: 503 },
+    );
+  }
+
   let event: {
     type?: string;
     invoiceId?: string;
@@ -49,12 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  console.info("BTCPay webhook received", {
-    type: event.type,
-    invoiceId: event.invoiceId,
-    orderId: event.metadata?.orderId,
-    productSlug: event.metadata?.productSlug,
-  });
+  await recordBtcpayWebhookEvent(event);
 
   return NextResponse.json({ ok: true });
 }

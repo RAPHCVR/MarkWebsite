@@ -85,7 +85,9 @@ function getHref(product: Product) {
 function canShowCryptoCheckout(product: Product) {
   return (
     paymentConfig.salesEnabled &&
+    paymentConfig.crypto.checkoutEnabled &&
     paymentConfig.crypto.btcpay.configured &&
+    paymentConfig.crypto.databaseConfigured &&
     product.status !== "coming-soon"
   );
 }
@@ -230,16 +232,17 @@ export function ProductCards() {
         <div className="rounded-3xl border border-pink-100 bg-white/76 p-5 shadow-sm backdrop-blur">
           <h3 className="flex items-center gap-2 text-xl font-black text-pink-700">
             <CreditCard className="size-5" aria-hidden="true" />
-            Drop access
+            Access
           </h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Card checkout stays the main flow. Crypto can be added as a secondary option. Telegram stays for VIP, support and delivery follow-up.
+            Start with the pack preview, then use Telegram for VIP access,
+            requests and delivery follow-up.
           </p>
           <div className="mt-4 space-y-3">
             {[
-              ["Delivery", "Private site link or Telegram follow-up."],
-              ["Support", "Requests and order help through Telegram."],
-              ["Checkout", "Card first, crypto optional."],
+              ["Delivery", "Private link or Telegram follow-up."],
+              ["Support", "Order help and custom requests."],
+              ["Checkout", "Card payments first. Crypto can open later."],
             ].map(([title, text]) => (
               <div key={title} className="rounded-2xl border border-pink-100 bg-white/76 p-3">
                 <p className="text-sm font-black text-rose-950">{title}</p>
@@ -265,10 +268,10 @@ export function ProductCards() {
           </span>
           <h3 className="mt-4 text-lg font-black text-rose-950">Card checkout</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Best launch option for card payments, invoices and accounting.
+            Clean card payments for public drops when sales open.
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            Secure hosted checkout
+            Secure payment page
           </p>
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
@@ -280,12 +283,12 @@ export function ProductCards() {
               <BrandIcon name="litecoin" className="size-5" />
             </span>
           </div>
-          <h3 className="mt-4 text-lg font-black text-rose-950">BTCPay Server</h3>
+          <h3 className="mt-4 text-lg font-black text-rose-950">Crypto checkout</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Non-custodial crypto checkout as a secondary path once wallets and backups are set.
+            Optional self-hosted payments for buyers who prefer crypto.
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            BTC on-chain first
+            Bitcoin first
           </p>
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">

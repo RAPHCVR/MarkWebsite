@@ -61,7 +61,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/raphcvr/markwebsite@sha256:7c72bf26f475e29a8fbfaed95fc4e96e569ba060b7c8fa81cbe63b63cf2be4b6
+          image: ghcr.io/raphcvr/markwebsite@sha256:548983ddab6f2fca881afe4bbfe39b65eac018838afd794fb3b9e7eeeaad01de
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -72,6 +72,9 @@ spec:
           envFrom:
             - secretRef:
                 name: marky-payments
+                optional: true
+            - secretRef:
+                name: marky-postgres
                 optional: true
           startupProbe:
             httpGet:

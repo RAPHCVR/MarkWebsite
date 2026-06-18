@@ -29,7 +29,19 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
   );
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
     "content",
-    "https://markshnaknaks.com/images/mark-portrait-sketch.png",
+    "https://markshnaknaks.com/images/marky-og.png",
+  );
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute(
+    "content",
+    "1200",
+  );
+  await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute(
+    "content",
+    "630",
+  );
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    "/favicon.png",
   );
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
     "content",
@@ -38,9 +50,19 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
 
   const jsonLd = await page.locator('script[type="application/ld+json"]').textContent();
   const structuredData = JSON.parse(jsonLd || "{}") as {
-    "@graph"?: Array<{ "@type"?: string; sameAs?: string[] }>;
+    "@graph"?: Array<{
+      "@type"?: string;
+      mainEntity?: { "@id"?: string; "@type"?: string; name?: string; sameAs?: string[] };
+      sameAs?: string[];
+    }>;
   };
-  expect(structuredData["@graph"]?.some((entry) => entry["@type"] === "ProfilePage")).toBe(true);
+  const profilePage = structuredData["@graph"]?.find((entry) => entry["@type"] === "ProfilePage");
+  expect(profilePage?.mainEntity).toMatchObject({
+    "@id": "https://markshnaknaks.com/#person",
+    "@type": "Person",
+    name: "Marky",
+  });
+  expect(profilePage?.mainEntity?.sameAs).toContain("https://instagram.com/markshnaknaks");
   expect(
     structuredData["@graph"]?.some((entry) =>
       entry.sameAs?.includes("https://instagram.com/markshnaknaks"),
@@ -53,7 +75,16 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
 
   const manifest = await request.get("/manifest.webmanifest");
   expect(manifest.status()).toBe(200);
-  expect(await manifest.text()).toContain("Marky @markshnaknaks");
+  const manifestJson = await manifest.json() as {
+    name?: string;
+    icons?: Array<{ src?: string; sizes?: string; type?: string }>;
+  };
+  expect(manifestJson.name).toBe("Marky @markshnaknaks");
+  expect(manifestJson.icons).toContainEqual({
+    src: "/images/marky-icon-512.png",
+    sizes: "512x512",
+    type: "image/png",
+  });
 });
 
 test("interactive elements are named and external links are hardened", async ({ page }) => {
@@ -88,11 +119,15 @@ test("interactive elements are named and external links are hardened", async ({ 
       .filter((element) => !element.getAttribute("href"))
       .map((element) => element.textContent?.trim() || element.getAttribute("aria-label"));
 
+    const mailtoForms = [...document.querySelectorAll('form[action^="mailto:"]')]
+      .map((element) => element.getAttribute("aria-label") || element.outerHTML.slice(0, 120));
+
     return {
       emptyInteractive,
       unlabeledControls,
       unsafeExternalLinks,
       emptyLinks,
+      mailtoForms,
     };
   });
 
@@ -100,6 +135,7 @@ test("interactive elements are named and external links are hardened", async ({ 
   expect(audit.unlabeledControls).toEqual([]);
   expect(audit.unsafeExternalLinks).toEqual([]);
   expect(audit.emptyLinks).toEqual([]);
+  expect(audit.mailtoForms).toEqual([]);
 });
 
 test("checkout links stay disabled until sales are enabled", async ({ page }) => {
@@ -121,6 +157,22 @@ test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ r
     data: { product: "cosplay-starter-pack" },
   });
   expect(postResponse.status()).toBe(403);
+});
+
+test("contact form posts to the site endpoint", async ({ request }) => {
+  const response = await request.post("/api/contact", {
+    maxRedirects: 0,
+    form: {
+      name: "Test Sender",
+      organization: "Test Brand",
+      message: "Collab request smoke test.",
+    },
+  });
+
+  expect(response.status()).toBe(303);
+  expect(new URL(response.headers().location || "").pathname).toBe("/");
+  expect(new URL(response.headers().location || "").search).toBe("?contact=sent");
+  expect(new URL(response.headers().location || "").hash).toBe("#contact");
 });
 
 test("social links use recognizable brand icons", async ({ page }) => {

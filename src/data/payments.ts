@@ -14,11 +14,18 @@ const salesEnabled =
   process.env.SALES_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_SALES_ENABLED === "true";
 
+const cryptoCheckoutEnabled =
+  salesEnabled &&
+  (process.env.CRYPTO_CHECKOUT_ENABLED === "true" ||
+    process.env.NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED === "true");
+
 const btcpayConfigured = Boolean(
   process.env.BTCPAY_SERVER_URL &&
     process.env.BTCPAY_STORE_ID &&
     process.env.BTCPAY_API_KEY,
 );
+
+const databaseConfigured = Boolean(process.env.DATABASE_URL);
 
 export const paymentConfig = {
   salesEnabled,
@@ -31,6 +38,8 @@ export const paymentConfig = {
   },
   crypto: {
     preferredProvider: "btcpay-server" satisfies CryptoProvider,
+    checkoutEnabled: cryptoCheckoutEnabled,
+    databaseConfigured,
     checkoutUrl: "",
     btcpay: {
       configured: btcpayConfigured,
@@ -41,7 +50,7 @@ export const paymentConfig = {
       apiKeyEnv: "BTCPAY_API_KEY",
       webhookSecretEnv: "BTCPAY_WEBHOOK_SECRET",
       publicCheckoutHost: "pay.markshnaknaks.com",
-      supportedMethods: ["BTC on-chain after sync", "Lightning later", "LTC later"],
+      supportedMethods: ["BTC on-chain", "Lightning later", "LTC later"],
     },
     wallets: [] satisfies CryptoWallet[],
   },

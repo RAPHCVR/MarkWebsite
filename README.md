@@ -65,6 +65,13 @@ Stripe fields can be stored per product:
 - `stripePaymentLinkId`
 
 Public buying is disabled unless `SALES_ENABLED=true` and `NEXT_PUBLIC_SALES_ENABLED=true`.
+Crypto checkout also requires `CRYPTO_CHECKOUT_ENABLED=true`,
+`NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=true`, a BTCPay store/API key and
+`DATABASE_URL` for order tracking.
+
+The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
+requests are stored in `creator_contact_requests`; otherwise the form redirects
+cleanly without storing data. The direct email CTA remains available for urgent briefs.
 
 Optional non-Stripe destinations:
 
@@ -95,13 +102,16 @@ BTCPAY_SERVER_URL=https://pay.markshnaknaks.com
 BTCPAY_STORE_ID=...
 BTCPAY_API_KEY=...
 BTCPAY_WEBHOOK_SECRET=...
+DATABASE_URL=postgresql://...
 SALES_ENABLED=true
 NEXT_PUBLIC_SALES_ENABLED=true
+CRYPTO_CHECKOUT_ENABLED=false
+NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=false
 ```
 
 BTCPay production checklist before enabling crypto on the public site:
 
-- `pay.markshnaknaks.com/api/v1/health` returns 200.
+- `pay.markshnaknaks.com/api/v1/health` returns 200 and `synchronized:true`.
 - Bitcoin Core is out of Initial Block Download.
 - NBXplorer reports BTC as connected/synced.
 - The Marky store has a BTC on-chain payment method.
@@ -144,6 +154,7 @@ This version is a SFW preview site. OnlyFans is marked as a future creator-chann
 - interactive elements have accessible names
 - external links use `noopener`
 - checkout configuration does not expose fake live purchase CTAs
+- contact form uses the site endpoint instead of an insecure `mailto:` form action
 - links are never rendered with empty `href` values
 - axe accessibility violations are zero
 

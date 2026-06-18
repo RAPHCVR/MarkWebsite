@@ -6,128 +6,6 @@ metadata:
     app.kubernetes.io/part-of: marky-payments
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: btcpay-postgres-init
-  namespace: btcpay
-  labels:
-    app.kubernetes.io/part-of: marky-payments
-data:
-  01-create-databases.sql: |
-    CREATE DATABASE btcpayservermainnet;
-    CREATE DATABASE nbxplorermainnet;
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: btcpay-postgres
-  namespace: btcpay
-  labels:
-    app.kubernetes.io/name: btcpay-postgres
-    app.kubernetes.io/part-of: marky-payments
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: btcpay-postgres
-    app.kubernetes.io/part-of: marky-payments
-  ports:
-    - name: postgres
-      port: 5432
-      targetPort: postgres
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: btcpay-postgres
-  namespace: btcpay
-  labels:
-    app.kubernetes.io/name: btcpay-postgres
-    app.kubernetes.io/part-of: marky-payments
-spec:
-  serviceName: btcpay-postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: btcpay-postgres
-      app.kubernetes.io/part-of: marky-payments
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: btcpay-postgres
-        app.kubernetes.io/part-of: marky-payments
-    spec:
-      automountServiceAccountToken: false
-      enableServiceLinks: false
-      securityContext:
-        fsGroup: 999
-        fsGroupChangePolicy: OnRootMismatch
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: postgres
-          image: btcpayserver/postgres:18.1-1
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 5432
-              name: postgres
-          env:
-            - name: POSTGRES_USER
-              value: postgres
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: btcpay-core-secrets
-                  key: POSTGRES_PASSWORD
-            - name: POSTGRES_DB
-              value: postgres
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          readinessProbe:
-            exec:
-              command:
-                - sh
-                - -ec
-                - pg_isready -U postgres
-            periodSeconds: 10
-            timeoutSeconds: 3
-          livenessProbe:
-            exec:
-              command:
-                - sh
-                - -ec
-                - pg_isready -U postgres
-            initialDelaySeconds: 30
-            periodSeconds: 20
-            timeoutSeconds: 3
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 1Gi
-          volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql
-            - name: postgres-init
-              mountPath: /docker-entrypoint-initdb.d
-              readOnly: true
-      volumes:
-        - name: postgres-init
-          configMap:
-            name: btcpay-postgres-init
-  volumeClaimTemplates:
-    - metadata:
-        name: postgres-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        storageClassName: longhorn-custom
-        resources:
-          requests:
-            storage: 20Gi
----
-apiVersion: v1
 kind: Service
 metadata:
   name: btcpay-bitcoind
@@ -237,8 +115,8 @@ spec:
                 - -ec
                 - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
             periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 60
+            timeoutSeconds: 20
+            failureThreshold: 120
           readinessProbe:
             exec:
               command:
@@ -246,16 +124,18 @@ spec:
                 - -ec
                 - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
             periodSeconds: 20
-            timeoutSeconds: 5
+            timeoutSeconds: 20
+            failureThreshold: 6
           livenessProbe:
             exec:
               command:
                 - sh
                 - -ec
                 - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
-            initialDelaySeconds: 120
+            initialDelaySeconds: 300
             periodSeconds: 60
-            timeoutSeconds: 10
+            timeoutSeconds: 30
+            failureThreshold: 10
           resources:
             requests:
               cpu: 250m
@@ -331,11 +211,16 @@ spec:
             - containerPort: 32838
               name: http
           env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-postgres-central
+                  key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: btcpay-core-secrets
-                  key: POSTGRES_PASSWORD
+                  name: btcpay-postgres-central
+                  key: password
             - name: BITCOIN_RPC_USER
               valueFrom:
                 secretKeyRef:
@@ -353,7 +238,7 @@ spec:
             - --port=32838
             - --datadir=/datadir
             - --noauth
-            - --postgres=User ID=postgres;Password=$(POSTGRES_PASSWORD);Host=btcpay-postgres;Port=5432;Application Name=nbxplorer;Database=nbxplorermainnet
+            - --postgres=User ID=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD);Host=postgresql-ha-rw.database.svc.cluster.local;Port=5432;Application Name=nbxplorer;Database=nbxplorermainnet
             - --btcrpcurl=http://btcpay-bitcoind:43782/
             - --btcrpcuser=$(BITCOIN_RPC_USER)
             - --btcrpcpassword=$(BITCOIN_RPC_PASSWORD)
@@ -382,6 +267,11 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: nbxplorer-data
               mountPath: /datadir
@@ -469,12 +359,17 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: btcpay-core-secrets
-                  key: POSTGRES_PASSWORD
+                  name: btcpay-postgres-central
+                  key: password
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-postgres-central
+                  key: username
             - name: BTCPAY_POSTGRES
-              value: User ID=postgres;Password=$(POSTGRES_PASSWORD);Host=btcpay-postgres;Port=5432;Application Name=btcpayserver;Database=btcpayservermainnet
+              value: User ID=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD);Host=postgresql-ha-rw.database.svc.cluster.local;Port=5432;Application Name=btcpayserver;Database=btcpayservermainnet
             - name: BTCPAY_EXPLORERPOSTGRES
-              value: User ID=postgres;Password=$(POSTGRES_PASSWORD);Host=btcpay-postgres;Port=5432;Application Name=btcpayserver;Database=nbxplorermainnet
+              value: User ID=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD);Host=postgresql-ha-rw.database.svc.cluster.local;Port=5432;Application Name=btcpayserver;Database=nbxplorermainnet
           startupProbe:
             tcpSocket:
               port: http
@@ -500,6 +395,11 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: btcpay-data
               mountPath: /datadir

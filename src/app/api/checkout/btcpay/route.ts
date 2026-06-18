@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
+import {
+  ensureOrdersDatabaseReady,
+  isOrdersDatabaseConfigured,
+  recordBtcpayCheckoutInvoice,
+} from "@/lib/server/orders";
 
 export const runtime = "nodejs";
 
@@ -47,10 +52,17 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!paymentConfig.salesEnabled) {
+  if (!paymentConfig.salesEnabled || !paymentConfig.crypto.checkoutEnabled) {
     return NextResponse.json(
-      { error: "Sales are not enabled yet" },
+      { error: "Crypto checkout is not enabled yet" },
       { status: 403 },
+    );
+  }
+
+  if (!paymentConfig.crypto.btcpay.configured || !isOrdersDatabaseConfigured()) {
+    return NextResponse.json(
+      { error: "BTCPay checkout is not fully configured yet" },
+      { status: 503 },
     );
   }
 
@@ -73,6 +85,8 @@ export async function POST(request: NextRequest) {
     const storeId = requiredEnv("BTCPAY_STORE_ID");
     const apiKey = requiredEnv("BTCPAY_API_KEY");
     const orderId = `marky-${product.slug}-${crypto.randomUUID()}`;
+
+    await ensureOrdersDatabaseReady();
 
     const response = await fetch(`${serverUrl}/api/v1/stores/${storeId}/invoices`, {
       method: "POST",
@@ -102,14 +116,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const invoice = (await response.json()) as { checkoutLink?: string };
+    const invoice = (await response.json()) as {
+      checkoutLink?: string;
+      id?: string;
+      status?: string;
+    };
 
-    if (!invoice.checkoutLink) {
+    if (!invoice.checkoutLink || !invoice.id) {
       return NextResponse.json(
-        { error: "BTCPay invoice did not return a checkout link" },
+        { error: "BTCPay invoice did not return a usable checkout link" },
         { status: 502 },
       );
     }
+
+    await recordBtcpayCheckoutInvoice({
+      orderId,
+      product,
+      providerInvoiceId: invoice.id,
+      checkoutLink: invoice.checkoutLink,
+      providerStatus: invoice.status,
+      metadata: {
+        source: "checkout-route",
+      },
+    });
 
     return NextResponse.redirect(invoice.checkoutLink, 303);
   } catch {

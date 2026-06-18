@@ -1,6 +1,18 @@
 import { publicSocialUrls, siteConfig } from "@/data/site";
 
 const absoluteUrl = (path: string) => new URL(path, siteConfig.publicUrl).toString();
+const personId = `${siteConfig.publicUrl}/#person`;
+
+const personStructuredData = {
+  "@type": "Person",
+  "@id": personId,
+  name: siteConfig.legalDisplayName,
+  alternateName: [siteConfig.brandName, siteConfig.handle],
+  description: siteConfig.shortDescription,
+  url: siteConfig.publicUrl,
+  image: absoluteUrl(siteConfig.portraitImage),
+  sameAs: publicSocialUrls,
+} as const;
 
 export const seoStructuredData = {
   "@context": "https://schema.org",
@@ -14,7 +26,7 @@ export const seoStructuredData = {
       inLanguage: "en",
       description: siteConfig.description,
       publisher: {
-        "@id": `${siteConfig.publicUrl}/#person`,
+        "@id": personId,
       },
     },
     {
@@ -28,8 +40,9 @@ export const seoStructuredData = {
         "@id": `${siteConfig.publicUrl}/#website`,
       },
       about: {
-        "@id": `${siteConfig.publicUrl}/#person`,
+        "@id": personId,
       },
+      mainEntity: personStructuredData,
       primaryImageOfPage: {
         "@type": "ImageObject",
         url: absoluteUrl(siteConfig.socialImage),
@@ -37,14 +50,6 @@ export const seoStructuredData = {
         height: 630,
       },
     },
-    {
-      "@type": "Person",
-      "@id": `${siteConfig.publicUrl}/#person`,
-      name: siteConfig.legalDisplayName,
-      alternateName: [siteConfig.brandName, siteConfig.handle],
-      url: siteConfig.publicUrl,
-      image: absoluteUrl(siteConfig.portraitImage),
-      sameAs: publicSocialUrls,
-    },
+    personStructuredData,
   ],
 } as const;

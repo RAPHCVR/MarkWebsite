@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionShell } from "@/components/site/SectionShell";
-import { collabMailto, siteConfig } from "@/data/site";
+import { collabMailto } from "@/data/site";
 
 export function Contact() {
   return (
@@ -37,9 +37,8 @@ export function Contact() {
 
         <form
           className="rounded-[2rem] border border-pink-100 bg-white/78 p-5 shadow-[0_24px_60px_rgba(236,72,153,0.12)] backdrop-blur sm:p-6"
-          action={`mailto:${siteConfig.collabEmail}`}
+          action="/api/contact"
           method="post"
-          encType="text/plain"
           aria-label="Collaboration contact form"
         >
           <div className="mb-5 flex items-center justify-between gap-4">
@@ -53,6 +52,15 @@ export function Contact() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <label className="sr-only">
+              Website
+              <Input
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                className="hidden"
+              />
+            </label>
             <label className="space-y-2">
               <span className="text-sm font-bold text-rose-950">Name</span>
               <Input name="name" autoComplete="name" placeholder="Your name" className="min-h-12 rounded-2xl border-pink-200 bg-white/80" />
@@ -80,7 +88,7 @@ export function Contact() {
             Send request
           </Button>
           <p id="contact-form-note" className="mt-3 text-center text-xs font-medium text-rose-950/55">
-            Opens your mail app with the request details.
+            Sends the request to the site inbox. Email is available for urgent briefs.
           </p>
         </form>
       </div>

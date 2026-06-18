@@ -1,4 +1,5 @@
-import { Cat, Heart } from "lucide-react";
+import Image from "next/image";
+import { Heart } from "lucide-react";
 
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import { siteConfig } from "@/data/site";
@@ -12,8 +13,14 @@ export function Footer() {
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-pink-600 text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)]">
-                <Cat className="size-6" aria-hidden="true" />
+              <span className="relative size-12 overflow-hidden rounded-2xl border border-pink-200 bg-pink-50 shadow-inner">
+                <Image
+                  src={siteConfig.logoImage}
+                  alt=""
+                  fill
+                  sizes="48px"
+                  className="object-cover"
+                />
               </span>
               <div>
                 <p className="font-logo text-3xl text-pink-500">{siteConfig.brandName}</p>

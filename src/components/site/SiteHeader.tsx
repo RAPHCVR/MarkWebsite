@@ -1,4 +1,5 @@
-import { Crown, Heart, ShoppingBag } from "lucide-react";
+import Image from "next/image";
+import { Crown, ShoppingBag } from "lucide-react";
 
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import { paymentConfig } from "@/data/payments";
@@ -14,8 +15,15 @@ export function SiteHeader() {
           className="flex min-w-0 items-center gap-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
           aria-label="Mark home"
         >
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-pink-200 bg-pink-50 text-pink-500">
-            <Heart className="size-6" aria-hidden="true" />
+          <span className="relative size-11 shrink-0 overflow-hidden rounded-2xl border border-pink-200 bg-pink-50 shadow-inner">
+            <Image
+              src={siteConfig.logoImage}
+              alt=""
+              fill
+              sizes="44px"
+              className="object-cover"
+              priority
+            />
           </span>
           <span className="min-w-0">
             <span className="block truncate font-logo text-2xl leading-none text-pink-500 sm:text-3xl">
