@@ -92,6 +92,7 @@ spec:
                 listen=1
                 discover=1
                 txindex=0
+                dbcache=2048
                 prune=55000
                 blockfilterindex=1
                 peerblockfilters=1
@@ -109,32 +110,23 @@ spec:
                 zmqpubrawblock=tcp://0.0.0.0:28332
                 zmqpubrawtx=tcp://0.0.0.0:28333
           startupProbe:
-            exec:
-              command:
-                - sh
-                - -ec
-                - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
+            tcpSocket:
+              port: rpc
             periodSeconds: 10
-            timeoutSeconds: 20
+            timeoutSeconds: 3
             failureThreshold: 120
           readinessProbe:
-            exec:
-              command:
-                - sh
-                - -ec
-                - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
+            tcpSocket:
+              port: rpc
             periodSeconds: 20
-            timeoutSeconds: 20
+            timeoutSeconds: 3
             failureThreshold: 6
           livenessProbe:
-            exec:
-              command:
-                - sh
-                - -ec
-                - bitcoin-cli -datadir=/data -rpcuser="$BITCOIN_RPC_USER" -rpcpassword="$BITCOIN_RPC_PASSWORD" getnetworkinfo >/dev/null
+            tcpSocket:
+              port: rpc
             initialDelaySeconds: 300
             periodSeconds: 60
-            timeoutSeconds: 30
+            timeoutSeconds: 3
             failureThreshold: 10
           resources:
             requests:
