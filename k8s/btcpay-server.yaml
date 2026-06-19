@@ -91,6 +91,8 @@ spec:
                 server=1
                 listen=1
                 discover=1
+                dnsseed=1
+                maxconnections=48
                 txindex=0
                 dbcache=2048
                 prune=55000
@@ -107,6 +109,11 @@ spec:
                 rpcuser=$(BITCOIN_RPC_USER)
                 rpcpassword=$(BITCOIN_RPC_PASSWORD)
                 port=39388
+                addnode=seed.bitcoin.sipa.be
+                addnode=dnsseed.bluematt.me
+                addnode=seed.bitcoin.jonasschnelli.ch
+                addnode=seed.bitcoin.sprovoost.nl
+                addnode=dnsseed.emzy.de
                 zmqpubrawblock=tcp://0.0.0.0:28332
                 zmqpubrawtx=tcp://0.0.0.0:28333
           startupProbe:

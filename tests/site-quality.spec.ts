@@ -27,18 +27,11 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
     "href",
     "https://markshnaknaks.com",
   );
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
-    "content",
-    "https://markshnaknaks.com/images/marky-og.png",
-  );
-  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute(
-    "content",
-    "1200",
-  );
-  await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute(
-    "content",
-    "630",
-  );
+  await expect(
+    page.locator('meta[property="og:image"][content="https://markshnaknaks.com/images/marky-og.png"]'),
+  ).toHaveCount(1);
+  await expect(page.locator('meta[property="og:image:width"][content="1200"]')).toHaveCount(1);
+  await expect(page.locator('meta[property="og:image:height"][content="630"]')).toHaveCount(1);
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
     "href",
     "/favicon.png",
@@ -178,7 +171,18 @@ test("contact form posts to the site endpoint", async ({ request }) => {
 test("social links use recognizable brand icons", async ({ page }) => {
   await page.goto("/");
 
-  for (const brand of ["instagram", "tiktok", "telegram", "x", "gmail", "onlyfans", "bitcoin", "litecoin"]) {
+  for (const brand of [
+    "instagram",
+    "tiktok",
+    "telegram",
+    "x",
+    "gmail",
+    "onlyfans",
+    "bitcoin",
+    "litecoin",
+    "circle",
+    "tether",
+  ]) {
     await expect(page.locator(`[data-brand-icon="${brand}"]:visible`).first()).toBeVisible();
   }
 });

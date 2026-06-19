@@ -68,6 +68,9 @@ Public buying is disabled unless `SALES_ENABLED=true` and `NEXT_PUBLIC_SALES_ENA
 Crypto checkout also requires `CRYPTO_CHECKOUT_ENABLED=true`,
 `NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=true`, a BTCPay store/API key and
 `DATABASE_URL` for order tracking.
+BTCPay env vars being present is not enough to show crypto checkout. The site
+also requires explicit wallet readiness flags so the UI does not expose a rail
+while Bitcoin Core is still syncing or the store has no wallet.
 
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
 requests are stored in `creator_contact_requests`; otherwise the form redirects
@@ -79,11 +82,15 @@ Optional non-Stripe destinations:
 - `paymentConfig.crypto.checkoutUrl`
 - `paymentConfig.crypto.wallets`
 - `paymentConfig.crypto.btcpay`
+- `paymentConfig.crypto.rails`
+- `paymentConfig.crypto.stablecoin`
 - `paymentConfig.telegram.vipUrl`
 - `paymentConfig.telegram.requestBotUrl`
 
 Do not add fake wallet addresses. Use empty strings until real destinations are confirmed.
 BTCPay invoice creation is exposed as a POST route only, so bots and crawlers cannot create invoices by loading a URL.
+
+Detailed crypto rail decisions and fee notes live in `docs/crypto-payment-strategy.md`.
 
 ## Payment Direction
 
@@ -91,7 +98,10 @@ Recommended launch path:
 
 - Use Stripe Payment Links first for SFW photo packs if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables, but public buying stays paused until the products and legal pages are final.
 - Move to Stripe Checkout Sessions later if the site needs a cart, webhooks, automatic delivery, coupons tied to accounts, or richer order metadata.
-- Use BTCPay Server as the best self-hosted crypto option if low fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the Bitcoin node is synced, and the store has a BTC wallet/payment method configured.
+- Use BTCPay Server as the best self-hosted BTC option if low card fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the Bitcoin node is synced, and the store has a BTC wallet/payment method configured.
+- Add Litecoin only if buyer demand justifies operating a second UTXO node/explorer. It is cheap for buyers, but it is not free operationally.
+- Add USDC on Solana through a separate stablecoin processor if crypto becomes a real sales channel. Do not force USDC/Solana/TRON into the BTCPay BTC stack.
+- Keep TRON/USDT and TON as later rails. TRON is popular for stablecoins but resource/energy fees can be surprisingly high without a managed energy strategy; TON only makes sense if Telegram becomes the primary paid flow.
 - Use Telegram for channel updates, VIP invites, support, custom requests and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
 - Keep Stripe products clearly non-explicit: cosplay sets, outfit previews, soft creator photos, and clean paid packs. If the offer changes, review payment-provider rules before launch.
 
@@ -102,12 +112,29 @@ BTCPAY_SERVER_URL=https://pay.markshnaknaks.com
 BTCPAY_STORE_ID=...
 BTCPAY_API_KEY=...
 BTCPAY_WEBHOOK_SECRET=...
+BTCPAY_BTC_WALLET_READY=false
+NEXT_PUBLIC_BTCPAY_BTC_WALLET_READY=false
+BTCPAY_LTC_ENABLED=false
+NEXT_PUBLIC_BTCPAY_LTC_ENABLED=false
 DATABASE_URL=postgresql://...
+STABLECOIN_PROVIDER=none
+STABLECOIN_RAIL_READY=false
+NEXT_PUBLIC_STABLECOIN_RAIL_READY=false
+STABLECOIN_CHECKOUT_URL=
+STABLECOIN_WEBHOOK_SECRET=
 SALES_ENABLED=true
 NEXT_PUBLIC_SALES_ENABLED=true
 CRYPTO_CHECKOUT_ENABLED=false
 NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=false
 ```
+
+Crypto rail policy:
+
+- Launch default: Stripe for cards, BTCPay BTC on-chain only after node sync and wallet setup.
+- Next practical crypto rail: LTC if buyers want cheap UTXO payments, or USDC on Solana if they want a stablecoin.
+- Provider split: BTCPay for BTC/LTC-style rails; SHKeeper or Bitcart for stablecoins if self-hosting is still required.
+- No manual wallets on the public site unless there is a reconciliation backend; otherwise order matching and delivery are too fragile.
+- Runtime flags are conservative: `BTCPAY_BTC_WALLET_READY=true` means node sync, wallet setup and invoice smoke test have already passed.
 
 BTCPay production checklist before enabling crypto on the public site:
 

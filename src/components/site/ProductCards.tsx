@@ -45,6 +45,22 @@ const providerBrandIcon: Partial<Record<Product["checkoutProvider"], BrandIconKe
   telegram: "telegram",
 };
 
+const cryptoRailStatus = {
+  ready: "Ready",
+  installed: "Installed",
+  planned: "Planned",
+  research: "Later",
+  disabled: "Off",
+};
+
+const cryptoRailClass = {
+  ready: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  installed: "border-sky-200 bg-sky-50 text-sky-700",
+  planned: "border-pink-200 bg-pink-50 text-pink-700",
+  research: "border-amber-200 bg-amber-50 text-amber-700",
+  disabled: "border-slate-200 bg-slate-50 text-slate-500",
+};
+
 function getCta(product: Product) {
   if (!paymentConfig.salesEnabled) {
     return product.status === "coming-soon" ? "Preview soon" : "Preview pack";
@@ -87,6 +103,7 @@ function canShowCryptoCheckout(product: Product) {
     paymentConfig.salesEnabled &&
     paymentConfig.crypto.checkoutEnabled &&
     paymentConfig.crypto.btcpay.configured &&
+    paymentConfig.crypto.btcpay.btcWalletReady &&
     paymentConfig.crypto.databaseConfigured &&
     product.status !== "coming-soon"
   );
@@ -242,7 +259,7 @@ export function ProductCards() {
             {[
               ["Delivery", "Private link or Telegram follow-up."],
               ["Support", "Order help and custom requests."],
-              ["Checkout", "Card payments first. Crypto can open later."],
+              ["Checkout", "Stripe first; crypto opens per verified rail."],
             ].map(([title, text]) => (
               <div key={title} className="rounded-2xl border border-pink-100 bg-white/76 p-3">
                 <p className="text-sm font-black text-rose-950">{title}</p>
@@ -275,21 +292,39 @@ export function ProductCards() {
           </p>
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
-          <div className="flex gap-2">
-            <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("bitcoin")}>
-              <BrandIcon name="bitcoin" className="size-5" />
-            </span>
-            <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("litecoin")}>
-              <BrandIcon name="litecoin" className="size-5" />
-            </span>
+          <div className="flex flex-wrap gap-2">
+            {paymentConfig.crypto.rails.slice(0, 4).map((rail) => (
+              <span
+                key={rail.id}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-black ${cryptoRailClass[rail.status]}`}
+                title={`${rail.asset} on ${rail.network}: ${rail.operations}`}
+              >
+                {rail.icon ? (
+                  <span
+                    className="flex size-4 items-center justify-center text-[var(--brand-color)]"
+                    style={brandIconStyle(rail.icon)}
+                  >
+                    <BrandIcon name={rail.icon} className="size-3.5" />
+                  </span>
+                ) : null}
+                {rail.asset}
+              </span>
+            ))}
           </div>
-          <h3 className="mt-4 text-lg font-black text-rose-950">Crypto checkout</h3>
+          <h3 className="mt-4 text-lg font-black text-rose-950">Crypto rails</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Optional self-hosted payments for buyers who prefer crypto.
+            BTCPay is installed for BTC; LTC and stablecoin rails stay separate until wallets are verified.
           </p>
-          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            Bitcoin first
-          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {paymentConfig.crypto.rails.filter((rail) => rail.recommended).map((rail) => (
+              <span
+                key={rail.id}
+                className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${cryptoRailClass[rail.status]}`}
+              >
+                {rail.label} · {cryptoRailStatus[rail.status]}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
           <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("telegram")}>
