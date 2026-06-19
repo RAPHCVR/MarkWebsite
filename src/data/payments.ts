@@ -62,6 +62,8 @@ const btcpayLtcEnabled =
   process.env.BTCPAY_LTC_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_BTCPAY_LTC_ENABLED === "true";
 
+const btcpayLtcNodeInstalled = true;
+
 const stablecoinProvider =
   process.env.STABLECOIN_PROVIDER === "shkeeper" ||
   process.env.STABLECOIN_PROVIDER === "bitcart"
@@ -102,11 +104,13 @@ export const cryptoRails = [
     asset: "LTC",
     network: "Litecoin mainnet",
     provider: "btcpay-server",
-    status: btcpayLtcEnabled ? "installed" : "planned",
+    status: btcpayLtcEnabled || btcpayLtcNodeInstalled ? "installed" : "planned",
     icon: "litecoin",
     recommended: true,
     buyerCost: "Very low network fees and familiar wallet support.",
-    operations: "Needs a separate LTC node, NBXplorer chain config and wallet before public activation.",
+    operations: btcpayLtcEnabled
+      ? "Litecoin checkout is enabled by feature flag."
+      : "Litecoin node is syncing; explorer and wallet wiring must pass before public checkout.",
   },
   {
     id: "usdc-solana",
@@ -172,6 +176,7 @@ export const paymentConfig = {
       configured: btcpayConfigured,
       btcWalletReady: btcpayBtcWalletReady,
       ltcEnabled: btcpayLtcEnabled,
+      ltcNodeInstalled: btcpayLtcNodeInstalled,
       checkoutRoute: "/api/checkout/btcpay",
       webhookRoute: "/api/webhooks/btcpay",
       serverUrlEnv: "BTCPAY_SERVER_URL",
@@ -181,7 +186,7 @@ export const paymentConfig = {
       btcWalletReadyEnv: "BTCPAY_BTC_WALLET_READY",
       ltcEnabledEnv: "BTCPAY_LTC_ENABLED",
       publicCheckoutHost: "pay.markshnaknaks.com",
-      supportedMethods: ["BTC on-chain after wallet sync", "LTC later"],
+      supportedMethods: ["LTC after node/explorer sync", "BTC on-chain after wallet sync"],
     },
     wallets: [] satisfies CryptoWallet[],
   },

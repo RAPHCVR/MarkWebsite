@@ -1,0 +1,168 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-blockchain-single-any
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+    storage.raphcvr.me/profile: rebuildable-single-replica-any-node
+provisioner: driver.longhorn.io
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  dataLocality: best-effort
+  fromBackup: ""
+  fsType: ext4
+  numberOfReplicas: "1"
+  recurringJobSelector: '[{"name":"blockchain-reclaim","isGroup":true}]'
+  staleReplicaTimeout: "2880"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: btcpay-litecoind
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-litecoind
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: btcpay-litecoind
+    app.kubernetes.io/part-of: marky-payments
+  ports:
+    - name: rpc
+      port: 9332
+      targetPort: rpc
+    - name: p2p
+      port: 9333
+      targetPort: p2p
+    - name: zmq-block
+      port: 28334
+      targetPort: zmq-block
+    - name: zmq-tx
+      port: 28335
+      targetPort: zmq-tx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: btcpay-litecoind
+  namespace: btcpay
+  labels:
+    app.kubernetes.io/name: btcpay-litecoind
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  serviceName: btcpay-litecoind
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: btcpay-litecoind
+      app.kubernetes.io/part-of: marky-payments
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: btcpay-litecoind
+        app.kubernetes.io/part-of: marky-payments
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: talos-h9q-3tl
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: litecoind
+          image: btcpayserver/litecoin:0.21.5.4
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              mkdir -p /data
+              cat > /data/litecoin.conf <<EOF
+              server=1
+              listen=1
+              discover=1
+              dnsseed=1
+              maxconnections=96
+              txindex=0
+              dbcache=2048
+              checkblocks=1
+              prune=20000
+              rpcbind=0.0.0.0
+              rpcallowip=10.0.0.0/8
+              rpcallowip=172.16.0.0/12
+              rpcallowip=192.168.0.0/16
+              rpcport=9332
+              rpcuser=${LITECOIN_RPC_USER}
+              rpcpassword=${LITECOIN_RPC_PASSWORD}
+              zmqpubrawblock=tcp://0.0.0.0:28334
+              zmqpubrawtx=tcp://0.0.0.0:28335
+              EOF
+              exec litecoind -datadir=/data -conf=/data/litecoin.conf -printtoconsole
+          ports:
+            - containerPort: 9332
+              name: rpc
+            - containerPort: 9333
+              name: p2p
+            - containerPort: 28334
+              name: zmq-block
+            - containerPort: 28335
+              name: zmq-tx
+          env:
+            - name: LITECOIN_RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-litecoin-secrets
+                  key: LITECOIN_RPC_USER
+            - name: LITECOIN_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-litecoin-secrets
+                  key: LITECOIN_RPC_PASSWORD
+          startupProbe:
+            tcpSocket:
+              port: rpc
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 90
+          readinessProbe:
+            tcpSocket:
+              port: rpc
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: rpc
+            initialDelaySeconds: 300
+            periodSeconds: 60
+            timeoutSeconds: 3
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: litecoin-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: litecoin-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn-blockchain-single-any
+        resources:
+          requests:
+            storage: 40Gi

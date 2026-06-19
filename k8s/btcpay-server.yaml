@@ -83,7 +83,7 @@ spec:
       port: 43782
       targetPort: rpc
     - name: p2p
-      port: 39388
+      port: 8333
       targetPort: p2p
     - name: zmq-block
       port: 28332
@@ -134,7 +134,7 @@ spec:
           ports:
             - containerPort: 43782
               name: rpc
-            - containerPort: 39388
+            - containerPort: 8333
               name: p2p
             - containerPort: 28332
               name: zmq-block
@@ -159,12 +159,11 @@ spec:
                 listen=1
                 discover=1
                 dnsseed=1
-                maxconnections=48
+                maxconnections=96
                 txindex=0
-                dbcache=2048
+                dbcache=4096
+                checkblocks=1
                 prune=55000
-                blockfilterindex=1
-                peerblockfilters=1
                 whitelist=10.0.0.0/8
                 whitelist=172.16.0.0/12
                 whitelist=192.168.0.0/16
@@ -175,12 +174,20 @@ spec:
                 rpcport=43782
                 rpcuser=$(BITCOIN_RPC_USER)
                 rpcpassword=$(BITCOIN_RPC_PASSWORD)
-                port=39388
-                addnode=seed.bitcoin.sipa.be
-                addnode=dnsseed.bluematt.me
-                addnode=seed.bitcoin.jonasschnelli.ch
-                addnode=seed.bitcoin.sprovoost.nl
-                addnode=dnsseed.emzy.de
+                addnode=136.243.9.246:8333
+                addnode=65.108.193.231:8333
+                addnode=139.162.179.83:8333
+                addnode=172.105.193.192:8333
+                addnode=45.79.22.148:8333
+                addnode=178.22.2.182:8333
+                addnode=34.197.216.229:8333
+                seednode=seed.bitcoin.sipa.be
+                seednode=dnsseed.bluematt.me
+                seednode=seed.bitcoin.jonasschnelli.ch
+                seednode=seed.bitcoin.sprovoost.nl
+                seednode=dnsseed.emzy.de
+                seednode=seed.bitcoin.wiz.biz
+                seednode=dnsseed.bitcoin.dashjr-list-of-p2p-nodes.us
                 zmqpubrawblock=tcp://0.0.0.0:28332
                 zmqpubrawtx=tcp://0.0.0.0:28333
           startupProbe:
@@ -208,7 +215,7 @@ spec:
               memory: 768Mi
             limits:
               cpu: "2"
-              memory: 4Gi
+              memory: 6Gi
           volumeMounts:
             - name: bitcoin-data
               mountPath: /data
@@ -308,7 +315,7 @@ spec:
             - --btcrpcurl=http://btcpay-bitcoind:43782/
             - --btcrpcuser=$(BITCOIN_RPC_USER)
             - --btcrpcpassword=$(BITCOIN_RPC_PASSWORD)
-            - --btcnodeendpoint=btcpay-bitcoind:39388
+            - --btcnodeendpoint=btcpay-bitcoind:8333
           startupProbe:
             tcpSocket:
               port: http

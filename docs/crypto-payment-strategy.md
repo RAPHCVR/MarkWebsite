@@ -7,7 +7,10 @@ Last verified: 2026-06-19.
 - `markshnaknaks.com` is live behind the `marky` Kubernetes namespace.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
-- Bitcoin Core is still in Initial Block Download, around block `503k-505k` with headers around `954k` at the last check.
+- Bitcoin Core is still in Initial Block Download, around block `504k` with headers around `954k` at the last check.
+- Bitcoin Core storage was trimmed on 2026-06-19: Longhorn actual size dropped from roughly `92G` to roughly `18-21G` after removing a stale daily snapshot chain and running `fstrim`.
+- Bitcoin Core now runs with one Longhorn replica, `checkblocks=1`, `dbcache=4096`, fixed IPv4 `addnode` entries and standard internal P2P port `8333`, but BTC is not the fast launch rail while IBD and peer stability are still being watched.
+- Litecoin Core is deployed separately as `btcpay-litecoind` with a 40Gi pruned single-replica Longhorn volume on `talos-h9q-3tl`. It started IBD successfully with outbound peers and fast header sync.
 - BTCPay currently has no BTC wallet/payment method configured.
 - The storefront production secret contains Stripe Payment Links and BTCPay env vars, but `SALES_ENABLED=false`.
 - Crypto checkout must stay disabled until BTCPay returns `synchronized:true` and a BTC wallet/payment method exists.
@@ -19,7 +22,11 @@ default for new PVCs:
 
 - `bitcoin-data`: `longhorn-blockchain-single`, 1 replica, `Retain`. This is the
   largest volume and is rebuildable from the Bitcoin network, so duplicating it
-  would waste a lot of storage during IBD.
+  would waste a lot of storage during IBD. It must not be part of the default
+  Longhorn snapshot group while the chain is syncing.
+- `litecoin-data`: `longhorn-blockchain-single-any`, 1 replica, `Retain`. This
+  is also rebuildable from the Litecoin network and is intentionally separate
+  from BTC so LTC can sync and be evaluated without blocking on Bitcoin IBD.
 - `nbxplorer-data`: `longhorn-blockchain-single`, 1 replica, `Retain`.
   NBXplorer state is backed by PostgreSQL and can be rebuilt from Bitcoin Core.
 - `btcpay-data`: `longhorn-payment-state-retain-2`, 2 replicas, `Retain`. This
@@ -32,14 +39,18 @@ Existing PVCs were originally created from `longhorn-custom`, so their
 StorageClass names remain immutable. The live Longhorn volume settings are
 patched to match the policy: Bitcoin and NBXplorer run with 1 replica, BTCPay
 app data runs with 2 replicas, and active PV reclaim policies are `Retain`.
+For Bitcoin Core, recurring Longhorn snapshots are intentionally disabled except
+for the explicit `blockchain-reclaim` cleanup group, because snapshots inflate
+storage and slow heavy append/compact workloads during IBD.
 
 ## Recommendation
 
-Use three payment layers, in this order:
+Use four payment layers, in this order:
 
 1. Stripe Payment Links for card checkout and accounting.
-2. BTCPay BTC on-chain after node sync and wallet setup.
-3. A separate stablecoin processor only if buyers ask for crypto dollars.
+2. Litecoin as the first self-hosted crypto rail once the LTC node is synced and wired to an explorer/store.
+3. BTCPay BTC on-chain after Bitcoin node sync and wallet setup.
+4. A separate stablecoin processor only if buyers ask for crypto dollars.
 
 Telegram should stay the VIP/support/delivery layer, not the main checkout system. Telegram Stars can continue inside Telegram-native flows, but website orders should still be reconciled by the site backend.
 
@@ -48,8 +59,8 @@ Telegram should stay the VIP/support/delivery layer, not the main checkout syste
 | Rail | Status | Best Use | Buyer Cost | Operator Cost | Decision |
 | --- | --- | --- | --- | --- | --- |
 | Stripe | Ready but disabled | Cards, clean accounting, refunds/disputes | Card fees, no blockchain fee | Stripe fees | Primary public checkout when products/legal are ready |
-| BTC on-chain via BTCPay | Installed, not wallet-ready | Self-hosted crypto, non-custodial checkout | Low during calm mempool, slower settlement | Bitcoin node, sync, backups | Keep and finish after sync |
-| LTC via BTCPay altcoin stack | Planned | Cheap UTXO payments for buyers | Very low network fee | Separate Litecoin node and explorer | Add only after BTC is stable |
+| BTC on-chain via BTCPay | Installed, not wallet-ready | Self-hosted crypto, non-custodial checkout | Low during calm mempool, slower settlement | Bitcoin node, sync, backups | Keep, but do not block launch on BTC |
+| LTC node | Installed, syncing | Cheap UTXO payments for buyers | Very low network fee | Separate Litecoin node and explorer | First self-hosted crypto rail to finish |
 | USDC on Solana | Planned | Low-fee stablecoin payments | Usually sub-cent network fee, token account edge cases | SHKeeper/Bitcart plus Solana RPC strategy | Best stablecoin rail if self-hosting remains required |
 | USDT on TRON | Research | Buyer familiarity, exchange withdrawals | Can be cheap with Energy, expensive without it | Energy/rental/staking strategy and processor support | Later, only if buyers demand TRON |
 | TON | Research | Telegram-native audience | Low network fee | Bot/mini-app and wallet ops | Later, if Telegram becomes paid flow |
@@ -65,7 +76,7 @@ This is a snapshot, not a hardcoded rule.
 
 ## BTCPay Completion Checklist
 
-Do not set `CRYPTO_CHECKOUT_ENABLED=true` until all items pass:
+Do not set `CRYPTO_CHECKOUT_ENABLED=true` for BTC until all items pass:
 
 - `https://pay.markshnaknaks.com/api/v1/health` returns `{"synchronized":true}`.
 - Bitcoin Core is out of Initial Block Download.
@@ -83,6 +94,23 @@ BTCPAY_BTC_WALLET_READY=true
 NEXT_PUBLIC_BTCPAY_BTC_WALLET_READY=true
 CRYPTO_CHECKOUT_ENABLED=true
 NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=true
+```
+
+## Litecoin Completion Checklist
+
+Do not show LTC checkout publicly until all items pass:
+
+- `btcpay-litecoind` is out of Initial Block Download.
+- A Litecoin explorer path is deployed and synced. Preferred: NBXplorer if the BTCPay build supports the LTC chain cleanly; otherwise keep Litecoin as a separate processor path.
+- The BTCPay store or the dedicated LTC processor has a Litecoin on-chain wallet/payment method.
+- A test invoice can be created and reconciled into the same order table.
+- Delivery remains gated by order state, not by a public manual address.
+
+Only then set a dedicated feature flag such as:
+
+```text
+BTCPAY_LTC_ENABLED=true
+NEXT_PUBLIC_BTCPAY_LTC_ENABLED=true
 ```
 
 ## Stablecoin Architecture
