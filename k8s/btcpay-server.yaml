@@ -164,9 +164,9 @@ spec:
                 dbcache=4096
                 checkblocks=1
                 prune=55000
-                whitelist=10.0.0.0/8
-                whitelist=172.16.0.0/12
-                whitelist=192.168.0.0/16
+                whitelist=download,noban,mempool,relay@10.0.0.0/8
+                whitelist=download,noban,mempool,relay@172.16.0.0/12
+                whitelist=download,noban,mempool,relay@192.168.0.0/16
                 rpcbind=0.0.0.0
                 rpcallowip=10.0.0.0/8
                 rpcallowip=172.16.0.0/12
@@ -174,20 +174,6 @@ spec:
                 rpcport=43782
                 rpcuser=$(BITCOIN_RPC_USER)
                 rpcpassword=$(BITCOIN_RPC_PASSWORD)
-                addnode=136.243.9.246:8333
-                addnode=65.108.193.231:8333
-                addnode=139.162.179.83:8333
-                addnode=172.105.193.192:8333
-                addnode=45.79.22.148:8333
-                addnode=178.22.2.182:8333
-                addnode=34.197.216.229:8333
-                seednode=seed.bitcoin.sipa.be
-                seednode=dnsseed.bluematt.me
-                seednode=seed.bitcoin.jonasschnelli.ch
-                seednode=seed.bitcoin.sprovoost.nl
-                seednode=dnsseed.emzy.de
-                seednode=seed.bitcoin.wiz.biz
-                seednode=dnsseed.bitcoin.dashjr-list-of-p2p-nodes.us
                 zmqpubrawblock=tcp://0.0.0.0:28332
                 zmqpubrawtx=tcp://0.0.0.0:28333
           startupProbe:
@@ -214,7 +200,7 @@ spec:
               cpu: 250m
               memory: 768Mi
             limits:
-              cpu: "2"
+              cpu: "4"
               memory: 6Gi
           volumeMounts:
             - name: bitcoin-data
