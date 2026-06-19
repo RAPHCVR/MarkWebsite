@@ -147,6 +147,13 @@ BTCPay production checklist before enabling crypto on the public site:
 
 No Stripe secret key is required in the frontend repo for Payment Links. If Checkout Sessions are added later, the secret key must live only in Kubernetes secrets or a server-side env store. Rotate any live secret key that has been pasted into chat, logs or local notes.
 
+BTCPay storage policy:
+
+- Bitcoin Core: 1 Longhorn replica, `Retain`, pinned to `valence-worker-02`.
+- NBXplorer: 1 Longhorn replica, `Retain`; rebuildable explorer/cache state.
+- BTCPay app data: 2 Longhorn replicas, `Retain`; small important app state.
+- Orders, invoices, users and store data: central PostgreSQL, not local BTCPay Postgres.
+
 ## Deployment
 
 Container build:

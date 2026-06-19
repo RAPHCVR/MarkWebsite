@@ -5,6 +5,66 @@ metadata:
   labels:
     app.kubernetes.io/part-of: marky-payments
 ---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: blockchain-snapshot-cleanup
+  namespace: longhorn-system
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+spec:
+  name: blockchain-snapshot-cleanup
+  task: snapshot-cleanup
+  cron: "15 4 * * *"
+  retain: 0
+  concurrency: 1
+  groups:
+    - blockchain-reclaim
+  labels:
+    managed-by: codex
+    scope: blockchain-reclaim
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-blockchain-single
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+    storage.raphcvr.me/profile: rebuildable-single-replica
+provisioner: driver.longhorn.io
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  dataLocality: strict-local
+  fromBackup: ""
+  fsType: ext4
+  numberOfReplicas: "1"
+  recurringJobSelector: '[{"name":"blockchain-reclaim","isGroup":true}]'
+  staleReplicaTimeout: "2880"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-payment-state-retain-2
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+    storage.raphcvr.me/profile: important-small-state
+provisioner: driver.longhorn.io
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  dataLocality: disabled
+  fromBackup: ""
+  fsType: ext4
+  numberOfReplicas: "2"
+  staleReplicaTimeout: "2880"
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -55,6 +115,13 @@ spec:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: valence-worker-02
+      tolerations:
+        - key: hardware.raphcvr.me/nvidia-gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
       securityContext:
         fsGroup: 101
         fsGroupChangePolicy: OnRootMismatch
@@ -151,7 +218,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-custom
+        storageClassName: longhorn-blockchain-single
         resources:
           requests:
             storage: 90Gi
@@ -280,7 +347,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-custom
+        storageClassName: longhorn-blockchain-single
         resources:
           requests:
             storage: 20Gi
@@ -408,7 +475,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-custom
+        storageClassName: longhorn-payment-state-retain-2
         resources:
           requests:
             storage: 10Gi

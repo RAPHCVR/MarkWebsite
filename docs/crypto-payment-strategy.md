@@ -12,6 +12,27 @@ Last verified: 2026-06-19.
 - The storefront production secret contains Stripe Payment Links and BTCPay env vars, but `SALES_ENABLED=false`.
 - Crypto checkout must stay disabled until BTCPay returns `synchronized:true` and a BTC wallet/payment method exists.
 
+## Kubernetes Storage Policy
+
+The BTCPay deployment uses separate Longhorn profiles instead of the cluster
+default for new PVCs:
+
+- `bitcoin-data`: `longhorn-blockchain-single`, 1 replica, `Retain`. This is the
+  largest volume and is rebuildable from the Bitcoin network, so duplicating it
+  would waste a lot of storage during IBD.
+- `nbxplorer-data`: `longhorn-blockchain-single`, 1 replica, `Retain`.
+  NBXplorer state is backed by PostgreSQL and can be rebuilt from Bitcoin Core.
+- `btcpay-data`: `longhorn-payment-state-retain-2`, 2 replicas, `Retain`. This
+  is small application state and should survive a single disk/node loss.
+- BTCPay transaction, user, store, webhook and invoice data live in the central
+  PostgreSQL service at `postgresql-ha-rw.database.svc.cluster.local`, not in a
+  local BTCPay PostgreSQL PVC.
+
+Existing PVCs were originally created from `longhorn-custom`, so their
+StorageClass names remain immutable. The live Longhorn volume settings are
+patched to match the policy: Bitcoin and NBXplorer run with 1 replica, BTCPay
+app data runs with 2 replicas, and active PV reclaim policies are `Retain`.
+
 ## Recommendation
 
 Use three payment layers, in this order:
