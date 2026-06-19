@@ -9,7 +9,7 @@ Last verified: 2026-06-19.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core was repaired on 2026-06-19 by replacing a stalled/slow old chainstate volume with a fresh `longhorn-blockchain-single` PVC. The old PV `pvc-b1e1dd7b-bcdc-492d-9ff4-4ee495881d92` is retained and labelled as a rollback artifact.
 - Bitcoin Core is in Initial Block Download on the fresh volume. At verification it had healthy outbound peers, NBXplorer was `Healthy` with BTC `CoreSynching`, and BTCPay returned `{"synchronized":false}` as expected until IBD completes.
-- Bitcoin Core now runs with one Longhorn replica, `checkblocks=1`, `dbcache=4096`, DNS peer discovery, no forced `connect`/manual `addnode` list, and standard internal P2P port `8333`.
+- Bitcoin Core now runs with one Longhorn replica, `checkblocks=1`, `dbcache=2048`, DNS peer discovery, no forced `connect`/manual `addnode` list, and standard internal P2P port `8333`. `dbcache=4096` was too aggressive for this pod and caused an OOM kill during IBD.
 - Litecoin Core is deployed separately as `btcpay-litecoind` with a 40Gi pruned single-replica Longhorn volume on `talos-h9q-3tl`. It started IBD successfully with outbound peers and fast header sync.
 - BTCPay currently has no BTC wallet/payment method configured.
 - The storefront production secret contains Stripe Payment Links and BTCPay env vars, but `SALES_ENABLED=false`.

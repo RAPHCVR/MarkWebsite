@@ -161,7 +161,7 @@ spec:
                 dnsseed=1
                 maxconnections=96
                 txindex=0
-                dbcache=4096
+                dbcache=2048
                 checkblocks=1
                 prune=55000
                 whitelist=download,noban,mempool,relay@10.0.0.0/8
@@ -197,8 +197,8 @@ spec:
             failureThreshold: 10
           resources:
             requests:
-              cpu: 250m
-              memory: 768Mi
+              cpu: "1"
+              memory: 2Gi
             limits:
               cpu: "4"
               memory: 6Gi
