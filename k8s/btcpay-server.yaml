@@ -48,6 +48,49 @@ parameters:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
+  name: local-blockchain-h9q
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+    storage.raphcvr.me/profile: rebuildable-local-chainstate
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: btcpay-bitcoin-local-h9q
+  labels:
+    app.kubernetes.io/name: btcpay-bitcoind
+    app.kubernetes.io/part-of: marky-payments
+    storage.raphcvr.me/profile: rebuildable-local-chainstate
+spec:
+  capacity:
+    storage: 90Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-blockchain-h9q
+  claimRef:
+    namespace: btcpay
+    name: bitcoin-data-btcpay-bitcoind-0
+  local:
+    path: /var/mnt/longhorn/blockchain-local/bitcoin
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - talos-h9q-3tl
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
   name: longhorn-blockchain-nvme-single
   annotations:
     storageclass.kubernetes.io/is-default-class: "false"
@@ -138,12 +181,7 @@ spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
       nodeSelector:
-        kubernetes.io/hostname: valence-worker-02
-      tolerations:
-        - key: hardware.raphcvr.me/nvidia-gpu
-          operator: Equal
-          value: "true"
-          effect: NoSchedule
+        kubernetes.io/hostname: talos-h9q-3tl
       securityContext:
         fsGroup: 101
         fsGroupChangePolicy: OnRootMismatch
@@ -234,7 +272,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-blockchain-nvme-single
+        storageClassName: local-blockchain-h9q
         resources:
           requests:
             storage: 90Gi
