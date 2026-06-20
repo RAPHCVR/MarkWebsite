@@ -48,6 +48,28 @@ parameters:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
+  name: longhorn-blockchain-nvme-single
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  labels:
+    app.kubernetes.io/part-of: marky-payments
+    storage.raphcvr.me/profile: rebuildable-single-replica-nvme
+provisioner: driver.longhorn.io
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  dataLocality: strict-local
+  diskSelector: nvme
+  fromBackup: ""
+  fsType: ext4
+  numberOfReplicas: "1"
+  recurringJobSelector: '[{"name":"blockchain-reclaim","isGroup":true}]'
+  staleReplicaTimeout: "2880"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
   name: longhorn-payment-state-retain-2
   annotations:
     storageclass.kubernetes.io/is-default-class: "false"
@@ -161,7 +183,8 @@ spec:
                 dnsseed=1
                 maxconnections=96
                 txindex=0
-                dbcache=2048
+                dbcache=1024
+                par=4
                 checkblocks=1
                 prune=55000
                 whitelist=download,noban,mempool,relay@10.0.0.0/8
@@ -198,10 +221,10 @@ spec:
           resources:
             requests:
               cpu: "1"
-              memory: 2Gi
+              memory: 1536Mi
             limits:
               cpu: "4"
-              memory: 6Gi
+              memory: 4Gi
           volumeMounts:
             - name: bitcoin-data
               mountPath: /data
@@ -211,7 +234,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-blockchain-single
+        storageClassName: longhorn-blockchain-nvme-single
         resources:
           requests:
             storage: 90Gi
@@ -290,9 +313,19 @@ spec:
                 secretKeyRef:
                   name: btcpay-core-secrets
                   key: BITCOIN_RPC_PASSWORD
+            - name: LITECOIN_RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-litecoin-secrets
+                  key: LITECOIN_RPC_USER
+            - name: LITECOIN_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: btcpay-litecoin-secrets
+                  key: LITECOIN_RPC_PASSWORD
           args:
             - --network=mainnet
-            - --chains=btc
+            - --chains=btc,ltc
             - --bind=0.0.0.0
             - --port=32838
             - --datadir=/datadir
@@ -302,6 +335,10 @@ spec:
             - --btcrpcuser=$(BITCOIN_RPC_USER)
             - --btcrpcpassword=$(BITCOIN_RPC_PASSWORD)
             - --btcnodeendpoint=btcpay-bitcoind:8333
+            - --ltcrpcurl=http://btcpay-litecoind:9332/
+            - --ltcrpcuser=$(LITECOIN_RPC_USER)
+            - --ltcrpcpassword=$(LITECOIN_RPC_PASSWORD)
+            - --ltcnodeendpoint=btcpay-litecoind:9333
           startupProbe:
             tcpSocket:
               port: http
@@ -410,8 +447,10 @@ spec:
             - name: BTCPAY_DOCKERDEPLOYMENT
               value: "false"
             - name: BTCPAY_CHAINS
-              value: btc
+              value: btc,ltc
             - name: BTCPAY_BTCEXPLORERURL
+              value: http://btcpay-nbxplorer:32838/
+            - name: BTCPAY_LTCEXPLORERURL
               value: http://btcpay-nbxplorer:32838/
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"

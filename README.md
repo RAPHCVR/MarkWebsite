@@ -149,7 +149,8 @@ No Stripe secret key is required in the frontend repo for Payment Links. If Chec
 
 BTCPay storage policy:
 
-- Bitcoin Core: 1 Longhorn replica, `Retain`, pinned to `valence-worker-02`.
+- Bitcoin Core: 1 Longhorn replica, `Retain`, pinned to `valence-worker-02` on the NVMe Longhorn disk.
+- Litecoin Core: 1 Longhorn replica, `Retain`, pinned to `valence-worker-02` on the NVMe Longhorn disk.
 - NBXplorer: 1 Longhorn replica, `Retain`; rebuildable explorer/cache state.
 - BTCPay app data: 2 Longhorn replicas, `Retain`; small important app state.
 - Orders, invoices, users and store data: central PostgreSQL, not local BTCPay Postgres.

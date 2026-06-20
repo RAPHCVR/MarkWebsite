@@ -1,24 +1,3 @@
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: longhorn-blockchain-single-any
-  annotations:
-    storageclass.kubernetes.io/is-default-class: "false"
-  labels:
-    app.kubernetes.io/part-of: marky-payments
-    storage.raphcvr.me/profile: rebuildable-single-replica-any-node
-provisioner: driver.longhorn.io
-reclaimPolicy: Retain
-allowVolumeExpansion: true
-volumeBindingMode: WaitForFirstConsumer
-parameters:
-  dataLocality: best-effort
-  fromBackup: ""
-  fsType: ext4
-  numberOfReplicas: "1"
-  recurringJobSelector: '[{"name":"blockchain-reclaim","isGroup":true}]'
-  staleReplicaTimeout: "2880"
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -70,7 +49,12 @@ spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
       nodeSelector:
-        kubernetes.io/hostname: talos-h9q-3tl
+        kubernetes.io/hostname: valence-worker-02
+      tolerations:
+        - key: hardware.raphcvr.me/nvidia-gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
       securityContext:
         fsGroup: 101
         fsGroupChangePolicy: OnRootMismatch
@@ -93,9 +77,12 @@ spec:
               dnsseed=1
               maxconnections=96
               txindex=0
-              dbcache=2048
+              dbcache=512
               checkblocks=1
               prune=20000
+              whitelist=download,noban,mempool,relay@10.0.0.0/8
+              whitelist=download,noban,mempool,relay@172.16.0.0/12
+              whitelist=download,noban,mempool,relay@192.168.0.0/16
               rpcbind=0.0.0.0
               rpcallowip=10.0.0.0/8
               rpcallowip=172.16.0.0/12
@@ -152,7 +139,7 @@ spec:
               memory: 512Mi
             limits:
               cpu: "2"
-              memory: 4Gi
+              memory: 2Gi
           volumeMounts:
             - name: litecoin-data
               mountPath: /data
@@ -162,7 +149,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-blockchain-single-any
+        storageClassName: longhorn-blockchain-nvme-single
         resources:
           requests:
             storage: 40Gi

@@ -7,10 +7,10 @@ Last verified: 2026-06-19.
 - `markshnaknaks.com` is live behind the `marky` Kubernetes namespace.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
-- Bitcoin Core was repaired on 2026-06-19 by replacing a stalled/slow old chainstate volume with a fresh `longhorn-blockchain-single` PVC. The old PV `pvc-b1e1dd7b-bcdc-492d-9ff4-4ee495881d92` is retained and labelled as a rollback artifact.
-- Bitcoin Core is in Initial Block Download on the fresh volume. At verification it had healthy outbound peers, NBXplorer was `Healthy` with BTC `CoreSynching`, and BTCPay returned `{"synchronized":false}` as expected until IBD completes.
-- Bitcoin Core now runs with one Longhorn replica, `checkblocks=1`, `dbcache=2048`, DNS peer discovery, no forced `connect`/manual `addnode` list, and standard internal P2P port `8333`. `dbcache=4096` was too aggressive for this pod and caused an OOM kill during IBD.
-- Litecoin Core is deployed separately as `btcpay-litecoind` with a 40Gi pruned single-replica Longhorn volume on `talos-h9q-3tl`. It started IBD successfully with outbound peers and fast header sync.
+- Bitcoin Core runs on `valence-worker-02` with a rebuildable 90Gi `longhorn-blockchain-nvme-single` PVC, one Longhorn replica, `checkblocks=1`, `dbcache=1024`, `par=4`, DNS peer discovery, no forced `connect`/manual `addnode` list, and standard internal P2P port `8333`.
+- Bitcoin Core is in Initial Block Download on a fresh pruned volume. During IBD, BTCPay should return `{"synchronized":false}` and crypto checkout must remain disabled.
+- Litecoin Core is deployed separately as `btcpay-litecoind` on `valence-worker-02` with a 40Gi pruned `longhorn-blockchain-nvme-single` volume and `dbcache=512`. The volume is strict-local, single-replica and pinned to the NVMe disk by Longhorn disk selector.
+- On 2026-06-19, old blockchain PVCs were treated as disposable chainstate after Longhorn/node instability and recreated instead of preserving possibly dirty filesystems.
 - BTCPay currently has no BTC wallet/payment method configured.
 - The storefront production secret contains Stripe Payment Links and BTCPay env vars, but `SALES_ENABLED=false`.
 - Crypto checkout must stay disabled until BTCPay returns `synchronized:true` and a BTC wallet/payment method exists.
@@ -20,28 +20,29 @@ Last verified: 2026-06-19.
 The BTCPay deployment uses separate Longhorn profiles instead of the cluster
 default for new PVCs:
 
-- `bitcoin-data`: `longhorn-blockchain-single`, 1 replica, `Retain`. This is the
+- `bitcoin-data`: `longhorn-blockchain-nvme-single`, 1 replica, `Retain`. This is the
   largest volume and is rebuildable from the Bitcoin network, so duplicating it
   would waste a lot of storage during IBD. It must not be part of the default
   Longhorn snapshot group while the chain is syncing.
-- `litecoin-data`: `longhorn-blockchain-single-any`, 1 replica, `Retain`. This
+- `litecoin-data`: `longhorn-blockchain-nvme-single`, 1 replica, `Retain`. This
   is also rebuildable from the Litecoin network and is intentionally separate
   from BTC so LTC can sync and be evaluated without blocking on Bitcoin IBD.
-- `nbxplorer-data`: `longhorn-blockchain-single`, 1 replica, `Retain`.
-  NBXplorer state is backed by PostgreSQL and can be rebuilt from Bitcoin Core.
+- `nbxplorer-data`: existing retained PVC, 1 Longhorn replica. NBXplorer state
+  is backed by PostgreSQL and can be rebuilt from Bitcoin Core.
 - `btcpay-data`: `longhorn-payment-state-retain-2`, 2 replicas, `Retain`. This
   is small application state and should survive a single disk/node loss.
 - BTCPay transaction, user, store, webhook and invoice data live in the central
   PostgreSQL service at `postgresql-ha-rw.database.svc.cluster.local`, not in a
   local BTCPay PostgreSQL PVC.
 
-The current Bitcoin PVC was recreated from `longhorn-blockchain-single` after
-the old `longhorn-custom` volume stalled during IBD. NBXplorer still uses its
-existing PVC but is backed by PostgreSQL and can be rebuilt. BTCPay app data
-runs with 2 replicas, and active PV reclaim policies are `Retain`. For Bitcoin
-Core, recurring Longhorn snapshots are intentionally disabled except for the
-explicit `blockchain-reclaim` cleanup group, because snapshots inflate storage
-and slow heavy append/compact workloads during IBD.
+The current Bitcoin and Litecoin PVCs were recreated from
+`longhorn-blockchain-nvme-single` after the old volumes stalled or were placed
+on unsuitable storage. NBXplorer still uses its existing PVC but is backed by
+PostgreSQL and can be rebuilt. BTCPay app data runs with 2 replicas, and active
+PV reclaim policies are `Retain`. For blockchain data, recurring Longhorn
+snapshots are intentionally disabled except for the explicit
+`blockchain-reclaim` cleanup group, because snapshots inflate storage and slow
+heavy append/compact workloads during IBD.
 
 ## Recommendation
 
