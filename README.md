@@ -84,11 +84,13 @@ Optional non-Stripe destinations:
 - `paymentConfig.crypto.btcpay`
 - `paymentConfig.crypto.rails`
 - `paymentConfig.crypto.stablecoin`
+- `/api/checkout/stablecoin`
+- `/api/webhooks/shkeeper`
 - `paymentConfig.telegram.vipUrl`
 - `paymentConfig.telegram.requestBotUrl`
 
 Do not add fake wallet addresses. Use empty strings until real destinations are confirmed.
-BTCPay invoice creation is exposed as a POST route only, so bots and crawlers cannot create invoices by loading a URL.
+BTCPay and stablecoin invoice creation are exposed as POST routes only, so bots and crawlers cannot create invoices by loading a URL.
 
 Detailed crypto rail decisions and fee notes live in `docs/crypto-payment-strategy.md`.
 
@@ -99,8 +101,8 @@ Recommended launch path:
 - Use Stripe Payment Links first for SFW photo packs if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables, but public buying stays paused until the products and legal pages are final.
 - Move to Stripe Checkout Sessions later if the site needs a cart, webhooks, automatic delivery, coupons tied to accounts, or richer order metadata.
 - Use BTCPay Server as the best self-hosted BTC option if low card fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the Bitcoin node is synced, and the store has a BTC wallet/payment method configured.
-- Add Litecoin only if buyer demand justifies operating a second UTXO node/explorer. It is cheap for buyers, but it is not free operationally.
-- Add USDC on Solana through a separate stablecoin processor if crypto becomes a real sales channel. Do not force USDC/Solana/TRON into the BTCPay BTC stack.
+- Use Litecoin as the first cheap UTXO crypto rail once the LTC node, NBXplorer indexing and wallet smoke test are complete.
+- Add USDC through the separate stablecoin route if crypto becomes a real sales channel. Default target is USDC on Solana through SHKeeper; USDC on Polygon is the practical fallback if Solana wallet/RPC support is awkward.
 - Keep TRON/USDT and TON as later rails. TRON is popular for stablecoins but resource/energy fees can be surprisingly high without a managed energy strategy; TON only makes sense if Telegram becomes the primary paid flow.
 - Use Telegram for channel updates, VIP invites, support, custom requests and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
 - Keep Stripe products clearly non-explicit: cosplay sets, outfit previews, soft creator photos, and clean paid packs. If the offer changes, review payment-provider rules before launch.
@@ -120,8 +122,20 @@ DATABASE_URL=postgresql://...
 STABLECOIN_PROVIDER=none
 STABLECOIN_RAIL_READY=false
 NEXT_PUBLIC_STABLECOIN_RAIL_READY=false
+STABLECOIN_PROCESSOR_URL=
 STABLECOIN_CHECKOUT_URL=
+STABLECOIN_API_KEY=
+SHKEEPER_API_KEY=
 STABLECOIN_WEBHOOK_SECRET=
+STABLECOIN_FIAT=USD
+STABLECOIN_EUR_TO_USD_RATE=
+STABLECOIN_DEFAULT_RAIL=usdc-solana
+STABLECOIN_USDC_SOLANA_ENABLED=false
+STABLECOIN_USDC_POLYGON_ENABLED=false
+STABLECOIN_USDT_TRON_ENABLED=false
+SHKEEPER_USDC_SOLANA_CRYPTO_NAME=USDC
+SHKEEPER_USDC_POLYGON_CRYPTO_NAME=POLYGON-USDC
+SHKEEPER_USDT_TRON_CRYPTO_NAME=USDT
 SALES_ENABLED=true
 NEXT_PUBLIC_SALES_ENABLED=true
 CRYPTO_CHECKOUT_ENABLED=false
@@ -132,9 +146,19 @@ Crypto rail policy:
 
 - Launch default: Stripe for cards, BTCPay BTC on-chain only after node sync and wallet setup.
 - Next practical crypto rail: LTC if buyers want cheap UTXO payments, or USDC on Solana if they want a stablecoin.
-- Provider split: BTCPay for BTC/LTC-style rails; SHKeeper or Bitcart for stablecoins if self-hosting is still required.
+- Provider split: BTCPay for BTC/LTC-style rails; SHKeeper route `/api/checkout/stablecoin` for USDC/USDT rails.
 - No manual wallets on the public site unless there is a reconciliation backend; otherwise order matching and delivery are too fragile.
 - Runtime flags are conservative: `BTCPAY_BTC_WALLET_READY=true` means node sync, wallet setup and invoice smoke test have already passed.
+
+Stablecoin production checklist before enabling public buttons:
+
+- SHKeeper is deployed behind `STABLECOIN_PROCESSOR_URL`.
+- The chosen rail appears in `GET /api/v1/crypto` on the SHKeeper instance.
+- `SHKEEPER_API_KEY` and `STABLECOIN_WEBHOOK_SECRET` live only in Kubernetes secrets.
+- For EUR product prices, `STABLECOIN_EUR_TO_USD_RATE` is set or product stablecoin prices are moved to USD.
+- `POST /api/checkout/stablecoin` creates an invoice with a unique wallet address.
+- `POST /api/webhooks/shkeeper` receives a signed callback and updates `creator_orders`.
+- Only then set `STABLECOIN_RAIL_READY=true`, `NEXT_PUBLIC_STABLECOIN_RAIL_READY=true`, and the specific rail flag such as `STABLECOIN_USDC_SOLANA_ENABLED=true`.
 
 BTCPay production checklist before enabling crypto on the public site:
 

@@ -152,6 +152,16 @@ test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ r
   expect(postResponse.status()).toBe(403);
 });
 
+test("stablecoin checkout requires POST and disabled sales stay blocked", async ({ request }) => {
+  const getResponse = await request.get("/api/checkout/stablecoin?product=cosplay-starter-pack");
+  expect(getResponse.status()).toBe(405);
+
+  const postResponse = await request.post("/api/checkout/stablecoin", {
+    data: { product: "cosplay-starter-pack", rail: "usdc-solana" },
+  });
+  expect(postResponse.status()).toBe(403);
+});
+
 test("contact form posts to the site endpoint", async ({ request }) => {
   const response = await request.post("/api/contact", {
     maxRedirects: 0,

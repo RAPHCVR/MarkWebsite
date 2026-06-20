@@ -109,6 +109,15 @@ function canShowCryptoCheckout(product: Product) {
   );
 }
 
+function canShowStablecoinCheckout(product: Product) {
+  return (
+    paymentConfig.salesEnabled &&
+    paymentConfig.crypto.stablecoin.checkoutEnabled &&
+    paymentConfig.crypto.databaseConfigured &&
+    product.status !== "coming-soon"
+  );
+}
+
 export function ProductCards() {
   return (
     <SectionShell
@@ -155,6 +164,7 @@ export function ProductCards() {
           const href = getHref(product);
           const safeHref = disabled ? "#photo-packs" : href;
           const showCryptoCheckout = canShowCryptoCheckout(product);
+          const showStablecoinCheckout = canShowStablecoinCheckout(product);
 
           return (
             <article
@@ -238,6 +248,28 @@ export function ProductCards() {
                       </button>
                     </form>
                   ) : null}
+                  {showStablecoinCheckout ? (
+                    <form method="post" action={paymentConfig.crypto.stablecoin.checkoutRoute}>
+                      <input type="hidden" name="product" value={product.slug} />
+                      <input
+                        type="hidden"
+                        name="rail"
+                        value={paymentConfig.crypto.stablecoin.defaultRail}
+                      />
+                      <button
+                        type="submit"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-sky-200 bg-white px-4 text-sm font-black text-sky-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
+                      >
+                        <span
+                          className="flex size-5 items-center justify-center text-[var(--brand-color)]"
+                          style={brandIconStyle("circle")}
+                        >
+                          <BrandIcon name="circle" className="size-4" />
+                        </span>
+                        Pay with USDC
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               </div>
             </article>
@@ -293,7 +325,7 @@ export function ProductCards() {
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
           <div className="flex flex-wrap gap-2">
-            {paymentConfig.crypto.rails.slice(0, 4).map((rail) => (
+            {paymentConfig.crypto.rails.slice(0, 5).map((rail) => (
               <span
                 key={rail.id}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-black ${cryptoRailClass[rail.status]}`}
@@ -313,7 +345,7 @@ export function ProductCards() {
           </div>
           <h3 className="mt-4 text-lg font-black text-rose-950">Crypto rails</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            BTCPay is installed for BTC; LTC and stablecoin rails stay separate until wallets are verified.
+            BTCPay handles BTC/LTC. Stablecoins use a separate processor so each order gets its own invoice.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {paymentConfig.crypto.rails.filter((rail) => rail.recommended).map((rail) => (

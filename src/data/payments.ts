@@ -37,6 +37,24 @@ export type CryptoRail = {
   operations: string;
 };
 
+export type StablecoinRailId =
+  | "usdc-solana"
+  | "usdc-polygon"
+  | "usdt-tron";
+
+export type StablecoinRail = {
+  id: StablecoinRailId;
+  label: string;
+  asset: "USDC" | "USDT";
+  network: string;
+  provider: Extract<CryptoProvider, "shkeeper" | "bitcart">;
+  cryptoName: string;
+  enabled: boolean;
+  recommended: boolean;
+  buyerCost: string;
+  operations: string;
+};
+
 const salesEnabled =
   process.env.SALES_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_SALES_ENABLED === "true";
@@ -74,14 +92,71 @@ const stablecoinRailReady =
   process.env.STABLECOIN_RAIL_READY === "true" &&
   process.env.NEXT_PUBLIC_STABLECOIN_RAIL_READY === "true";
 
+const stablecoinProcessorUrl =
+  process.env.STABLECOIN_PROCESSOR_URL ||
+  process.env.STABLECOIN_CHECKOUT_URL ||
+  "";
+
 const stablecoinCheckoutConfigured = Boolean(
   stablecoinProvider !== "none" &&
-    process.env.STABLECOIN_CHECKOUT_URL &&
+    stablecoinProcessorUrl &&
+    (process.env.SHKEEPER_API_KEY || process.env.STABLECOIN_API_KEY) &&
     process.env.STABLECOIN_WEBHOOK_SECRET,
 );
 
 const plannedStablecoinProvider =
   stablecoinProvider === "none" ? "shkeeper" : stablecoinProvider;
+
+const stablecoinDefaultRail = (process.env.STABLECOIN_DEFAULT_RAIL ||
+  "usdc-solana") as StablecoinRailId;
+
+export const stablecoinRails = [
+  {
+    id: "usdc-solana",
+    label: "USDC on Solana",
+    asset: "USDC",
+    network: "Solana",
+    provider: plannedStablecoinProvider === "bitcart" ? "bitcart" : "shkeeper",
+    cryptoName: process.env.SHKEEPER_USDC_SOLANA_CRYPTO_NAME || "USDC",
+    enabled:
+      process.env.STABLECOIN_USDC_SOLANA_ENABLED === "true" &&
+      stablecoinRailReady,
+    recommended: true,
+    buyerCost: "Lowest expected stablecoin network cost for small packs.",
+    operations:
+      "Use SHKeeper with a tested Solana wallet/RPC path; keep disabled until callbacks reconcile orders.",
+  },
+  {
+    id: "usdc-polygon",
+    label: "USDC on Polygon",
+    asset: "USDC",
+    network: "Polygon",
+    provider: plannedStablecoinProvider === "bitcart" ? "bitcart" : "shkeeper",
+    cryptoName: process.env.SHKEEPER_USDC_POLYGON_CRYPTO_NAME || "POLYGON-USDC",
+    enabled:
+      process.env.STABLECOIN_USDC_POLYGON_ENABLED === "true" &&
+      stablecoinRailReady,
+    recommended: false,
+    buyerCost: "Low fee EVM fallback if Solana support is awkward for wallets.",
+    operations:
+      "Good fallback because SHKeeper documents POLYGON-USDC; still needs wallet and RPC checks.",
+  },
+  {
+    id: "usdt-tron",
+    label: "USDT on TRON",
+    asset: "USDT",
+    network: "TRON",
+    provider: plannedStablecoinProvider === "bitcart" ? "bitcart" : "shkeeper",
+    cryptoName: process.env.SHKEEPER_USDT_TRON_CRYPTO_NAME || "USDT",
+    enabled:
+      process.env.STABLECOIN_USDT_TRON_ENABLED === "true" &&
+      stablecoinRailReady,
+    recommended: false,
+    buyerCost: "Popular, but Energy/Bandwidth fees can surprise buyers.",
+    operations:
+      "Enable only after testing fees and refill/energy strategy on the actual wallet.",
+  },
+] as const satisfies StablecoinRail[];
 
 export const cryptoRails = [
   {
@@ -122,7 +197,19 @@ export const cryptoRails = [
     icon: "circle",
     recommended: true,
     buyerCost: "Usually the cheapest stablecoin rail for small digital packs.",
-    operations: "Best served by SHKeeper or Bitcart, with webhook-tested reconciliation.",
+    operations: "Stablecoin checkout is separated from BTCPay and must pass webhook reconciliation before launch.",
+  },
+  {
+    id: "usdc-polygon",
+    label: "USDC",
+    asset: "USDC",
+    network: "Polygon",
+    provider: plannedStablecoinProvider,
+    status: stablecoinCheckoutConfigured && stablecoinRails[1].enabled ? "ready" : "planned",
+    icon: "polygon",
+    recommended: false,
+    buyerCost: "Cheap EVM fallback; slightly less universal than Solana for this audience.",
+    operations: "Keep as fallback if USDC Solana support is not stable enough.",
   },
   {
     id: "usdt-tron",
@@ -167,9 +254,22 @@ export const paymentConfig = {
     rails: cryptoRails,
     stablecoin: {
       preferredProvider: stablecoinProvider satisfies CryptoProvider,
-      configured: stablecoinCheckoutConfigured && stablecoinRailReady,
-      checkoutUrlEnv: "STABLECOIN_CHECKOUT_URL",
+      configured: stablecoinCheckoutConfigured,
+      checkoutEnabled:
+        cryptoCheckoutEnabled &&
+        stablecoinCheckoutConfigured &&
+        stablecoinRailReady &&
+        stablecoinRails.some((rail) => rail.enabled),
+      processorUrl: stablecoinProcessorUrl,
+      checkoutRoute: "/api/checkout/stablecoin",
+      webhookRoute: "/api/webhooks/shkeeper",
+      defaultRail: stablecoinDefaultRail,
+      rails: stablecoinRails,
+      processorUrlEnv: "STABLECOIN_PROCESSOR_URL",
+      apiKeyEnv: "SHKEEPER_API_KEY",
       webhookSecretEnv: "STABLECOIN_WEBHOOK_SECRET",
+      fiatEnv: "STABLECOIN_FIAT",
+      eurToUsdRateEnv: "STABLECOIN_EUR_TO_USD_RATE",
       recommendedLaunchRail: "USDC on Solana",
     },
     btcpay: {

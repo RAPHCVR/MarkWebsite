@@ -4,6 +4,7 @@ import type { Product } from "@/data/products";
 
 type CheckoutInvoiceRecord = {
   orderId: string;
+  provider?: string;
   product: Product;
   providerInvoiceId: string;
   checkoutLink: string;
@@ -20,12 +21,38 @@ type BtcpayWebhookEvent = {
   };
 };
 
+type ShkeeperWebhookEvent = {
+  external_id?: string;
+  crypto?: string;
+  addr?: string;
+  fiat?: string;
+  paid?: boolean;
+  status?: string;
+  transactions?: Array<Record<string, unknown>>;
+};
+
 type ContactRequestRecord = {
   name: string;
   organization: string;
   message: string;
   source?: string;
   userAgent?: string;
+};
+
+export type CreatorOrder = {
+  orderId: string;
+  provider: string;
+  providerInvoiceId: string | null;
+  productSlug: string | null;
+  productTitle: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  status: string;
+  checkoutLink: string | null;
+  lastEventType: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 let pool: Pool | undefined;
@@ -95,8 +122,9 @@ export async function ensureOrdersDatabaseReady() {
   await ensureSchema();
 }
 
-export async function recordBtcpayCheckoutInvoice({
+export async function recordCheckoutInvoice({
   orderId,
+  provider = "btcpay",
   product,
   providerInvoiceId,
   checkoutLink,
@@ -119,8 +147,9 @@ export async function recordBtcpayCheckoutInvoice({
         checkout_link,
         metadata
       )
-      VALUES ($1, 'btcpay', $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
       ON CONFLICT (order_id) DO UPDATE SET
+        provider = EXCLUDED.provider,
         provider_invoice_id = EXCLUDED.provider_invoice_id,
         product_slug = EXCLUDED.product_slug,
         product_title = EXCLUDED.product_title,
@@ -133,6 +162,7 @@ export async function recordBtcpayCheckoutInvoice({
     `,
     [
       orderId,
+      provider,
       providerInvoiceId,
       product.slug,
       product.title,
@@ -143,6 +173,13 @@ export async function recordBtcpayCheckoutInvoice({
       JSON.stringify(metadata),
     ],
   );
+}
+
+export async function recordBtcpayCheckoutInvoice(record: CheckoutInvoiceRecord) {
+  await recordCheckoutInvoice({
+    ...record,
+    provider: "btcpay",
+  });
 }
 
 export async function recordBtcpayWebhookEvent(event: BtcpayWebhookEvent) {
@@ -185,6 +222,108 @@ export async function recordBtcpayWebhookEvent(event: BtcpayWebhookEvent) {
       JSON.stringify({ btcpayEvent: event }),
     ],
   );
+}
+
+export async function recordShkeeperWebhookEvent(event: ShkeeperWebhookEvent) {
+  await ensureSchema();
+
+  const orderId =
+    typeof event.external_id === "string" && event.external_id
+      ? event.external_id
+      : `shkeeper-event-${crypto.randomUUID()}`;
+
+  await getPool().query(
+    `
+      INSERT INTO creator_orders (
+        order_id,
+        provider,
+        provider_invoice_id,
+        status,
+        last_event_type,
+        metadata
+      )
+      VALUES ($1, 'shkeeper', $2, $3, $4, $5::jsonb)
+      ON CONFLICT (order_id) DO UPDATE SET
+        provider = EXCLUDED.provider,
+        provider_invoice_id = COALESCE(EXCLUDED.provider_invoice_id, creator_orders.provider_invoice_id),
+        status = EXCLUDED.status,
+        last_event_type = EXCLUDED.last_event_type,
+        metadata = creator_orders.metadata || EXCLUDED.metadata,
+        updated_at = now()
+    `,
+    [
+      orderId,
+      null,
+      event.status ?? (event.paid ? "PAID" : "UNPAID"),
+      "shkeeper.webhook",
+      JSON.stringify({ shkeeperEvent: event }),
+    ],
+  );
+}
+
+export async function getOrderById(orderId: string) {
+  await ensureSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        order_id,
+        provider,
+        provider_invoice_id,
+        product_slug,
+        product_title,
+        amount_cents,
+        currency,
+        status,
+        checkout_link,
+        last_event_type,
+        metadata,
+        created_at,
+        updated_at
+      FROM creator_orders
+      WHERE order_id = $1
+      LIMIT 1
+    `,
+    [orderId],
+  );
+
+  const row = result.rows[0] as
+    | {
+        order_id: string;
+        provider: string;
+        provider_invoice_id: string | null;
+        product_slug: string | null;
+        product_title: string | null;
+        amount_cents: number | null;
+        currency: string | null;
+        status: string;
+        checkout_link: string | null;
+        last_event_type: string | null;
+        metadata: Record<string, unknown> | null;
+        created_at: Date;
+        updated_at: Date;
+      }
+    | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    orderId: row.order_id,
+    provider: row.provider,
+    providerInvoiceId: row.provider_invoice_id,
+    productSlug: row.product_slug,
+    productTitle: row.product_title,
+    amountCents: row.amount_cents,
+    currency: row.currency,
+    status: row.status,
+    checkoutLink: row.checkout_link,
+    lastEventType: row.last_event_type,
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  } satisfies CreatorOrder;
 }
 
 export async function recordContactRequest({
