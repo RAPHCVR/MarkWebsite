@@ -302,10 +302,12 @@ export const paymentConfig = {
         enabled: solanaPayReady,
         recipientConfigured: Boolean(process.env.SOLANA_PAY_RECIPIENT),
         rpcUrlEnv: "SOLANA_PAY_RPC_URL",
+        rpcUrlsEnv: "SOLANA_PAY_RPC_URLS",
         recipientEnv: "SOLANA_PAY_RECIPIENT",
         mintEnv: "SOLANA_PAY_USDC_MINT",
         defaultRpcUrl: "https://api.mainnet-beta.solana.com",
-        publicProviderCost: "Free public RPC for MVP; move to a keyed free/paid RPC when volume starts.",
+        publicProviderCost:
+          "Free public RPC fallback for MVP; use SOLANA_PAY_RPC_URLS for multiple read-only RPC endpoints.",
       },
     },
     btcpay: {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
+import { getSolanaPayRpcUrls } from "@/lib/server/solana-pay";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,7 @@ export function GET() {
     enabled: rail.enabled,
     recommended: rail.recommended,
   }));
+  const solanaPayRpcUrls = getSolanaPayRpcUrls();
 
   return NextResponse.json({
     ok: true,
@@ -46,6 +48,8 @@ export function GET() {
         recipientConfigured:
           paymentConfig.crypto.stablecoin.solanaPay.recipientConfigured,
         rpcUrlEnv: paymentConfig.crypto.stablecoin.solanaPay.rpcUrlEnv,
+        rpcUrlsEnv: paymentConfig.crypto.stablecoin.solanaPay.rpcUrlsEnv,
+        rpcFallbackCount: solanaPayRpcUrls.length,
       },
     },
     btcpay: {

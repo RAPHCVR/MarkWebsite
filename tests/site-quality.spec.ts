@@ -142,7 +142,9 @@ test("checkout links stay disabled until sales are enabled", async ({ page }) =>
   await expect(page.getByText(/planned/i).first()).toBeVisible();
 });
 
-test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ request }) => {
+test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
+
   const getResponse = await request.get("/api/checkout/btcpay?product=cosplay-starter-pack");
   expect(getResponse.status()).toBe(405);
 
@@ -152,7 +154,9 @@ test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ r
   expect(postResponse.status()).toBe(403);
 });
 
-test("stablecoin checkout requires POST and disabled sales stay blocked", async ({ request }) => {
+test("stablecoin checkout requires POST and disabled sales stay blocked", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
+
   const getResponse = await request.get("/api/checkout/stablecoin?product=cosplay-starter-pack");
   expect(getResponse.status()).toBe(405);
 
@@ -162,7 +166,9 @@ test("stablecoin checkout requires POST and disabled sales stay blocked", async 
   expect(postResponse.status()).toBe(403);
 });
 
-test("payment status endpoint reports readiness without exposing secrets", async ({ request }) => {
+test("payment status endpoint reports readiness without exposing secrets", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
+
   const response = await request.get("/api/payments/status");
   expect(response.status()).toBe(200);
 
@@ -180,7 +186,12 @@ test("payment status endpoint reports readiness without exposing secrets", async
       checkoutEnabled?: boolean;
       defaultRail?: string;
       rails?: Array<{ id?: string; enabled?: boolean }>;
-      solanaPay?: { recipientConfigured?: boolean; rpcUrlEnv?: string };
+      solanaPay?: {
+        recipientConfigured?: boolean;
+        rpcUrlEnv?: string;
+        rpcUrlsEnv?: string;
+        rpcFallbackCount?: number;
+      };
     };
     btcpay?: {
       configured?: boolean;
@@ -196,11 +207,15 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.stablecoin?.defaultRail).toBe("usdc-solana");
   expect(status.stablecoin?.rails?.some((rail) => rail.id === "usdc-solana")).toBe(true);
   expect(status.stablecoin?.solanaPay?.rpcUrlEnv).toBe("SOLANA_PAY_RPC_URL");
+  expect(status.stablecoin?.solanaPay?.rpcUrlsEnv).toBe("SOLANA_PAY_RPC_URLS");
+  expect(status.stablecoin?.solanaPay?.rpcFallbackCount).toBeGreaterThanOrEqual(1);
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
 });
 
-test("contact form posts to the site endpoint", async ({ request }) => {
+test("contact form posts to the site endpoint", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
+
   const response = await request.post("/api/contact", {
     maxRedirects: 0,
     form: {

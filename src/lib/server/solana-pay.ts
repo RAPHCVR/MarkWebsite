@@ -15,6 +15,7 @@ export type SolanaPayInvoice = {
   recipient: string;
   reference: string;
   rpcUrl: string;
+  rpcUrls: string[];
   solanaUrl: string;
   splToken: string;
 };
@@ -29,8 +30,19 @@ function requiredEnv(name: string) {
   return value;
 }
 
-function getRpcUrl() {
-  return process.env.SOLANA_PAY_RPC_URL || "https://api.mainnet-beta.solana.com";
+function dedupe(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+export function getSolanaPayRpcUrls() {
+  const configuredUrls = dedupe([
+    ...(process.env.SOLANA_PAY_RPC_URLS || "").split(","),
+    process.env.SOLANA_PAY_RPC_URL || "",
+  ]);
+
+  return configuredUrls.length
+    ? configuredUrls
+    : ["https://api.mainnet-beta.solana.com"];
 }
 
 function getRecipient() {
@@ -101,7 +113,8 @@ export function createSolanaPayInvoice({
   const reference = generateReference();
   const splToken = getUsdcMint();
   const memo = orderId;
-  const rpcUrl = getRpcUrl();
+  const rpcUrls = getSolanaPayRpcUrls();
+  const rpcUrl = rpcUrls[0];
   const solanaUrl = encodeURL({
     recipient: address(recipient),
     amount: Number(amount),
@@ -118,47 +131,66 @@ export function createSolanaPayInvoice({
     recipient,
     reference,
     rpcUrl,
+    rpcUrls,
     solanaUrl,
     splToken,
   };
 }
 
 export async function verifySolanaPayInvoice(invoice: SolanaPayInvoice) {
-  const rpc = createSolanaRpc(invoice.rpcUrl);
+  const rpcUrls = dedupe([
+    ...(invoice.rpcUrls || []),
+    invoice.rpcUrl,
+    ...getSolanaPayRpcUrls(),
+  ]);
   const timeoutMs = getVerifyTimeoutMs();
-  const abortSignal = AbortSignal.timeout(timeoutMs);
-  const signatures = await rpc
-    .getSignaturesForAddress(address(invoice.reference), {
-      commitment: "confirmed",
-      limit: 20,
-    })
-    .send({ abortSignal });
+  const errors: string[] = [];
 
-  if (!signatures.length) {
-    throw new Error("Solana Pay reference not found");
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const rpc = createSolanaRpc(rpcUrl);
+      const abortSignal = AbortSignal.timeout(timeoutMs);
+      const signatures = await rpc
+        .getSignaturesForAddress(address(invoice.reference), {
+          commitment: "confirmed",
+          limit: 20,
+        })
+        .send({ abortSignal });
+
+      if (!signatures.length) {
+        throw new Error("Solana Pay reference not found");
+      }
+
+      const found = signatures[signatures.length - 1];
+
+      await withTimeout(
+        validateTransfer(
+          rpc,
+          found.signature,
+          {
+            recipient: address(invoice.recipient),
+            amount: Number(invoice.amount),
+            splToken: address(invoice.splToken),
+            reference: address(invoice.reference),
+          },
+          { commitment: "confirmed" },
+        ),
+        timeoutMs,
+        "Solana Pay transfer validation",
+      );
+
+      return {
+        signature: String(found.signature),
+        slot: String(found.slot),
+        confirmationStatus: found.confirmationStatus,
+        rpcUrl,
+      };
+    } catch (error) {
+      errors.push(
+        `${rpcUrl}: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
   }
 
-  const found = signatures[signatures.length - 1];
-
-  await withTimeout(
-    validateTransfer(
-      rpc,
-      found.signature,
-      {
-        recipient: address(invoice.recipient),
-        amount: Number(invoice.amount),
-        splToken: address(invoice.splToken),
-        reference: address(invoice.reference),
-      },
-      { commitment: "confirmed" },
-    ),
-    timeoutMs,
-    "Solana Pay transfer validation",
-  );
-
-  return {
-    signature: String(found.signature),
-    slot: String(found.slot),
-    confirmationStatus: found.confirmationStatus,
-  };
+  throw new Error(`Solana Pay verification failed: ${errors.join("; ")}`);
 }
