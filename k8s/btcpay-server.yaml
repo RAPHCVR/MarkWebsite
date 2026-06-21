@@ -367,7 +367,6 @@ spec:
             - --bind=0.0.0.0
             - --port=32838
             - --datadir=/datadir
-            - --noauth
             - --postgres=User ID=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD);Host=postgresql-ha-rw.database.svc.cluster.local;Port=5432;Application Name=nbxplorer;Database=nbxplorermainnet
             - --btcrpcurl=http://btcpay-bitcoind:43782/
             - --btcrpcuser=$(BITCOIN_RPC_USER)
@@ -488,8 +487,12 @@ spec:
               value: btc,ltc
             - name: BTCPAY_BTCEXPLORERURL
               value: http://btcpay-nbxplorer:32838/
+            - name: BTCPAY_BTCEXPLORERCOOKIEFILE
+              value: /root/.nbxplorer/Main/.cookie
             - name: BTCPAY_LTCEXPLORERURL
               value: http://btcpay-nbxplorer:32838/
+            - name: BTCPAY_LTCEXPLORERCOOKIEFILE
+              value: /root/.nbxplorer/Main/.cookie
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"
             - name: POSTGRES_PASSWORD
@@ -539,6 +542,14 @@ spec:
           volumeMounts:
             - name: btcpay-data
               mountPath: /datadir
+            - name: nbxplorer-cookie
+              mountPath: /root/.nbxplorer
+              readOnly: true
+      volumes:
+        - name: nbxplorer-cookie
+          persistentVolumeClaim:
+            claimName: nbxplorer-data-btcpay-nbxplorer-0
+            readOnly: true
   volumeClaimTemplates:
     - metadata:
         name: btcpay-data

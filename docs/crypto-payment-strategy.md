@@ -8,14 +8,14 @@ Last verified: 2026-06-21.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core runs on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/bitcoin`, `checkblocks=1`, `dbcache=1024`, `par=4`, DNS peer discovery, no forced `connect`/manual `addnode` list, standard internal P2P port `8333`, a `4Gi` memory request, and an `8Gi` memory limit to avoid OOM during IBD.
-- Bitcoin Core is in Initial Block Download on a fresh pruned volume. A live RPC check on 2026-06-21 showed `666034 / 954616` headers, `verificationprogress=0.4486380321539477`, `initialblockdownload=true`, `size_on_disk=22671761745`, and `11` peers. During IBD, BTCPay should return `{"synchronized":false}` and crypto checkout must remain disabled.
-- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. A live RPC check on 2026-06-21 showed `2599315 / 3128624` headers, `verificationprogress=0.4927966760882163`, `initialblockdownload=true`, `size_on_disk=19182593071`, and `11` peers. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
+- Bitcoin Core is in Initial Block Download on a fresh pruned volume. A live RPC check on 2026-06-21 showed `716102 / 954626` headers, `verificationprogress=0.5168544954083899`, `initialblockdownload=true`, and `size_on_disk=34561176128`. During IBD, BTCPay should return `{"synchronized":false}` and crypto checkout must remain disabled.
+- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. A live RPC check on 2026-06-21 showed `2726398 / 3128648` headers, `verificationprogress=0.67157030155292`, `initialblockdownload=true`, and `size_on_disk=19933402120`. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
 - On 2026-06-20, blockchain data was moved off Longhorn/`valence-worker-02` after repeated kubelet and virtual volume I/O timeouts. BTC/LTC chainstate is intentionally treated as disposable cache and can be rebuilt from the networks.
 - A live check on 2026-06-20 showed `valence-worker-02` recovered after Longhorn iSCSI volume errors (`EXT4` remounted read-only, then the volume reattached). Active Longhorn volumes were healthy after the move, and the former 90 GiB blockchain Longhorn volume was no longer active.
-- BTCPay Server loads `Supported chains: LTC,BTC`. Recent NBXplorer logs showed transient `connection refused` while `btcpay-bitcoind` was restarting, followed by successful BTC handshaking and RPC connection. BTC and LTC nodes are connected to peers and syncing, so `{"synchronized":false}` remains expected until Initial Block Download completes.
+- BTCPay Server loads `Supported chains: LTC,BTC`. NBXplorer now runs with cookie authentication, and BTCPay mounts the NBXplorer PVC read-only at `/root/.nbxplorer` so `BTC` and `LTC` both use `/root/.nbxplorer/Main/.cookie`. The previous `--noauth` plus `explorercookiefile=0` setup was removed because BTCPay 2.2.1 still tried cookie auth and produced NBXplorer 500s. Live logs after the fix show BTC and LTC handshakes, RPC connection success, and `CoreSynching`.
 - BTCPay currently has no BTC wallet/payment method configured.
 - The storefront production secret contains Stripe Payment Links and BTCPay env vars, but `SALES_ENABLED=false`.
-- The storefront now has disabled-by-default stablecoin checkout plumbing: `POST /api/checkout/stablecoin`, `POST /api/webhooks/shkeeper`, the internal page `/checkout/stablecoin`, and shared PostgreSQL reconciliation through `creator_orders`.
+- The storefront now has disabled-by-default stablecoin checkout plumbing: `POST /api/checkout/stablecoin`, `POST /api/webhooks/shkeeper`, the internal page `/checkout/stablecoin`, and shared PostgreSQL reconciliation through `creator_orders`. Runtime flags currently keep it off with `STABLECOIN_PROVIDER=none` and `STABLECOIN_RAIL_READY=false`; no SHKeeper pod is deployed yet.
 - Crypto checkout must stay disabled until BTCPay returns `synchronized:true` and a BTC wallet/payment method exists.
 
 ## Kubernetes Storage Policy
@@ -33,6 +33,8 @@ default for payment-related state:
   is backed by PostgreSQL and can be rebuilt from Bitcoin Core.
 - `btcpay-data`: `longhorn-payment-state-retain-2`, 2 replicas, `Retain`. This
   is small application state and should survive a single disk/node loss.
+- `nbxplorer-cookie`: BTCPay mounts the retained `nbxplorer-data` PVC read-only
+  so it can authenticate to NBXplorer through `/root/.nbxplorer/Main/.cookie`.
 - BTCPay transaction, user, store, webhook and invoice data live in the central
   PostgreSQL service at `postgresql-ha-rw.database.svc.cluster.local`, not in a
   local BTCPay PostgreSQL PVC.
@@ -130,7 +132,7 @@ Current decision:
 
 SHKeeper is attractive for stablecoins because it is open-source and self-hosted and its API covers invoice creation plus callbacks. Its public API documentation lists `payment_request` creation and callback behavior, and documents crypto names including `USDC`, `USDT` and `POLYGON-USDC`. Use the instance's own `GET /api/v1/crypto` result as the source of truth before enabling a rail.
 
-Running a real private Solana RPC is heavy; using a public/paid RPC is easier but not fully self-hosted. For Marky, non-custodial wallet ownership plus self-hosted invoice/order reconciliation is enough for v1. If strict RPC self-hosting becomes mandatory, revisit Solana versus Polygon before deploying.
+Running a real private Solana RPC is heavy; using a public/paid RPC is easier but not fully self-hosted. This is not weaker than the BTC/LTC setup in the same category: BTC/LTC are light enough to self-host as pruned full nodes, while Solana RPC is a separate infrastructure class. For Marky v1, non-custodial wallet ownership plus self-hosted invoice/order reconciliation is enough. If strict RPC self-hosting becomes mandatory, revisit Solana versus Polygon before deploying rather than forcing a large Solana RPC node into the current cluster.
 
 Bitcart remains a backup candidate if SHKeeper cannot support the exact rail or if a lighter plugin model is preferred later.
 
