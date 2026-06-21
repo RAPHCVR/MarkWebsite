@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: `Mentions legales de ${siteConfig.domain}, opere par ${legalConfig.merchantName}.`,
 };
 
+export const dynamic = "force-dynamic";
+
 export default function LegalPage() {
   return (
     <LegalDocument
@@ -51,7 +53,9 @@ export default function LegalPage() {
           title: "Reglement amiable",
           body: [
             "Toute reclamation doit d'abord etre adressee au support avec la reference de commande et les elements utiles a l'analyse.",
-            "Les coordonnees du mediateur de la consommation devront etre publiees avant ouverture commerciale B2C complete. Aucune coordonnee de mediateur n'est inventee sur cette page.",
+            legalConfig.consumerMediatorConfigured
+              ? `Mediateur de la consommation: ${legalConfig.consumerMediator.name}, ${legalConfig.consumerMediator.website}.`
+              : `La vente B2C publique reste verrouillee tant que les coordonnees d'un mediateur de la consommation reference ne sont pas configurees. Liste officielle: ${legalConfig.consumerMediator.referenceListUrl}.`,
           ],
         },
       ]}

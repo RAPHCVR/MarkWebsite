@@ -1,3 +1,4 @@
+import { legalConfig } from "@/data/legal";
 import { siteConfig } from "@/data/site";
 import type { BrandIconKey } from "@/lib/brand-icons";
 
@@ -56,9 +57,10 @@ export type StablecoinRail = {
   operations: string;
 };
 
-const salesEnabled =
+const requestedSalesEnabled =
   process.env.SALES_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_SALES_ENABLED === "true";
+const salesEnabled = requestedSalesEnabled && legalConfig.b2cSalesAllowed;
 
 const cryptoCheckoutEnabled =
   salesEnabled &&
@@ -285,6 +287,12 @@ export const cryptoRails = [
 
 export const paymentConfig = {
   salesEnabled,
+  requestedSalesEnabled,
+  legal: {
+    b2cSalesAllowed: legalConfig.b2cSalesAllowed,
+    consumerMediatorConfigured: legalConfig.consumerMediatorConfigured,
+    salesBlockedByLegalGate: requestedSalesEnabled && !legalConfig.b2cSalesAllowed,
+  },
   publicDomain: siteConfig.domain,
   stripe: {
     mode: "payment-links",

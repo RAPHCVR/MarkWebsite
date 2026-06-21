@@ -223,6 +223,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
   const status = await response.json() as {
     ok?: boolean;
     salesEnabled?: boolean;
+    salesRequested?: boolean;
     orderDatabaseConfigured?: boolean;
     stripe?: {
       mode?: string;
@@ -253,12 +254,21 @@ test("payment status endpoint reports readiness without exposing secrets", async
     };
     admin?: {
       accountingExportConfigured?: boolean;
+      cloudflareAccessConfigured?: boolean;
       accountingExportRoute?: string;
       privateRequestsExportRoute?: string;
     };
     legal?: {
+      b2cSalesAllowed?: boolean;
+      consumerMediatorConfigured?: boolean;
+      salesBlockedByLegalGate?: boolean;
       cryptoFiatAccountingField?: string;
       commercialVocabulary?: string[];
+    };
+    contact?: {
+      turnstileRequired?: boolean;
+      turnstileSiteKeyConfigured?: boolean;
+      turnstileSecretConfigured?: boolean;
     };
   };
 
@@ -276,8 +286,15 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
   expect(status.legal?.cryptoFiatAccountingField).toBe("creator_orders.fiat_value_eur_at_transaction");
   expect(status.legal?.commercialVocabulary).toContain("Digital Access Pass");
+  expect(typeof status.legal?.consumerMediatorConfigured).toBe("boolean");
+  expect(typeof status.legal?.b2cSalesAllowed).toBe("boolean");
+  expect(status.legal?.salesBlockedByLegalGate).toBe(
+    Boolean(status.salesRequested && !status.legal?.b2cSalesAllowed),
+  );
   expect(status.admin?.accountingExportRoute).toBe("/api/admin/orders/export");
   expect(status.admin?.privateRequestsExportRoute).toBe("/api/admin/private-requests/export");
+  expect(typeof status.admin?.cloudflareAccessConfigured).toBe("boolean");
+  expect(typeof status.contact?.turnstileRequired).toBe("boolean");
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
 });
 

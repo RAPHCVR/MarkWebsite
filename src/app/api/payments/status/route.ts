@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { legalConfig } from "@/data/legal";
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
+import { isCloudflareAccessConfigured } from "@/lib/server/admin-auth";
 import { isR2DeliveryConfigured } from "@/lib/server/orders";
 import { getSolanaPayRpcUrls } from "@/lib/server/solana-pay";
 import { isTelegramBotConfigured } from "@/lib/server/telegram";
+import { isTurnstileRequired } from "@/lib/server/turnstile";
 
 export const runtime = "nodejs";
 
@@ -33,6 +35,7 @@ export function GET() {
     ok: true,
     service: "marky-payments",
     salesEnabled: paymentConfig.salesEnabled,
+    salesRequested: paymentConfig.requestedSalesEnabled,
     orderDatabaseConfigured: paymentConfig.crypto.databaseConfigured,
     stripe: {
       mode: paymentConfig.stripe.mode,
@@ -49,6 +52,11 @@ export function GET() {
       legalNoticeRoute: "/legal",
       commercialVocabulary: legalConfig.commercialVocabulary,
       consumerMediatorConfigured: legalConfig.consumerMediatorConfigured,
+      consumerMediatorName: legalConfig.consumerMediatorConfigured
+        ? legalConfig.consumerMediator.name
+        : null,
+      b2cSalesAllowed: legalConfig.b2cSalesAllowed,
+      salesBlockedByLegalGate: paymentConfig.legal.salesBlockedByLegalGate,
       checkoutConsentCaptured: true,
       cryptoFiatAccountingField: "creator_orders.fiat_value_eur_at_transaction",
     },
@@ -98,6 +106,7 @@ export function GET() {
     },
     admin: {
       accountingExportConfigured: Boolean(process.env.ADMIN_API_TOKEN),
+      cloudflareAccessConfigured: isCloudflareAccessConfigured(),
       dashboardRoute: "/admin",
       accountingExportRoute: "/api/admin/orders/export",
       privateRequestsExportRoute: "/api/admin/private-requests/export",
@@ -105,9 +114,7 @@ export function GET() {
     contact: {
       turnstileSiteKeyConfigured: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
       turnstileSecretConfigured: Boolean(process.env.TURNSTILE_SECRET_KEY),
-      turnstileRequired:
-        process.env.TURNSTILE_REQUIRED === "true" ||
-        process.env.NEXT_PUBLIC_TURNSTILE_REQUIRED === "true",
+      turnstileRequired: isTurnstileRequired(),
     },
   });
 }

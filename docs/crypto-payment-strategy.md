@@ -211,6 +211,9 @@ Owner/check path: `C:\Users\Raphael\Documents\Mark`, with runtime checks through
 - Never publish manual wallet addresses on the public site unless order reconciliation is implemented.
 - Keep Stripe as the first launch rail for sales because it is easiest for refunds, accounting and customer support.
 - Keep crypto disabled by explicit feature flags. Env vars present do not mean a rail is safe to show.
+- Keep public B2C checkout disabled until `CONSUMER_MEDIATOR_NAME` and
+  `CONSUMER_MEDIATOR_WEBSITE` contain a real referenced consumer mediator. The
+  app gates `SALES_ENABLED=true` behind this legal readiness check.
 - Keep rate limits active on public POST routes; invoice creation should be intentional user action, not crawler-accessible state churn.
 - Rotate any Stripe secret key that has been pasted into chat or logs.
 - Keep private wallet material out of Git, screenshots, chat and Kubernetes manifests.

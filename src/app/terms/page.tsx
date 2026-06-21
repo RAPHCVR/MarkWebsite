@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: `Conditions generales de vente des acces numeriques ${siteConfig.domain}.`,
 };
 
+export const dynamic = "force-dynamic";
+
 export default function TermsPage() {
   return (
     <LegalDocument
@@ -67,6 +69,14 @@ export default function TermsPage() {
           body: [
             `Support principal: ${legalConfig.supportEmail}. Telegram peut etre utilise pour l'assistance, les invitations privees et le suivi de livraison, mais le site reste la source de verite des droits d'acces.`,
             "Le support peut demander une reference de commande, un email de paiement ou une preuve raisonnable de possession du lien de livraison avant toute action sur un acces.",
+          ],
+        },
+        {
+          title: "Mediation de la consommation",
+          body: [
+            legalConfig.consumerMediatorConfigured
+              ? `En cas de litige non resolu apres reclamation ecrite au support, le consommateur peut saisir le mediateur reference: ${legalConfig.consumerMediator.name}, ${legalConfig.consumerMediator.website}.`
+              : `La vente B2C publique reste verrouillee tant que les coordonnees d'un mediateur de la consommation reference ne sont pas configurees. Liste officielle: ${legalConfig.consumerMediator.referenceListUrl}.`,
           ],
         },
       ]}

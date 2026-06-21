@@ -6,9 +6,7 @@ export async function verifyTurnstileToken({
   remoteIp?: string | null;
 }) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  const required =
-    process.env.TURNSTILE_REQUIRED === "true" ||
-    process.env.NEXT_PUBLIC_TURNSTILE_REQUIRED === "true";
+  const required = isTurnstileRequired();
 
   if (!secret) {
     return required
@@ -17,7 +15,9 @@ export async function verifyTurnstileToken({
   }
 
   if (!token) {
-    return { ok: false, skipped: false as const, reason: "missing-token" as const };
+    return required
+      ? { ok: false, skipped: false as const, reason: "missing-token" as const }
+      : { ok: true, skipped: true as const };
   }
 
   const form = new FormData();
@@ -44,4 +44,11 @@ export async function verifyTurnstileToken({
     skipped: false as const,
     reason: payload.success === true ? undefined : ("invalid-token" as const),
   };
+}
+
+export function isTurnstileRequired() {
+  return (
+    process.env.TURNSTILE_REQUIRED === "true" ||
+    process.env.NEXT_PUBLIC_TURNSTILE_REQUIRED === "true"
+  );
 }

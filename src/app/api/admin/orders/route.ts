@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  getAdminAuthErrorResponse,
-  getAdminAuthStatus,
-} from "@/lib/server/admin-auth";
+import { enforceAdminAccess } from "@/lib/server/admin-auth";
 import { listOrdersForAccountingExport } from "@/lib/server/orders";
 
 export const runtime = "nodejs";
@@ -19,10 +16,10 @@ function parseDate(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = getAdminAuthStatus(request);
+  const blocked = await enforceAdminAccess(request);
 
-  if (auth !== "ok") {
-    return getAdminAuthErrorResponse(auth);
+  if (blocked) {
+    return blocked;
   }
 
   const from = parseDate(request.nextUrl.searchParams.get("from"));

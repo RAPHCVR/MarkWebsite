@@ -63,6 +63,10 @@ const cryptoRailClass = {
 
 function getCta(product: Product) {
   if (!paymentConfig.salesEnabled) {
+    if (paymentConfig.legal.salesBlockedByLegalGate && product.status !== "coming-soon") {
+      return "Legal setup pending";
+    }
+
     return product.status === "coming-soon" ? "Preview soon" : "Preview access";
   }
 
@@ -373,7 +377,9 @@ export function ProductCards() {
           </span>
           <h3 className="mt-4 text-lg font-black text-rose-950">Card checkout</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            {paymentConfig.salesEnabled
+            {paymentConfig.legal.salesBlockedByLegalGate
+              ? "Checkout stays locked until consumer mediation details are configured."
+              : paymentConfig.salesEnabled
               ? "Stripe Payment Links are live for card checkout."
               : "Stripe Payment Links are ready for checkout."}
           </p>

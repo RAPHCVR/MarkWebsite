@@ -90,12 +90,20 @@ download accounting CSVs and review VIP Infrastructure Access tickets. The same
 token protects `GET /api/admin/orders/export` and
 `GET /api/admin/private-requests/export` through
 `Authorization: Bearer <token>`. Do not paste this token in Telegram groups or
-public issue threads.
+public issue threads. In production, also protect `https://markshnaknaks.com/admin*`
+with Cloudflare Access and set `CLOUDFLARE_ACCESS_AUD` plus either
+`CLOUDFLARE_ACCESS_TEAM_DOMAIN` or `CLOUDFLARE_ACCESS_JWKS_URL`; the origin will
+then validate the Access JWT before accepting the bearer token. Public admin API
+requests are rate-limited through `creator_rate_limits`.
 
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
 requests are stored in `creator_contact_requests`; when `TELEGRAM_ADMIN_CHAT_ID`
 is configured, the same request is also relayed to the private admin chat. The
 direct email CTA remains available for urgent briefs.
+Turnstile can be enabled with `NEXT_PUBLIC_TURNSTILE_SITE_KEY`,
+`TURNSTILE_SECRET_KEY`, `TURNSTILE_REQUIRED=true` and
+`NEXT_PUBLIC_TURNSTILE_REQUIRED=true`. If Turnstile is not required, a missing
+token does not block legitimate contact submissions.
 Public write endpoints use a small PostgreSQL-backed rate limit in
 `creator_rate_limits`, keyed by a hash of the client fingerprint. This keeps
 checkout/contact spam out of the production database without adding a separate
@@ -153,6 +161,10 @@ Legal pages are part of the app:
 Checkout buttons require explicit CGV/immediate digital delivery acceptance
 before reaching Stripe, BTCPay or Solana Pay. The order table stores the terms
 version, waiver timestamp and `fiat_value_eur_at_transaction` for accounting.
+Public B2C checkout is also gated by `CONSUMER_MEDIATOR_NAME` and
+`CONSUMER_MEDIATOR_WEBSITE`. Without a real referenced consumer mediator,
+`SALES_ENABLED=true` is treated as requested but not legally launch-ready, so
+the storefront keeps checkout locked instead of pretending compliance is done.
 
 ## Payment Direction
 

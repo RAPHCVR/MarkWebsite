@@ -1,3 +1,15 @@
+const consumerMediator = {
+  name: process.env.CONSUMER_MEDIATOR_NAME?.trim() || "",
+  address: process.env.CONSUMER_MEDIATOR_ADDRESS?.trim() || "",
+  website: process.env.CONSUMER_MEDIATOR_WEBSITE?.trim() || "",
+  referenceListUrl:
+    "https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references",
+};
+
+const consumerMediatorConfigured = Boolean(
+  consumerMediator.name && consumerMediator.website,
+);
+
 export const legalConfig = {
   merchantName: "Raphael Tech Solutions",
   entrepreneurName: "Raphael Chauvier",
@@ -25,7 +37,9 @@ export const legalConfig = {
     "Content Delivery Token",
     "VIP Infrastructure Access",
   ],
-  consumerMediatorConfigured: false,
+  consumerMediator,
+  consumerMediatorConfigured,
+  b2cSalesAllowed: consumerMediatorConfigured,
 } as const;
 
 export const legalLinks = [

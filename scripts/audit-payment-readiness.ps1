@@ -186,6 +186,14 @@ try {
   $status = Get-Json "$PublicUrl/api/payments/status?audit=1"
   Add-Check "PASS" "Storefront payment status" "Endpoint returned ok=$($status.ok), salesEnabled=$($status.salesEnabled)."
 
+  if ($status.legal.consumerMediatorConfigured) {
+    Add-Check "PASS" "B2C legal mediator" "Consumer mediator is configured."
+  } elseif ($status.salesRequested -or $status.salesEnabled) {
+    Add-Check "FAIL" "B2C legal mediator" "Public sales are requested but no referenced consumer mediator is configured."
+  } else {
+    Add-Check "WARN" "B2C legal mediator" "No consumer mediator configured; keep public B2C checkout disabled."
+  }
+
   if ($status.stripe.readyProductCount -gt 0) {
     Add-Check "PASS" "Stripe Payment Links" "$($status.stripe.readyProductCount) products have Stripe links."
   } else {
@@ -224,8 +232,27 @@ try {
 
   if ($status.telegram.botConfigured) {
     Add-Check "PASS" "Telegram bot config" "Bot token is configured; webhookConfigured=$($status.telegram.webhookConfigured), adminNotificationsConfigured=$($status.telegram.adminNotificationsConfigured)."
+    if ($status.telegram.adminNotificationsConfigured) {
+      Add-Check "PASS" "Telegram admin notifications" "TELEGRAM_ADMIN_CHAT_ID is configured."
+    } else {
+      Add-Check "WARN" "Telegram admin notifications" "Create a private admin chat, send /chatid, then set TELEGRAM_ADMIN_CHAT_ID."
+    }
   } else {
     Add-Check "WARN" "Telegram bot config" "Bot token is not configured; Telegram support links still work, but bot commands/notifications are disabled."
+  }
+
+  if ($status.admin.cloudflareAccessConfigured) {
+    Add-Check "PASS" "Cloudflare Access admin shield" "Origin is configured to validate Cloudflare Access JWTs for admin APIs."
+  } else {
+    Add-Check "WARN" "Cloudflare Access admin shield" "Protect /admin* in Cloudflare Access and set CLOUDFLARE_ACCESS_* env vars for origin validation."
+  }
+
+  if ($status.contact.turnstileRequired -and $status.contact.turnstileSiteKeyConfigured -and $status.contact.turnstileSecretConfigured) {
+    Add-Check "PASS" "Turnstile contact protection" "Turnstile is required and both site/secret keys are configured."
+  } elseif ($status.contact.turnstileRequired) {
+    Add-Check "FAIL" "Turnstile contact protection" "TURNSTILE_REQUIRED=true but site key or secret key is missing."
+  } else {
+    Add-Check "WARN" "Turnstile contact protection" "Turnstile is not required; contact form relies on honeypot and rate limiting."
   }
 } catch {
   Add-Check "FAIL" "Storefront payment status" $_.Exception.Message

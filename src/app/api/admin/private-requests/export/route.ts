@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { listPrivateRequestsForAdminExport } from "@/lib/server/orders";
-import {
-  getAdminAuthErrorResponse,
-  getAdminAuthStatus,
-} from "@/lib/server/admin-auth";
+import { enforceAdminAccess } from "@/lib/server/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -46,10 +43,10 @@ function csvValue(value: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = getAdminAuthStatus(request);
+  const blocked = await enforceAdminAccess(request);
 
-  if (auth !== "ok") {
-    return getAdminAuthErrorResponse(auth);
+  if (blocked) {
+    return blocked;
   }
 
   const from = parseDate(request.nextUrl.searchParams.get("from"));
