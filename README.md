@@ -80,9 +80,9 @@ tests.
 Private delivery is active in production through Cloudflare R2. The bucket
 `marky-private-packs` is private, public `r2.dev` access is disabled, and
 downloads are served only after token validation through short-lived signed
-URLs. Telegram bot/webhook support is configured for `@markshnaknaksbot`; admin
-delivery notifications remain disabled until `TELEGRAM_ADMIN_CHAT_ID` points to
-a trusted private chat or channel.
+URLs. Telegram bot/webhook support is configured for `@markshnaknaksbot`;
+admin delivery/contact/private-request notifications are enabled in production
+through `TELEGRAM_ADMIN_CHAT_ID`, which must stay only in Kubernetes secrets.
 
 Admin/accounting is token-protected. Configure `ADMIN_API_TOKEN`, then open
 `/admin` and enter the token locally in the browser to inspect recent orders,
@@ -251,8 +251,8 @@ TELEGRAM_ADMIN_CHAT_ID=
 TELEGRAM_VIP_CHAT_ID=
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
-SALES_ENABLED=true
-NEXT_PUBLIC_SALES_ENABLED=true
+SALES_ENABLED=false
+NEXT_PUBLIC_SALES_ENABLED=false
 CRYPTO_CHECKOUT_ENABLED=false
 NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=false
 ```

@@ -186,6 +186,8 @@ try {
   $status = Get-Json "$PublicUrl/api/payments/status?audit=1"
   Add-Check "PASS" "Storefront payment status" "Endpoint returned ok=$($status.ok), salesEnabled=$($status.salesEnabled)."
 
+  $salesBlockedByLegalGate = $status.legal.salesBlockedByLegalGate -eq $true
+
   if ($status.legal.consumerMediatorConfigured) {
     Add-Check "PASS" "B2C legal mediator" "Consumer mediator is configured."
   } elseif ($status.salesRequested -or $status.salesEnabled) {
@@ -208,6 +210,8 @@ try {
 
   if ($status.stablecoin.checkoutEnabled -and $status.stablecoin.defaultRail -eq "usdc-solana") {
     Add-Check "PASS" "USDC Solana Pay" "Enabled with $($status.stablecoin.solanaPay.rpcFallbackCount) RPC fallback endpoint(s)."
+  } elseif ($salesBlockedByLegalGate -or -not $status.salesRequested) {
+    Add-Check "WARN" "USDC Solana Pay" "Configured but checkout is disabled by the public sales/legal gate."
   } else {
     Add-Check "FAIL" "USDC Solana Pay" "Stablecoin checkout is not enabled for usdc-solana."
   }
@@ -220,6 +224,8 @@ try {
 
   if ($status.btcpay.checkoutEnabled) {
     Add-Check "PASS" "BTCPay public checkout flag" "BTCPay checkout is enabled."
+  } elseif ($salesBlockedByLegalGate -or -not $status.salesRequested) {
+    Add-Check "WARN" "BTCPay public checkout flag" "BTCPay is configured, but checkout is disabled by the public sales/legal gate."
   } else {
     Add-Check "WARN" "BTCPay public checkout flag" "Disabled: $($status.btcpay.supportedMethods -join '; ')."
   }
