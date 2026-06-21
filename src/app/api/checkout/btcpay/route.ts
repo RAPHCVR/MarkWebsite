@@ -46,6 +46,20 @@ async function readProductSlug(request: NextRequest) {
   return undefined;
 }
 
+function getEnabledBtcpayPaymentMethods() {
+  const methods: string[] = [];
+
+  if (paymentConfig.crypto.btcpay.ltcEnabled) {
+    methods.push("LTC");
+  }
+
+  if (paymentConfig.crypto.btcpay.btcWalletReady) {
+    methods.push("BTC");
+  }
+
+  return methods;
+}
+
 export async function GET() {
   return NextResponse.json(
     { error: "Use POST to create a BTCPay invoice" },
@@ -97,6 +111,7 @@ export async function POST(request: NextRequest) {
     const storeId = requiredEnv("BTCPAY_STORE_ID");
     const apiKey = requiredEnv("BTCPAY_API_KEY");
     const orderId = `marky-${product.slug}-${crypto.randomUUID()}`;
+    const paymentMethods = getEnabledBtcpayPaymentMethods();
 
     await ensureOrdersDatabaseReady();
 
@@ -119,6 +134,7 @@ export async function POST(request: NextRequest) {
           redirectURL: getPublicUrl(
             `/checkout/crypto-return?orderId=${encodeURIComponent(orderId)}`,
           ),
+          paymentMethods,
         },
       }),
     });
