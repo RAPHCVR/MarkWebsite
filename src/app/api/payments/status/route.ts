@@ -33,6 +33,7 @@ export function GET() {
     orderDatabaseConfigured: paymentConfig.crypto.databaseConfigured,
     stripe: {
       mode: paymentConfig.stripe.mode,
+      webhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       readyProductCount: stripeProducts.filter((product) => product.stripeReady)
         .length,
       products: stripeProducts,
@@ -57,6 +58,7 @@ export function GET() {
       checkoutEnabled: paymentConfig.crypto.checkoutEnabled,
       btcWalletReady: paymentConfig.crypto.btcpay.btcWalletReady,
       ltcEnabled: paymentConfig.crypto.btcpay.ltcEnabled,
+      supportedMethods: paymentConfig.crypto.btcpay.supportedMethods,
       publicCheckoutHost: paymentConfig.crypto.btcpay.publicCheckoutHost,
       healthUrl: `https://${paymentConfig.crypto.btcpay.publicCheckoutHost}/api/v1/health`,
     },

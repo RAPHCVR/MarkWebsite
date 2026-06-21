@@ -33,6 +33,20 @@ type ShkeeperWebhookEvent = {
   transactions?: Array<Record<string, unknown>>;
 };
 
+type StripeCheckoutSessionRecord = {
+  eventId: string;
+  eventType: string;
+  sessionId: string;
+  paymentLinkId?: string | null;
+  productSlug?: string | null;
+  productTitle?: string | null;
+  amountTotal?: number | null;
+  currency?: string | null;
+  status: string;
+  customerEmail?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
 type SolanaPayVerificationRecord = {
   orderId: string;
   signature: string;
@@ -336,6 +350,74 @@ export async function recordShkeeperWebhookEvent(event: ShkeeperWebhookEvent) {
       event.status ?? (event.paid ? "PAID" : "UNPAID"),
       "shkeeper.webhook",
       JSON.stringify({ shkeeperEvent: event }),
+    ],
+  );
+}
+
+export async function recordStripeCheckoutSessionEvent({
+  eventId,
+  eventType,
+  sessionId,
+  paymentLinkId,
+  productSlug,
+  productTitle,
+  amountTotal,
+  currency,
+  status,
+  customerEmail,
+  metadata = {},
+}: StripeCheckoutSessionRecord) {
+  await ensureSchema();
+
+  const orderId = `stripe-${sessionId}`;
+
+  await getPool().query(
+    `
+      INSERT INTO creator_orders (
+        order_id,
+        provider,
+        provider_invoice_id,
+        product_slug,
+        product_title,
+        amount_cents,
+        currency,
+        status,
+        last_event_type,
+        metadata
+      )
+      VALUES ($1, 'stripe', $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+      ON CONFLICT (order_id) DO UPDATE SET
+        provider = EXCLUDED.provider,
+        provider_invoice_id = COALESCE(EXCLUDED.provider_invoice_id, creator_orders.provider_invoice_id),
+        product_slug = COALESCE(EXCLUDED.product_slug, creator_orders.product_slug),
+        product_title = COALESCE(EXCLUDED.product_title, creator_orders.product_title),
+        amount_cents = COALESCE(EXCLUDED.amount_cents, creator_orders.amount_cents),
+        currency = COALESCE(EXCLUDED.currency, creator_orders.currency),
+        status = EXCLUDED.status,
+        last_event_type = EXCLUDED.last_event_type,
+        metadata = creator_orders.metadata || EXCLUDED.metadata,
+        updated_at = now()
+    `,
+    [
+      orderId,
+      sessionId,
+      productSlug ?? null,
+      productTitle ?? null,
+      amountTotal ?? null,
+      currency?.toUpperCase() ?? null,
+      status,
+      eventType,
+      JSON.stringify({
+        stripeEvent: {
+          eventId,
+          eventType,
+          sessionId,
+          paymentLinkId,
+          customerEmail,
+          receivedAt: new Date().toISOString(),
+        },
+        ...metadata,
+      }),
     ],
   );
 }

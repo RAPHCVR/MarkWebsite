@@ -63,6 +63,7 @@ Stripe fields can be stored per product:
 - `stripeProductId`
 - `stripePriceId`
 - `stripePaymentLinkId`
+- `STRIPE_WEBHOOK_SECRET` for signed `checkout.session.*` reconciliation
 
 Public buying is disabled unless `SALES_ENABLED=true` and `NEXT_PUBLIC_SALES_ENABLED=true`.
 Crypto checkout also requires `CRYPTO_CHECKOUT_ENABLED=true`,
@@ -110,7 +111,8 @@ Detailed crypto rail decisions and fee notes live in `docs/crypto-payment-strate
 Recommended launch path:
 
 - Use Stripe Payment Links first for SFW photo packs if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables.
-- Move to Stripe Checkout Sessions later if the site needs a cart, webhooks, automatic delivery, coupons tied to accounts, or richer order metadata.
+- Add a Stripe webhook endpoint pointing to `https://markshnaknaks.com/api/webhooks/stripe` with `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired` so paid sessions are recorded in the shared `creator_orders` table.
+- Move to Stripe Checkout Sessions later if the site needs a cart, automatic delivery, coupons tied to accounts, or richer order metadata than Payment Links provide.
 - Use Solana Pay as the first free/self-hosted stablecoin rail: the site creates a USDC payment request, stores the order in PostgreSQL, displays a QR/link, and verifies the reference on-chain before marking the order paid.
 - Use BTCPay Server as the best self-hosted BTC/LTC option if low card fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the node is synced, and the store has an on-chain wallet/payment method configured.
 - Use Litecoin as the first cheap UTXO crypto rail once the LTC node, NBXplorer indexing and wallet smoke test are complete.
@@ -126,6 +128,7 @@ BTCPAY_SERVER_URL=https://pay.markshnaknaks.com
 BTCPAY_STORE_ID=...
 BTCPAY_API_KEY=...
 BTCPAY_WEBHOOK_SECRET=...
+STRIPE_WEBHOOK_SECRET=
 BTCPAY_BTC_WALLET_READY=false
 NEXT_PUBLIC_BTCPAY_BTC_WALLET_READY=false
 BTCPAY_LTC_ENABLED=false

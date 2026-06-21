@@ -103,10 +103,33 @@ function canShowCryptoCheckout(product: Product) {
     paymentConfig.salesEnabled &&
     paymentConfig.crypto.checkoutEnabled &&
     paymentConfig.crypto.btcpay.configured &&
-    paymentConfig.crypto.btcpay.btcWalletReady &&
     paymentConfig.crypto.databaseConfigured &&
     product.status !== "coming-soon"
   );
+}
+
+function getBtcpayButton() {
+  const btcReady = paymentConfig.crypto.btcpay.btcWalletReady;
+  const ltcReady = paymentConfig.crypto.btcpay.ltcEnabled;
+
+  if (btcReady && ltcReady) {
+    return {
+      icon: "bitcoin" as const,
+      label: "Pay with BTC/LTC",
+    };
+  }
+
+  if (ltcReady) {
+    return {
+      icon: "litecoin" as const,
+      label: "Pay with Litecoin",
+    };
+  }
+
+  return {
+    icon: "bitcoin" as const,
+    label: "Pay with Bitcoin",
+  };
 }
 
 function canShowStablecoinCheckout(product: Product) {
@@ -165,6 +188,7 @@ export function ProductCards() {
           const safeHref = disabled ? "#photo-packs" : href;
           const showCryptoCheckout = canShowCryptoCheckout(product);
           const showStablecoinCheckout = canShowStablecoinCheckout(product);
+          const btcpayButton = getBtcpayButton();
 
           return (
             <article
@@ -240,11 +264,11 @@ export function ProductCards() {
                       >
                         <span
                           className="flex size-5 items-center justify-center text-[var(--brand-color)]"
-                          style={brandIconStyle("bitcoin")}
+                          style={brandIconStyle(btcpayButton.icon)}
                         >
-                          <BrandIcon name="bitcoin" className="size-4" />
+                          <BrandIcon name={btcpayButton.icon} className="size-4" />
                         </span>
-                        Pay with Bitcoin
+                        {btcpayButton.label}
                       </button>
                     </form>
                   ) : null}

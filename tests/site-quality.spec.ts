@@ -187,6 +187,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
     orderDatabaseConfigured?: boolean;
     stripe?: {
       mode?: string;
+      webhookConfigured?: boolean;
       readyProductCount?: number;
       products?: Array<{ slug?: string; stripeReady?: boolean }>;
     };
@@ -206,20 +207,38 @@ test("payment status endpoint reports readiness without exposing secrets", async
       configured?: boolean;
       checkoutEnabled?: boolean;
       btcWalletReady?: boolean;
+      ltcEnabled?: boolean;
+      supportedMethods?: string[];
       healthUrl?: string;
     };
   };
 
   expect(status.ok).toBe(true);
   expect(status.stripe?.mode).toBe("payment-links");
+  expect(typeof status.stripe?.webhookConfigured).toBe("boolean");
   expect(status.stripe?.products?.some((product) => product.slug === "cosplay-starter-pack")).toBe(true);
   expect(status.stablecoin?.defaultRail).toBe("usdc-solana");
   expect(status.stablecoin?.rails?.some((rail) => rail.id === "usdc-solana")).toBe(true);
   expect(status.stablecoin?.solanaPay?.rpcUrlEnv).toBe("SOLANA_PAY_RPC_URL");
   expect(status.stablecoin?.solanaPay?.rpcUrlsEnv).toBe("SOLANA_PAY_RPC_URLS");
   expect(status.stablecoin?.solanaPay?.rpcFallbackCount).toBeGreaterThanOrEqual(1);
+  expect(status.btcpay?.supportedMethods?.length).toBeGreaterThanOrEqual(1);
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
+});
+
+test("Stripe webhook rejects unsigned requests", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Webhook route check only needs one project");
+
+  const response = await request.post("/api/webhooks/stripe", {
+    data: {
+      id: "evt_test",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_test", object: "checkout.session" } },
+    },
+  });
+
+  expect([401, 503]).toContain(response.status());
 });
 
 test("public responses include production security headers", async ({ request }, testInfo) => {
