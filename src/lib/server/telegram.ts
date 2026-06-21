@@ -1,6 +1,8 @@
 import { siteConfig } from "@/data/site";
 import {
+  getPrivateRequestReplyPrompt,
   linkTelegramToDelivery,
+  recordPrivateRequestAdminReplyFromTelegram,
   recordPrivateRequestTicketFromTelegram,
   type CreatorOrder,
   type PrivateRequestTicketResult,
@@ -9,13 +11,16 @@ import { getPublicUrl } from "@/lib/site-url";
 
 type TelegramInlineButton = {
   text: string;
-  url: string;
+  url?: string;
+  callbackData?: string;
 };
 
 type SendTelegramMessageOptions = {
   chatId: string;
   text: string;
   buttons?: TelegramInlineButton[];
+  replyToMessageId?: number;
+  forceReply?: boolean;
 };
 
 type TelegramApiResponse<T> = {
@@ -32,6 +37,26 @@ export type TelegramUpdate = {
     chat?: {
       id?: number | string;
       type?: string;
+    };
+    from?: {
+      id?: number;
+      username?: string;
+      first_name?: string;
+    };
+    reply_to_message?: {
+      message_id?: number;
+      text?: string;
+    };
+  };
+  callback_query?: {
+    id?: string;
+    data?: string;
+    message?: {
+      message_id?: number;
+      chat?: {
+        id?: number | string;
+        type?: string;
+      };
     };
     from?: {
       id?: number;
@@ -97,10 +122,28 @@ export async function sendTelegramMessage({
   chatId,
   text,
   buttons = [],
+  replyToMessageId,
+  forceReply = false,
 }: SendTelegramMessageOptions) {
   if (!isTelegramBotConfigured()) {
     return { ok: false, skipped: true as const };
   }
+
+  const inlineKeyboard = buttons.map((button) => {
+    const payload: { text: string; url?: string; callback_data?: string } = {
+      text: button.text,
+    };
+
+    if (button.url) {
+      payload.url = button.url;
+    }
+
+    if (button.callbackData) {
+      payload.callback_data = button.callbackData;
+    }
+
+    return [payload];
+  });
 
   const response = await fetch(getTelegramApiUrl("sendMessage"), {
     method: "POST",
@@ -109,10 +152,18 @@ export async function sendTelegramMessage({
       chat_id: chatId,
       text,
       disable_web_page_preview: true,
+      reply_to_message_id: replyToMessageId,
+      allow_sending_without_reply: true,
       reply_markup: buttons.length
         ? {
-            inline_keyboard: buttons.map((button) => [button]),
+            inline_keyboard: inlineKeyboard,
           }
+        : forceReply
+          ? {
+              force_reply: true,
+              input_field_placeholder: "Write the customer reply...",
+              selective: true,
+            }
         : undefined,
     }),
   });
@@ -126,6 +177,36 @@ export async function sendTelegramMessage({
     description: payload.description,
     result: payload.result,
   };
+}
+
+async function answerCallbackQuery(callbackQueryId: string, text?: string) {
+  if (!isTelegramBotConfigured()) {
+    return { ok: false, skipped: true as const };
+  }
+
+  const response = await fetch(getTelegramApiUrl("answerCallbackQuery"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      callback_query_id: callbackQueryId,
+      text,
+      show_alert: false,
+    }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as TelegramApiResponse<boolean>;
+
+  return {
+    ok: response.ok && payload.ok,
+    status: response.status,
+    description: payload.description,
+    result: payload.result,
+  };
+}
+
+function getReplyTokenFromAdminPrompt(text?: string) {
+  const match = text?.match(/Reply token:\s*([A-Za-z0-9_-]{16,64})/);
+
+  return match?.[1] || null;
 }
 
 async function createTelegramInviteLink(chatId: string) {
@@ -201,12 +282,17 @@ async function notifyPrivateRequest(ticket: Extract<PrivateRequestTicketResult, 
       `Order: ${ticket.orderId}`,
       `Access: ${ticket.productTitle || "VIP Infrastructure Access"}`,
       `Quota: ${ticket.quotaUsed}/${ticket.quotaTotal}`,
+      `Customer reply token: ${ticket.replyToken}`,
       "",
       ticket.message,
     ].join("\n"),
     buttons: [
       {
-        text: "Open support chat",
+        text: "Répondre",
+        callbackData: `reply_private_request:${ticket.replyToken}`,
+      },
+      {
+        text: "Support chat",
         url: siteConfig.telegramChatUrl,
       },
     ],
@@ -252,12 +338,109 @@ export async function notifyContactRequest({
 }
 
 export async function handleTelegramUpdate(update: TelegramUpdate) {
+  const callbackQuery = update.callback_query;
+
+  if (callbackQuery?.data?.startsWith("reply_private_request:")) {
+    const callbackQueryId = callbackQuery.id;
+    const callbackChatId = callbackQuery.message?.chat?.id;
+    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    const replyToken = callbackQuery.data.replace("reply_private_request:", "");
+
+    if (!callbackQueryId) {
+      return { ok: true, ignored: true };
+    }
+
+    if (!adminChatId || String(callbackChatId) !== adminChatId) {
+      return answerCallbackQuery(callbackQueryId, "Admin chat only.");
+    }
+
+    const ticket = await getPrivateRequestReplyPrompt(replyToken);
+
+    if (!ticket) {
+      return answerCallbackQuery(callbackQueryId, "Ticket not found.");
+    }
+
+    await answerCallbackQuery(callbackQueryId, "Reply to the bot prompt.");
+
+    return sendTelegramMessage({
+      chatId: adminChatId,
+      replyToMessageId: callbackQuery.message?.message_id,
+      forceReply: true,
+      text: [
+        "Reply to this message to answer the customer.",
+        `Request: ${ticket.requestId}`,
+        `Access: ${ticket.productTitle || ticket.subject || "VIP Infrastructure Access"}`,
+        `Reply token: ${replyToken}`,
+        "",
+        "Customer message:",
+        ticket.lastMessage || "(empty)",
+      ].join("\n"),
+    });
+  }
+
   const chatId = update.message?.chat?.id;
   const text = update.message?.text?.trim() || "";
   const from = update.message?.from;
 
   if (!chatId) {
     return { ok: true, ignored: true };
+  }
+
+  const adminReplyToken = getReplyTokenFromAdminPrompt(
+    update.message?.reply_to_message?.text,
+  );
+
+  if (
+    adminReplyToken &&
+    process.env.TELEGRAM_ADMIN_CHAT_ID &&
+    String(chatId) === process.env.TELEGRAM_ADMIN_CHAT_ID
+  ) {
+    const reply = await recordPrivateRequestAdminReplyFromTelegram({
+      replyToken: adminReplyToken,
+      message: text,
+      adminChatId: String(chatId),
+      adminUserId: from?.id,
+      adminUsername: from?.username,
+    });
+
+    if (!reply.ok) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text:
+          reply.reason === "empty-message"
+            ? "Reply was empty. Send the customer answer as text."
+            : "Could not find the private request ticket for this reply.",
+      });
+    }
+
+    if (!reply.customerChatId) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: `Reply saved for ${reply.requestId}, but no customer Telegram chat is linked.`,
+      });
+    }
+
+    const delivered = await sendTelegramMessage({
+      chatId: reply.customerChatId,
+      text: [
+        "Marky Concierge reply",
+        `Ticket: ${reply.requestId}`,
+        "",
+        reply.message,
+      ].join("\n"),
+      buttons: [{ text: "Support chat", url: siteConfig.telegramChatUrl }],
+    });
+    const deliveryError =
+      "description" in delivered
+        ? delivered.description || delivered.status || "unknown error"
+        : "skipped";
+
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: delivered.ok
+        ? `Reply sent to customer for ${reply.requestId}.`
+        : `Reply saved for ${reply.requestId}, but Telegram delivery failed: ${deliveryError}.`,
+    });
   }
 
   if (text.startsWith("/chatid")) {

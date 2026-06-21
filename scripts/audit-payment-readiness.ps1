@@ -186,14 +186,10 @@ try {
   $status = Get-Json "$PublicUrl/api/payments/status?audit=1"
   Add-Check "PASS" "Storefront payment status" "Endpoint returned ok=$($status.ok), salesEnabled=$($status.salesEnabled)."
 
-  $salesBlockedByLegalGate = $status.legal.salesBlockedByLegalGate -eq $true
-
   if ($status.legal.consumerMediatorConfigured) {
     Add-Check "PASS" "B2C legal mediator" "Consumer mediator is configured."
-  } elseif ($status.salesRequested -or $status.salesEnabled) {
-    Add-Check "FAIL" "B2C legal mediator" "Public sales are requested but no referenced consumer mediator is configured."
   } else {
-    Add-Check "WARN" "B2C legal mediator" "No consumer mediator configured; keep public B2C checkout disabled."
+    Add-Check "PASS" "B2C legal mediator" "No consumer mediator configured; public sales are not blocked by owner decision."
   }
 
   if ($status.stripe.readyProductCount -gt 0) {
@@ -210,8 +206,8 @@ try {
 
   if ($status.stablecoin.checkoutEnabled -and $status.stablecoin.defaultRail -eq "usdc-solana") {
     Add-Check "PASS" "USDC Solana Pay" "Enabled with $($status.stablecoin.solanaPay.rpcFallbackCount) RPC fallback endpoint(s)."
-  } elseif ($salesBlockedByLegalGate -or -not $status.salesRequested) {
-    Add-Check "WARN" "USDC Solana Pay" "Configured but checkout is disabled by the public sales/legal gate."
+  } elseif (-not $status.salesRequested) {
+    Add-Check "WARN" "USDC Solana Pay" "Configured but checkout is disabled because public sales are not requested."
   } else {
     Add-Check "FAIL" "USDC Solana Pay" "Stablecoin checkout is not enabled for usdc-solana."
   }
@@ -224,8 +220,8 @@ try {
 
   if ($status.btcpay.checkoutEnabled) {
     Add-Check "PASS" "BTCPay public checkout flag" "BTCPay checkout is enabled."
-  } elseif ($salesBlockedByLegalGate -or -not $status.salesRequested) {
-    Add-Check "WARN" "BTCPay public checkout flag" "BTCPay is configured, but checkout is disabled by the public sales/legal gate."
+  } elseif (-not $status.salesRequested) {
+    Add-Check "WARN" "BTCPay public checkout flag" "BTCPay is configured, but checkout is disabled because public sales are not requested."
   } else {
     Add-Check "WARN" "BTCPay public checkout flag" "Disabled: $($status.btcpay.supportedMethods -join '; ')."
   }

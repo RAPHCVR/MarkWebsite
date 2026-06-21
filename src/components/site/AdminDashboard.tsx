@@ -44,6 +44,9 @@ type PrivateRequest = {
   quotaUsed: number;
   subject: string | null;
   lastMessage: string | null;
+  lastAdminReply: string | null;
+  adminReplyCount: number;
+  adminRepliedAt: string | null;
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
@@ -387,6 +390,22 @@ export function AdminDashboard() {
                     No message submitted yet.
                   </p>
                 )}
+                {request.lastAdminReply ? (
+                  <div className="mt-3 rounded-2xl border border-pink-100 bg-pink-50/72 p-3">
+                    <p className="text-[0.68rem] font-black uppercase tracking-[0.14em] text-pink-500">
+                      Last concierge reply
+                    </p>
+                    <p className="mt-1 line-clamp-3 text-sm leading-6 text-rose-950/68">
+                      {request.lastAdminReply}
+                    </p>
+                    <p className="mt-2 text-xs font-bold text-rose-950/45">
+                      {request.adminReplyCount} repl{request.adminReplyCount === 1 ? "y" : "ies"}
+                      {request.adminRepliedAt
+                        ? ` · ${formatDate(request.adminRepliedAt)}`
+                        : ""}
+                    </p>
+                  </div>
+                ) : null}
                 <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-pink-500">
                   Updated {formatDate(request.updatedAt)}
                 </p>

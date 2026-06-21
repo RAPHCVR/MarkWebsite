@@ -55,7 +55,8 @@ export function GET() {
       consumerMediatorName: legalConfig.consumerMediatorConfigured
         ? legalConfig.consumerMediator.name
         : null,
-      b2cSalesAllowed: legalConfig.b2cSalesAllowed,
+      b2cSalesAllowed: paymentConfig.legal.b2cSalesAllowed,
+      mediatorGateEnforced: paymentConfig.legal.mediatorGateEnforced,
       salesBlockedByLegalGate: paymentConfig.legal.salesBlockedByLegalGate,
       checkoutConsentCaptured: true,
       cryptoFiatAccountingField: "creator_orders.fiat_value_eur_at_transaction",

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     ok: true,
     requests: rows.map((row) => ({
       ...row,
+      adminRepliedAt: row.adminRepliedAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       closedAt: row.closedAt?.toISOString() ?? null,

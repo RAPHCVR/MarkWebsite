@@ -39,7 +39,7 @@ export const legalConfig = {
   ],
   consumerMediator,
   consumerMediatorConfigured,
-  b2cSalesAllowed: consumerMediatorConfigured,
+  b2cSalesAllowed: true,
 } as const;
 
 export const legalLinks = [

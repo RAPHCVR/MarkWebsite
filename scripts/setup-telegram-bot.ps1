@@ -55,6 +55,20 @@ function Invoke-TelegramApi {
     -Body ($Body | ConvertTo-Json -Depth 8 -Compress)
 }
 
+function Invoke-TelegramApiOptional {
+  param(
+    [string]$Method,
+    [hashtable]$Body
+  )
+
+  try {
+    Invoke-TelegramApi -Method $Method -Body $Body
+  } catch {
+    Write-Warning "Telegram $Method skipped: $($_.Exception.Message)"
+    $null
+  }
+}
+
 $BotToken = Get-ConfigValue -EnvName "TELEGRAM_BOT_TOKEN" -SecretKey "TELEGRAM_BOT_TOKEN"
 $WebhookSecret = Get-ConfigValue -EnvName "TELEGRAM_WEBHOOK_SECRET" -SecretKey "TELEGRAM_WEBHOOK_SECRET"
 $AdminChatId = Get-ConfigValue -EnvName "TELEGRAM_ADMIN_CHAT_ID" -SecretKey "TELEGRAM_ADMIN_CHAT_ID"
@@ -75,24 +89,24 @@ Write-Host "Bot: @$($me.result.username)"
 Invoke-TelegramApi -Method "setWebhook" -Body @{
   url = $webhookUrl
   secret_token = $WebhookSecret
-  allowed_updates = @("message")
+  allowed_updates = @("message", "callback_query")
   drop_pending_updates = [bool]$DropPendingUpdates
 } | Out-Null
 Write-Host "Webhook configured: $webhookUrl"
 
-Invoke-TelegramApi -Method "setMyName" -Body @{
+Invoke-TelegramApiOptional -Method "setMyName" -Body @{
   name = "Marky Concierge"
 } | Out-Null
 
-Invoke-TelegramApi -Method "setMyShortDescription" -Body @{
+Invoke-TelegramApiOptional -Method "setMyShortDescription" -Body @{
   short_description = "Access links, VIP support and request tickets."
 } | Out-Null
 
-Invoke-TelegramApi -Method "setMyDescription" -Body @{
+Invoke-TelegramApiOptional -Method "setMyDescription" -Body @{
   description = "Marky Concierge links site delivery tokens to Telegram, routes support, and keeps Private Request Passes ticketed. Payments and private delivery remain on markshnaknaks.com."
 } | Out-Null
 
-Invoke-TelegramApi -Method "setMyCommands" -Body @{
+Invoke-TelegramApiOptional -Method "setMyCommands" -Body @{
   commands = @(
     @{ command = "start"; description = "Link a delivery token or open the site" },
     @{ command = "help"; description = "Show available commands" },
@@ -113,7 +127,7 @@ try {
     menu_button = @{
       type = "web_app"
       text = "Open Marky"
-      web_app = @{ url = $PublicUrl }
+      web_app = @{ url = "$PublicUrl/orders?tg=true" }
     }
   } | Out-Null
   Write-Host "Menu button configured."

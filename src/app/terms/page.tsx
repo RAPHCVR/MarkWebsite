@@ -76,7 +76,7 @@ export default function TermsPage() {
           body: [
             legalConfig.consumerMediatorConfigured
               ? `En cas de litige non resolu apres reclamation ecrite au support, le consommateur peut saisir le mediateur reference: ${legalConfig.consumerMediator.name}, ${legalConfig.consumerMediator.website}.`
-              : `La vente B2C publique reste verrouillee tant que les coordonnees d'un mediateur de la consommation reference ne sont pas configurees. Liste officielle: ${legalConfig.consumerMediator.referenceListUrl}.`,
+              : `Aucun mediateur de la consommation n'est renseigne a ce stade. Liste officielle des mediateurs references: ${legalConfig.consumerMediator.referenceListUrl}.`,
           ],
         },
       ]}

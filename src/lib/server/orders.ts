@@ -74,6 +74,14 @@ type PrivateRequestTicketRecord = {
   message: string;
 };
 
+type PrivateRequestAdminReplyRecord = {
+  replyToken: string;
+  message: string;
+  adminChatId: string;
+  adminUserId?: string | number;
+  adminUsername?: string;
+};
+
 type RateLimitCheck = {
   action: string;
   key: string;
@@ -177,6 +185,7 @@ export type PrivateRequestTicketResult =
       quotaTotal: number;
       remaining: number;
       message: string;
+      replyToken: string;
     }
   | {
       ok: false;
@@ -367,13 +376,27 @@ async function ensureSchema() {
       quota_used integer NOT NULL DEFAULT 0,
       subject text,
       last_message text,
+      last_admin_reply text,
+      admin_reply_count integer NOT NULL DEFAULT 0,
+      admin_replied_at timestamptz,
+      telegram_reply_token text,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
       closed_at timestamptz
     );
 
+    ALTER TABLE creator_private_requests
+      ADD COLUMN IF NOT EXISTS last_admin_reply text,
+      ADD COLUMN IF NOT EXISTS admin_reply_count integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS admin_replied_at timestamptz,
+      ADD COLUMN IF NOT EXISTS telegram_reply_token text;
+
     CREATE INDEX IF NOT EXISTS creator_private_requests_order_idx
       ON creator_private_requests(order_id, created_at DESC);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS creator_private_requests_telegram_reply_token_idx
+      ON creator_private_requests(telegram_reply_token)
+      WHERE telegram_reply_token IS NOT NULL;
   `).then(() => undefined);
 
   return schemaReady;
@@ -385,6 +408,13 @@ function hashRateLimitKey(action: string, key: string) {
 
 function hashDeliveryToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function getPrivateRequestReplyToken(requestId: string) {
+  return createHash("sha256")
+    .update(`telegram-private-reply:${requestId}`)
+    .digest("base64url")
+    .slice(0, 32);
 }
 
 function getProductFiatValueEur(product: Product) {
@@ -1121,7 +1151,7 @@ export async function recordPrivateRequestTicketFromTelegram({
         FROM creator_private_requests private_requests
         LEFT JOIN creator_entitlements entitlements
           ON entitlements.entitlement_id = private_requests.entitlement_id
-        WHERE private_requests.status IN ('available', 'open')
+        WHERE private_requests.status IN ('available', 'open', 'answered')
           AND private_requests.quota_used < private_requests.quota_total
           AND (
             private_requests.telegram_chat_id = $1
@@ -1210,6 +1240,18 @@ export async function recordPrivateRequestTicketFromTelegram({
 
   const quotaUsed = Number(row.quota_used);
   const quotaTotal = Number(row.quota_total);
+  const replyToken = getPrivateRequestReplyToken(String(row.request_id));
+
+  await getPool().query(
+    `
+      UPDATE creator_private_requests
+      SET
+        telegram_reply_token = COALESCE(telegram_reply_token, $2),
+        updated_at = now()
+      WHERE request_id = $1
+    `,
+    [row.request_id, replyToken],
+  );
 
   return {
     ok: true,
@@ -1220,13 +1262,151 @@ export async function recordPrivateRequestTicketFromTelegram({
     quotaTotal,
     remaining: Math.max(0, quotaTotal - quotaUsed),
     message: cleanMessage,
+    replyToken,
+  };
+}
+
+export async function getPrivateRequestReplyPrompt(replyToken: string) {
+  await ensureSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        private_requests.request_id,
+        private_requests.order_id,
+        private_requests.subject,
+        private_requests.last_message,
+        private_requests.telegram_chat_id,
+        private_requests.telegram_user_id,
+        orders.product_title
+      FROM creator_private_requests private_requests
+      JOIN creator_orders orders ON orders.order_id = private_requests.order_id
+      WHERE private_requests.telegram_reply_token = $1
+      LIMIT 1
+    `,
+    [replyToken],
+  );
+
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        order_id: string;
+        subject: string | null;
+        last_message: string | null;
+        telegram_chat_id: string | null;
+        telegram_user_id: string | null;
+        product_title: string | null;
+      }
+    | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    requestId: String(row.request_id),
+    orderId: String(row.order_id),
+    subject: row.subject ? String(row.subject) : null,
+    lastMessage: row.last_message ? String(row.last_message) : null,
+    telegramChatId: row.telegram_chat_id ? String(row.telegram_chat_id) : null,
+    telegramUserId: row.telegram_user_id ? String(row.telegram_user_id) : null,
+    productTitle: row.product_title ? String(row.product_title) : null,
+  };
+}
+
+export async function recordPrivateRequestAdminReplyFromTelegram({
+  replyToken,
+  message,
+  adminChatId,
+  adminUserId,
+  adminUsername,
+}: PrivateRequestAdminReplyRecord) {
+  await ensureSchema();
+
+  const cleanMessage = message.trim().slice(0, 2_000);
+
+  if (!cleanMessage) {
+    return { ok: false as const, reason: "empty-message" as const };
+  }
+
+  const result = await getPool().query(
+    `
+      UPDATE creator_private_requests private_requests
+      SET
+        last_admin_reply = $2,
+        admin_reply_count = private_requests.admin_reply_count + 1,
+        admin_replied_at = now(),
+        status = CASE
+          WHEN private_requests.status IN ('available', 'open', 'used', 'answered')
+            THEN 'answered'
+          ELSE private_requests.status
+        END,
+        updated_at = now()
+      FROM creator_orders orders
+      WHERE private_requests.order_id = orders.order_id
+        AND private_requests.telegram_reply_token = $1
+      RETURNING
+        private_requests.request_id,
+        private_requests.order_id,
+        private_requests.telegram_chat_id,
+        private_requests.telegram_user_id,
+        private_requests.subject,
+        private_requests.admin_reply_count,
+        orders.product_title
+    `,
+    [replyToken, cleanMessage],
+  );
+
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        order_id: string;
+        telegram_chat_id: string | null;
+        telegram_user_id: string | null;
+        subject: string | null;
+        admin_reply_count: number;
+        product_title: string | null;
+      }
+    | undefined;
+
+  if (!row) {
+    return { ok: false as const, reason: "not-found" as const };
+  }
+
+  await insertDeliveryEvent({
+    orderId: row.order_id,
+    eventType: "private_request.admin_replied",
+    metadata: {
+      requestId: row.request_id,
+      telegramAdminChatId: adminChatId,
+      telegramAdminUserId:
+        adminUserId === undefined ? null : String(adminUserId),
+      telegramAdminUsername: adminUsername ?? null,
+      adminReplyCount: Number(row.admin_reply_count),
+    },
+  });
+
+  return {
+    ok: true as const,
+    requestId: String(row.request_id),
+    orderId: String(row.order_id),
+    productTitle: row.product_title ? String(row.product_title) : null,
+    subject: row.subject ? String(row.subject) : null,
+    customerChatId: row.telegram_user_id
+      ? String(row.telegram_user_id)
+      : row.telegram_chat_id
+        ? String(row.telegram_chat_id)
+        : null,
+    message: cleanMessage,
+    adminReplyCount: Number(row.admin_reply_count),
   };
 }
 
 export async function createDeliveryTokenForOrder({
   orderId,
   ttlDays = Number(process.env.DELIVERY_TOKEN_TTL_DAYS || "7"),
-}: DeliveryTokenRecord) {
+  forceNew = false,
+}: DeliveryTokenRecord & { forceNew?: boolean }) {
   await ensureSchema();
 
   const entitlement = await getPool().query(
@@ -1246,27 +1426,29 @@ export async function createDeliveryTokenForOrder({
     return null;
   }
 
-  const activeToken = await getPool().query(
-    `
-      SELECT token_id, expires_at
-      FROM creator_delivery_tokens
-      WHERE order_id = $1
-        AND entitlement_id = $2
-        AND expires_at > now()
-        AND redemption_count < max_redemptions
-      ORDER BY created_at DESC
-      LIMIT 1
-    `,
-    [orderId, entitlementId],
-  );
+  if (!forceNew) {
+    const activeToken = await getPool().query(
+      `
+        SELECT token_id, expires_at
+        FROM creator_delivery_tokens
+        WHERE order_id = $1
+          AND entitlement_id = $2
+          AND expires_at > now()
+          AND redemption_count < max_redemptions
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [orderId, entitlementId],
+    );
 
-  if (activeToken.rows[0]) {
-    return {
-      tokenId: String(activeToken.rows[0].token_id),
-      token: null,
-      url: null,
-      expiresAt: activeToken.rows[0].expires_at as Date,
-    };
+    if (activeToken.rows[0]) {
+      return {
+        tokenId: String(activeToken.rows[0].token_id),
+        token: null,
+        url: null,
+        expiresAt: activeToken.rows[0].expires_at as Date,
+      };
+    }
   }
 
   const token = randomBytes(32).toString("base64url");
@@ -1304,6 +1486,93 @@ export async function createDeliveryTokenForOrder({
     url: `/orders/${token}`,
     expiresAt: result.rows[0].expires_at as Date,
   };
+}
+
+export async function listTelegramAccessPasses({
+  telegramUserId,
+  ttlDays = 1,
+}: {
+  telegramUserId: string;
+  ttlDays?: number;
+}) {
+  await ensureSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT DISTINCT ON (orders.order_id)
+        orders.order_id,
+        orders.product_slug,
+        orders.product_title,
+        orders.provider,
+        orders.status,
+        orders.paid_at,
+        entitlements.entitlement_id
+      FROM creator_entitlements entitlements
+      JOIN creator_orders orders ON orders.order_id = entitlements.order_id
+      LEFT JOIN creator_telegram_links telegram_links
+        ON telegram_links.order_id = orders.order_id
+      WHERE entitlements.status = 'active'
+        AND orders.status = 'PAID'
+        AND (
+          entitlements.telegram_user_id = $1
+          OR telegram_links.telegram_user_id = $1
+        )
+      ORDER BY orders.order_id, orders.paid_at DESC NULLS LAST, orders.created_at DESC
+      LIMIT 25
+    `,
+    [telegramUserId],
+  );
+
+  const passes = [];
+
+  for (const row of result.rows as Array<{
+    order_id: string;
+    product_slug: string | null;
+    product_title: string | null;
+    provider: string;
+    status: string;
+    paid_at: Date | null;
+    entitlement_id: string;
+  }>) {
+    if (!row.product_slug) {
+      continue;
+    }
+
+    const deliveryToken = await createDeliveryTokenForOrder({
+      orderId: row.order_id,
+      ttlDays,
+      forceNew: true,
+    });
+
+    if (!deliveryToken?.token || !deliveryToken.url) {
+      continue;
+    }
+
+    const assets = await getAssetsForProduct(row.product_slug);
+
+    passes.push({
+      orderId: String(row.order_id),
+      entitlementId: String(row.entitlement_id),
+      productSlug: String(row.product_slug),
+      productTitle: row.product_title ? String(row.product_title) : null,
+      provider: String(row.provider),
+      status: String(row.status),
+      paidAt: row.paid_at,
+      expiresAt: deliveryToken.expiresAt,
+      deliveryUrl: deliveryToken.url,
+      assets: assets.map((asset) => ({
+        assetId: asset.assetId,
+        title: asset.title,
+        description: asset.description,
+        sizeBytes: asset.sizeBytes,
+        downloadUrl: `/api/delivery/assets/${encodeURIComponent(
+          asset.assetId,
+        )}?token=${encodeURIComponent(deliveryToken.token)}`,
+      })),
+    });
+  }
+
+  return passes;
 }
 
 export async function getAssetsForProduct(productSlug: string) {
@@ -1732,6 +2001,9 @@ export async function listPrivateRequestsForAdminExport({
         private_requests.quota_used,
         private_requests.subject,
         private_requests.last_message,
+        private_requests.last_admin_reply,
+        private_requests.admin_reply_count,
+        private_requests.admin_replied_at,
         private_requests.created_at,
         private_requests.updated_at,
         private_requests.closed_at
@@ -1757,6 +2029,9 @@ export async function listPrivateRequestsForAdminExport({
     quotaUsed: Number(row.quota_used),
     subject: row.subject ? String(row.subject) : null,
     lastMessage: row.last_message ? String(row.last_message) : null,
+    lastAdminReply: row.last_admin_reply ? String(row.last_admin_reply) : null,
+    adminReplyCount: Number(row.admin_reply_count ?? 0),
+    adminRepliedAt: row.admin_replied_at as Date | null,
     createdAt: row.created_at as Date,
     updatedAt: row.updated_at as Date,
     closedAt: row.closed_at as Date | null,

@@ -60,7 +60,7 @@ export type StablecoinRail = {
 const requestedSalesEnabled =
   process.env.SALES_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_SALES_ENABLED === "true";
-const salesEnabled = requestedSalesEnabled && legalConfig.b2cSalesAllowed;
+const salesEnabled = requestedSalesEnabled;
 
 const cryptoCheckoutEnabled =
   salesEnabled &&
@@ -289,9 +289,10 @@ export const paymentConfig = {
   salesEnabled,
   requestedSalesEnabled,
   legal: {
-    b2cSalesAllowed: legalConfig.b2cSalesAllowed,
+    b2cSalesAllowed: true,
     consumerMediatorConfigured: legalConfig.consumerMediatorConfigured,
-    salesBlockedByLegalGate: requestedSalesEnabled && !legalConfig.b2cSalesAllowed,
+    mediatorGateEnforced: false,
+    salesBlockedByLegalGate: false,
   },
   publicDomain: siteConfig.domain,
   stripe: {

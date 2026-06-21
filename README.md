@@ -161,10 +161,10 @@ Legal pages are part of the app:
 Checkout buttons require explicit CGV/immediate digital delivery acceptance
 before reaching Stripe, BTCPay or Solana Pay. The order table stores the terms
 version, waiver timestamp and `fiat_value_eur_at_transaction` for accounting.
-Public B2C checkout is also gated by `CONSUMER_MEDIATOR_NAME` and
-`CONSUMER_MEDIATOR_WEBSITE`. Without a real referenced consumer mediator,
-`SALES_ENABLED=true` is treated as requested but not legally launch-ready, so
-the storefront keeps checkout locked instead of pretending compliance is done.
+`CONSUMER_MEDIATOR_NAME` and `CONSUMER_MEDIATOR_WEBSITE` are optional disclosure
+fields. The owner accepts the business risk of launching without a configured
+consumer mediator, so `SALES_ENABLED=true` enables public checkout without a
+mediator gate.
 
 ## Payment Direction
 
@@ -191,6 +191,8 @@ Private access delivery is site-owned and backed by Cloudflare R2:
 - File downloads use `/api/delivery/assets/<assetId>?token=...`, which validates the token and redirects to a short-lived signed R2 URL.
 - Telegram is support and optional admin notification, not the source of truth for delivery access.
 - VIP Infrastructure Access requests are ticketed through `@markshnaknaksbot` with `/request <message>` after Telegram is linked from the delivery page.
+- Admins answer tickets from the private Telegram admin chat: the bot posts each request with a `Répondre` inline button, then forwards the admin reply back to the linked customer chat and records it in PostgreSQL.
+- The bot menu opens the Telegram Web App at `https://markshnaknaks.com/orders?tg=true`, which lists linked Digital Access Passes inside Telegram after Telegram Web App init-data verification.
 - Use `scripts/upsert-r2-delivery-asset.ps1` to upload a real private asset and register it in `creator_assets` without manual SQL. New uploads default to the `access-assets/<product-slug>/...` R2 prefix.
 - `scripts/audit-payment-readiness.ps1 -RunDeliverySmoke` creates and cleans up a smoke entitlement against the real bucket and confirms signed URL delivery.
 - `scripts/setup-telegram-bot.ps1` configures the bot webhook, commands, description and menu button from Kubernetes secrets without printing the token.

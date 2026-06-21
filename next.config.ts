@@ -12,7 +12,7 @@ const securityHeaders: Array<{ key: string; value: string }> = [
       "img-src 'self' data: blob:",
       "font-src 'self'",
       "style-src 'self' 'unsafe-inline'",
-      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com https://telegram.org",
       "connect-src 'self' https://cloudflareinsights.com https://challenges.cloudflare.com",
       "frame-src https://challenges.cloudflare.com",
       "manifest-src 'self'",

@@ -261,6 +261,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
     legal?: {
       b2cSalesAllowed?: boolean;
       consumerMediatorConfigured?: boolean;
+      mediatorGateEnforced?: boolean;
       salesBlockedByLegalGate?: boolean;
       cryptoFiatAccountingField?: string;
       commercialVocabulary?: string[];
@@ -288,9 +289,8 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.legal?.commercialVocabulary).toContain("Digital Access Pass");
   expect(typeof status.legal?.consumerMediatorConfigured).toBe("boolean");
   expect(typeof status.legal?.b2cSalesAllowed).toBe("boolean");
-  expect(status.legal?.salesBlockedByLegalGate).toBe(
-    Boolean(status.salesRequested && !status.legal?.b2cSalesAllowed),
-  );
+  expect(status.legal?.mediatorGateEnforced).toBe(false);
+  expect(status.legal?.salesBlockedByLegalGate).toBe(false);
   expect(status.admin?.accountingExportRoute).toBe("/api/admin/orders/export");
   expect(status.admin?.privateRequestsExportRoute).toBe("/api/admin/private-requests/export");
   expect(typeof status.admin?.cloudflareAccessConfigured).toBe("boolean");
