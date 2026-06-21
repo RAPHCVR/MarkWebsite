@@ -33,10 +33,14 @@ default for payment-related state:
   from the Litecoin network and is intentionally separate from BTC so LTC can
   sync and be evaluated without blocking on Bitcoin IBD.
 - `nbxplorer-data`: existing retained PVC, currently 1 Longhorn replica.
-  NBXplorer state is backed by PostgreSQL and can be rebuilt from Bitcoin
-  Core.
-- `btcpay-data`: `longhorn-payment-state-retain-2`, 2 replicas, `Retain`. This
-  is small application state and should survive a single disk/node loss.
+  The PVC still shows its original `longhorn-custom` storage class, but the
+  bound PV reclaim policy is `Retain` and the Longhorn volume is healthy.
+  NBXplorer state is backed by PostgreSQL and can be rebuilt from Bitcoin Core.
+- `btcpay-data`: existing retained PVC with 2 Longhorn replicas and a bound PV
+  reclaim policy of `Retain`. The current StatefulSet template uses
+  `longhorn-payment-state-retain-2`; the already-created PVC can still display
+  its original `longhorn-custom` storage class. This is small application state
+  and should survive a single disk/node loss.
 - `nbxplorer-cookie`: BTCPay mounts the retained `nbxplorer-data` PVC read-only
   so it can authenticate to NBXplorer through `/root/.nbxplorer/Main/.cookie`.
 - BTCPay transaction, user, store, webhook and invoice data live in the central
