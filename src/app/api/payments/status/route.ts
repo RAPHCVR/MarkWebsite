@@ -44,6 +44,8 @@ export function GET() {
       configured: paymentConfig.crypto.stablecoin.configured,
       defaultRail: paymentConfig.crypto.stablecoin.defaultRail,
       rails: stablecoinRails,
+      eurToUsdRateSourceEnv:
+        paymentConfig.crypto.stablecoin.eurToUsdRateSourceEnv,
       solanaPay: {
         enabled: paymentConfig.crypto.stablecoin.solanaPay.enabled,
         recipientConfigured:

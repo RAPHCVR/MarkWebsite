@@ -11,6 +11,9 @@ export const SOLANA_MAINNET_USDC_MINT =
 
 export type SolanaPayInvoice = {
   amount: string;
+  exchangeRate: string;
+  exchangeRateAsOf?: string;
+  exchangeRateSource: string;
   memo: string;
   recipient: string;
   reference: string;
@@ -18,6 +21,12 @@ export type SolanaPayInvoice = {
   rpcUrls: string[];
   solanaUrl: string;
   splToken: string;
+};
+
+type EurToUsdRate = {
+  asOf?: string;
+  rate: number;
+  source: string;
 };
 
 function requiredEnv(name: string) {
@@ -71,6 +80,82 @@ function generateReference() {
   return bs58.encode(randomBytes(32));
 }
 
+function getConfiguredEurToUsdRate(): EurToUsdRate | null {
+  const rate = Number(process.env.STABLECOIN_EUR_TO_USD_RATE);
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return null;
+  }
+
+  return {
+    rate,
+    source: "env:STABLECOIN_EUR_TO_USD_RATE",
+  };
+}
+
+async function getFrankfurterEurToUsdRate(): Promise<EurToUsdRate> {
+  const timeoutMs = Number(
+    process.env.STABLECOIN_RATE_FETCH_TIMEOUT_MS || "3000",
+  );
+  const response = await fetch(
+    "https://api.frankfurter.app/latest?from=EUR&to=USD",
+    {
+      cache: "no-store",
+      signal: AbortSignal.timeout(
+        Number.isFinite(timeoutMs) && timeoutMs >= 1000 ? timeoutMs : 3000,
+      ),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Frankfurter returned ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    date?: string;
+    rates?: {
+      USD?: unknown;
+    };
+  };
+  const rate = Number(payload.rates?.USD);
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error("Frankfurter did not return a usable EUR/USD rate");
+  }
+
+  return {
+    rate,
+    source: "frankfurter-ecb",
+    asOf: payload.date,
+  };
+}
+
+async function getEurToUsdRate(): Promise<EurToUsdRate> {
+  const configuredRate = getConfiguredEurToUsdRate();
+  const source = process.env.STABLECOIN_EUR_TO_USD_RATE_SOURCE;
+
+  if (source === "frankfurter" || source === "auto") {
+    try {
+      return await getFrankfurterEurToUsdRate();
+    } catch {
+      if (configuredRate) {
+        return {
+          ...configuredRate,
+          source: `${configuredRate.source}:fallback`,
+        };
+      }
+
+      throw new Error("EUR/USD rate source is unavailable");
+    }
+  }
+
+  if (configuredRate) {
+    return configuredRate;
+  }
+
+  return getFrankfurterEurToUsdRate();
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -87,28 +172,27 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
   });
 }
 
-export function getSolanaPayAmount(product: Product) {
+export async function getSolanaPayAmount(product: Product) {
   if (product.currency !== "EUR") {
     throw new Error(`Solana Pay cannot price ${product.currency}`);
   }
 
-  const rate = Number(requiredEnv("STABLECOIN_EUR_TO_USD_RATE"));
+  const rate = await getEurToUsdRate();
 
-  if (!Number.isFinite(rate) || rate <= 0) {
-    throw new Error("STABLECOIN_EUR_TO_USD_RATE must be a positive number");
-  }
-
-  return ((product.amountCents / 100) * rate).toFixed(2);
+  return {
+    amount: ((product.amountCents / 100) * rate.rate).toFixed(2),
+    rate,
+  };
 }
 
-export function createSolanaPayInvoice({
+export async function createSolanaPayInvoice({
   orderId,
   product,
 }: {
   orderId: string;
   product: Product;
-}): SolanaPayInvoice {
-  const amount = getSolanaPayAmount(product);
+}): Promise<SolanaPayInvoice> {
+  const { amount, rate } = await getSolanaPayAmount(product);
   const recipient = getRecipient();
   const reference = generateReference();
   const splToken = getUsdcMint();
@@ -127,6 +211,9 @@ export function createSolanaPayInvoice({
 
   return {
     amount,
+    exchangeRate: rate.rate.toString(),
+    exchangeRateAsOf: rate.asOf,
+    exchangeRateSource: rate.source,
     memo,
     recipient,
     reference,

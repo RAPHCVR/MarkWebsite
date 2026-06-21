@@ -299,6 +299,7 @@ export const paymentConfig = {
       webhookSecretEnv: "STABLECOIN_WEBHOOK_SECRET",
       fiatEnv: "STABLECOIN_FIAT",
       eurToUsdRateEnv: "STABLECOIN_EUR_TO_USD_RATE",
+      eurToUsdRateSourceEnv: "STABLECOIN_EUR_TO_USD_RATE_SOURCE",
       recommendedLaunchRail: "USDC on Solana",
       solanaPay: {
         enabled: solanaPayReady,

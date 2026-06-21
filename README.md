@@ -144,6 +144,8 @@ SHKEEPER_API_KEY=
 STABLECOIN_WEBHOOK_SECRET=
 STABLECOIN_FIAT=USD
 STABLECOIN_EUR_TO_USD_RATE=
+STABLECOIN_EUR_TO_USD_RATE_SOURCE=frankfurter
+STABLECOIN_RATE_FETCH_TIMEOUT_MS=3000
 STABLECOIN_DEFAULT_RAIL=usdc-solana
 STABLECOIN_USDC_SOLANA_ENABLED=false
 NEXT_PUBLIC_STABLECOIN_USDC_SOLANA_ENABLED=false
@@ -178,8 +180,9 @@ Stablecoin production checklist before enabling public buttons:
 - `SOLANA_PAY_RECIPIENT` is the real receiving wallet and is backed up outside Git/chat.
 - `SOLANA_PAY_RPC_URLS` has at least two read-only RPC endpoints, so a single public RPC timeout does not block verification.
 - `SOLANA_PAY_VERIFY_TIMEOUT_MS` is low enough to return a clean pending state before the public edge times out.
-- `STABLECOIN_EUR_TO_USD_RATE` is set, reviewed before public sales, or products are priced directly for stablecoin.
+- `STABLECOIN_EUR_TO_USD_RATE_SOURCE=frankfurter` is set for free ECB-derived EUR to USD pricing; `STABLECOIN_EUR_TO_USD_RATE` stays configured as the fallback.
 - `POST /api/checkout/stablecoin` creates a Solana Pay order in `creator_orders`.
+- The created order stores the exact USDC amount, exchange rate and rate source used for that invoice.
 - `/checkout/stablecoin` shows a QR/link containing a unique reference.
 - `POST /api/checkout/stablecoin/verify` verifies the transfer and marks the order `PAID`.
 - `creator_rate_limits` is present so checkout creation and verification cannot be spammed freely.

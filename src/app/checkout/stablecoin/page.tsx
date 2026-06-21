@@ -33,6 +33,8 @@ function getSolanaPayInvoice(metadata: Record<string, unknown>) {
 
   if (
     !candidate.amount ||
+    !candidate.exchangeRate ||
+    !candidate.exchangeRateSource ||
     !candidate.recipient ||
     !candidate.reference ||
     !candidate.solanaUrl ||
@@ -160,10 +162,16 @@ export default async function StablecoinCheckoutPage({
                 </div>
                 <div className="rounded-3xl border border-pink-100 bg-white p-4">
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                    Status
+                    Rate
                   </p>
-                  <p className="mt-1 text-2xl font-black text-rose-950">
-                    {order.status === "PAID" ? "Paid" : "Waiting"}
+                  <p className="mt-1 text-lg font-black text-rose-950">
+                    1 EUR = {solanaPayInvoice.exchangeRate} USD
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-rose-950/55">
+                    {solanaPayInvoice.exchangeRateSource}
+                    {solanaPayInvoice.exchangeRateAsOf
+                      ? ` · ${solanaPayInvoice.exchangeRateAsOf}`
+                      : ""}
                   </p>
                 </div>
               </div>

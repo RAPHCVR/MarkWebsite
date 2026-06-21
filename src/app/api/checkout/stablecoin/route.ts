@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
   try {
     if (paymentConfig.crypto.stablecoin.preferredProvider === "solana-pay") {
       const orderId = `marky-solana-pay-${product.slug}-${crypto.randomUUID()}`;
-      const invoice = createSolanaPayInvoice({ orderId, product });
+      const invoice = await createSolanaPayInvoice({ orderId, product });
       const checkoutLink = getPublicUrl(
         `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}`,
       );
@@ -183,6 +183,9 @@ export async function POST(request: NextRequest) {
           cryptoName: "USDC",
           fiat: "USD",
           fiatAmount: invoice.amount,
+          exchangeRate: invoice.exchangeRate,
+          exchangeRateAsOf: invoice.exchangeRateAsOf,
+          exchangeRateSource: invoice.exchangeRateSource,
           solanaPayInvoice: invoice,
         },
       });
