@@ -80,6 +80,9 @@ Public write endpoints use a small PostgreSQL-backed rate limit in
 `creator_rate_limits`, keyed by a hash of the client fingerprint. This keeps
 checkout/contact spam out of the production database without adding a separate
 Redis dependency.
+Production responses set CSP, HSTS, COOP, referrer, permissions, frame and
+content-type headers from `next.config.ts`. The CSP allows only the site itself,
+QR `data:` images and the Cloudflare Insights beacon injected at the edge.
 
 Optional non-Stripe destinations:
 

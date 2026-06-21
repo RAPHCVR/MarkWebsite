@@ -222,6 +222,24 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
 });
 
+test("public responses include production security headers", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Header check only needs one project");
+
+  const response = await request.get("/api/health");
+  expect(response.status()).toBe(200);
+
+  const headers = response.headers();
+
+  expect(headers["content-security-policy"]).toContain("default-src 'self'");
+  expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  expect(headers["content-security-policy"]).toContain("https://static.cloudflareinsights.com");
+  expect(headers["strict-transport-security"]).toContain("max-age=31536000");
+  expect(headers["x-frame-options"]).toBe("DENY");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(headers["permissions-policy"]).toContain("camera=()");
+});
+
 test("contact form posts to the site endpoint", async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
 
