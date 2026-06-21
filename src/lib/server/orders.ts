@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { Pool } from "pg";
 
@@ -12,6 +12,9 @@ type CheckoutInvoiceRecord = {
   providerInvoiceId: string;
   checkoutLink: string;
   providerStatus?: string;
+  fiatValueEurAtTransaction?: number | null;
+  legalTermsVersion?: string | null;
+  withdrawalWaiverAcceptedAt?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -38,6 +41,7 @@ type StripeCheckoutSessionRecord = {
   eventId: string;
   eventType: string;
   sessionId: string;
+  clientReferenceId?: string | null;
   paymentLinkId?: string | null;
   productSlug?: string | null;
   productTitle?: string | null;
@@ -63,6 +67,13 @@ type ContactRequestRecord = {
   userAgent?: string;
 };
 
+type PrivateRequestTicketRecord = {
+  chatId: string;
+  userId?: string | number;
+  username?: string;
+  message: string;
+};
+
 type RateLimitCheck = {
   action: string;
   key: string;
@@ -79,6 +90,39 @@ type DeliveryLookupOptions = {
   countRedemption?: boolean;
 };
 
+type TelegramDeliveryLinkRecord = {
+  token: string;
+  chatId: string;
+  userId?: string | number;
+  username?: string;
+  firstName?: string;
+};
+
+type AccountingExportOptions = {
+  from?: Date;
+  to?: Date;
+  limit?: number;
+};
+
+export type CreatorOrderAccountingRow = {
+  orderId: string;
+  provider: string;
+  providerInvoiceId: string | null;
+  productSlug: string | null;
+  productTitle: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  fiatValueEurAtTransaction: number | null;
+  fiatCurrency: string | null;
+  status: string;
+  lastEventType: string | null;
+  legalTermsVersion: string | null;
+  withdrawalWaiverAcceptedAt: Date | null;
+  paidAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type CreatorOrder = {
   orderId: string;
   provider: string;
@@ -87,10 +131,13 @@ export type CreatorOrder = {
   productTitle: string | null;
   amountCents: number | null;
   currency: string | null;
+  fiatValueEurAtTransaction: number | null;
+  fiatCurrency: string | null;
   status: string;
   checkoutLink: string | null;
   lastEventType: string | null;
   metadata: Record<string, unknown>;
+  paidAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -119,6 +166,22 @@ export type CreatorDelivery = {
   redeemedAt: Date | null;
   assets: CreatorDeliveryAsset[];
 };
+
+export type PrivateRequestTicketResult =
+  | {
+      ok: true;
+      requestId: string;
+      orderId: string;
+      productTitle: string | null;
+      quotaUsed: number;
+      quotaTotal: number;
+      remaining: number;
+      message: string;
+    }
+  | {
+      ok: false;
+      reason: "not-linked" | "quota-exhausted" | "empty-message";
+    };
 
 let pool: Pool | undefined;
 let schemaReady: Promise<void> | undefined;
@@ -152,19 +215,34 @@ async function ensureSchema() {
       product_title text,
       amount_cents integer,
       currency text,
+      fiat_value_eur_at_transaction numeric(12,2),
+      fiat_currency text NOT NULL DEFAULT 'EUR',
+      legal_terms_version text,
+      withdrawal_waiver_accepted_at timestamptz,
       status text NOT NULL,
       checkout_link text,
       last_event_type text,
+      paid_at timestamptz,
       metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+
+    ALTER TABLE creator_orders
+      ADD COLUMN IF NOT EXISTS fiat_value_eur_at_transaction numeric(12,2),
+      ADD COLUMN IF NOT EXISTS fiat_currency text NOT NULL DEFAULT 'EUR',
+      ADD COLUMN IF NOT EXISTS legal_terms_version text,
+      ADD COLUMN IF NOT EXISTS withdrawal_waiver_accepted_at timestamptz,
+      ADD COLUMN IF NOT EXISTS paid_at timestamptz;
 
     CREATE INDEX IF NOT EXISTS creator_orders_provider_invoice_id_idx
       ON creator_orders(provider_invoice_id);
 
     CREATE INDEX IF NOT EXISTS creator_orders_status_idx
       ON creator_orders(status);
+
+    CREATE INDEX IF NOT EXISTS creator_orders_paid_at_idx
+      ON creator_orders(paid_at DESC);
 
     CREATE TABLE IF NOT EXISTS creator_contact_requests (
       request_id text PRIMARY KEY,
@@ -191,6 +269,10 @@ async function ensureSchema() {
       order_id text NOT NULL REFERENCES creator_orders(order_id) ON DELETE CASCADE,
       product_slug text NOT NULL,
       product_title text,
+      telegram_chat_id text,
+      telegram_user_id text,
+      telegram_username text,
+      telegram_linked_at timestamptz,
       status text NOT NULL DEFAULT 'active',
       delivery_channel text NOT NULL DEFAULT 'site',
       granted_at timestamptz NOT NULL DEFAULT now(),
@@ -198,6 +280,12 @@ async function ensureSchema() {
       metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
       UNIQUE (order_id, product_slug)
     );
+
+    ALTER TABLE creator_entitlements
+      ADD COLUMN IF NOT EXISTS telegram_chat_id text,
+      ADD COLUMN IF NOT EXISTS telegram_user_id text,
+      ADD COLUMN IF NOT EXISTS telegram_username text,
+      ADD COLUMN IF NOT EXISTS telegram_linked_at timestamptz;
 
     CREATE INDEX IF NOT EXISTS creator_entitlements_product_slug_idx
       ON creator_entitlements(product_slug);
@@ -251,6 +339,41 @@ async function ensureSchema() {
 
     CREATE INDEX IF NOT EXISTS creator_delivery_events_order_id_idx
       ON creator_delivery_events(order_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS creator_telegram_links (
+      link_id text PRIMARY KEY,
+      order_id text NOT NULL REFERENCES creator_orders(order_id) ON DELETE CASCADE,
+      entitlement_id text REFERENCES creator_entitlements(entitlement_id) ON DELETE SET NULL,
+      token_id text REFERENCES creator_delivery_tokens(token_id) ON DELETE SET NULL,
+      telegram_chat_id text NOT NULL,
+      telegram_user_id text,
+      telegram_username text,
+      telegram_first_name text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (order_id, telegram_chat_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS creator_telegram_links_chat_idx
+      ON creator_telegram_links(telegram_chat_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS creator_private_requests (
+      request_id text PRIMARY KEY,
+      order_id text NOT NULL REFERENCES creator_orders(order_id) ON DELETE CASCADE,
+      entitlement_id text REFERENCES creator_entitlements(entitlement_id) ON DELETE SET NULL,
+      telegram_chat_id text,
+      telegram_user_id text,
+      status text NOT NULL DEFAULT 'available',
+      quota_total integer NOT NULL DEFAULT 1,
+      quota_used integer NOT NULL DEFAULT 0,
+      subject text,
+      last_message text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      closed_at timestamptz
+    );
+
+    CREATE INDEX IF NOT EXISTS creator_private_requests_order_idx
+      ON creator_private_requests(order_id, created_at DESC);
   `).then(() => undefined);
 
   return schemaReady;
@@ -264,12 +387,42 @@ function hashDeliveryToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function getProductFiatValueEur(product: Product) {
+  return product.currency === "EUR" ? product.amountCents / 100 : null;
+}
+
+function toNumberOrNull(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
 function isPaidStripeStatus(eventType: string, status: string) {
   return (
     (eventType === "checkout.session.completed" &&
       ["paid", "complete", "no_payment_required"].includes(status)) ||
     eventType === "checkout.session.async_payment_succeeded"
   );
+}
+
+function getNormalizedStripeStatus(eventType: string, status: string) {
+  if (isPaidStripeStatus(eventType, status)) {
+    return "PAID";
+  }
+
+  if (eventType === "checkout.session.expired") {
+    return "EXPIRED";
+  }
+
+  if (eventType === "checkout.session.async_payment_failed") {
+    return "FAILED";
+  }
+
+  return status || eventType;
 }
 
 function isPaidBtcpayEvent(eventType?: string) {
@@ -279,10 +432,44 @@ function isPaidBtcpayEvent(eventType?: string) {
   );
 }
 
+function getNormalizedBtcpayStatus(eventType?: string) {
+  if (isPaidBtcpayEvent(eventType)) {
+    return "PAID";
+  }
+
+  if (!eventType) {
+    return "UNKNOWN";
+  }
+
+  if (["InvoiceExpired", "InvoiceInvalid"].includes(eventType)) {
+    return "EXPIRED";
+  }
+
+  if (["InvoiceProcessing", "InvoiceReceivedPayment"].includes(eventType)) {
+    return "PENDING";
+  }
+
+  return eventType;
+}
+
 function isPaidShkeeperEvent(event: ShkeeperWebhookEvent) {
   const status = event.status?.toLowerCase();
 
   return event.paid === true || status === "paid" || status === "confirmed";
+}
+
+function getNormalizedShkeeperStatus(event: ShkeeperWebhookEvent) {
+  if (isPaidShkeeperEvent(event)) {
+    return "PAID";
+  }
+
+  const status = event.status?.toLowerCase();
+
+  if (status === "expired" || status === "cancelled" || status === "failed") {
+    return status.toUpperCase();
+  }
+
+  return event.status ?? (event.paid ? "PAID" : "UNPAID");
 }
 
 export function isR2DeliveryConfigured() {
@@ -320,7 +507,7 @@ async function insertDeliveryEvent({
       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
     `,
     [
-      `delivery-event-${crypto.randomUUID()}`,
+      `delivery-event-${randomUUID()}`,
       orderId,
       entitlementId ?? null,
       tokenId ?? null,
@@ -393,9 +580,15 @@ export async function recordCheckoutInvoice({
   providerInvoiceId,
   checkoutLink,
   providerStatus = "new",
+  fiatValueEurAtTransaction,
+  legalTermsVersion,
+  withdrawalWaiverAcceptedAt,
   metadata = {},
 }: CheckoutInvoiceRecord) {
   await ensureSchema();
+
+  const fiatValue =
+    fiatValueEurAtTransaction ?? getProductFiatValueEur(product);
 
   await getPool().query(
     `
@@ -407,11 +600,15 @@ export async function recordCheckoutInvoice({
         product_title,
         amount_cents,
         currency,
+        fiat_value_eur_at_transaction,
+        fiat_currency,
+        legal_terms_version,
+        withdrawal_waiver_accepted_at,
         status,
         checkout_link,
         metadata
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'EUR', $9, $10::timestamptz, $11, $12, $13::jsonb)
       ON CONFLICT (order_id) DO UPDATE SET
         provider = EXCLUDED.provider,
         provider_invoice_id = EXCLUDED.provider_invoice_id,
@@ -419,6 +616,10 @@ export async function recordCheckoutInvoice({
         product_title = EXCLUDED.product_title,
         amount_cents = EXCLUDED.amount_cents,
         currency = EXCLUDED.currency,
+        fiat_value_eur_at_transaction = COALESCE(EXCLUDED.fiat_value_eur_at_transaction, creator_orders.fiat_value_eur_at_transaction),
+        fiat_currency = COALESCE(EXCLUDED.fiat_currency, creator_orders.fiat_currency),
+        legal_terms_version = COALESCE(EXCLUDED.legal_terms_version, creator_orders.legal_terms_version),
+        withdrawal_waiver_accepted_at = COALESCE(EXCLUDED.withdrawal_waiver_accepted_at, creator_orders.withdrawal_waiver_accepted_at),
         status = EXCLUDED.status,
         checkout_link = EXCLUDED.checkout_link,
         metadata = creator_orders.metadata || EXCLUDED.metadata,
@@ -432,6 +633,9 @@ export async function recordCheckoutInvoice({
       product.title,
       product.amountCents,
       product.currency,
+      fiatValue,
+      legalTermsVersion ?? null,
+      withdrawalWaiverAcceptedAt ?? null,
       providerStatus,
       checkoutLink,
       JSON.stringify(metadata),
@@ -455,7 +659,8 @@ export async function recordBtcpayWebhookEvent(event: BtcpayWebhookEvent) {
       ? metadata.orderId
       : event.invoiceId
         ? `btcpay-${event.invoiceId}`
-        : `btcpay-event-${crypto.randomUUID()}`;
+        : `btcpay-event-${randomUUID()}`;
+  const normalizedStatus = getNormalizedBtcpayStatus(event.type);
 
   await getPool().query(
     `
@@ -466,14 +671,19 @@ export async function recordBtcpayWebhookEvent(event: BtcpayWebhookEvent) {
         product_slug,
         status,
         last_event_type,
+        paid_at,
         metadata
       )
-      VALUES ($1, 'btcpay', $2, $3, $4, $5, $6::jsonb)
+      VALUES ($1, 'btcpay', $2, $3, $4, $5, CASE WHEN $4 = 'PAID' THEN now() ELSE null END, $6::jsonb)
       ON CONFLICT (order_id) DO UPDATE SET
         provider_invoice_id = COALESCE(EXCLUDED.provider_invoice_id, creator_orders.provider_invoice_id),
         product_slug = COALESCE(EXCLUDED.product_slug, creator_orders.product_slug),
         status = EXCLUDED.status,
         last_event_type = EXCLUDED.last_event_type,
+        paid_at = CASE
+          WHEN EXCLUDED.status = 'PAID' THEN COALESCE(creator_orders.paid_at, now())
+          ELSE creator_orders.paid_at
+        END,
         metadata = creator_orders.metadata || EXCLUDED.metadata,
         updated_at = now()
     `,
@@ -481,7 +691,7 @@ export async function recordBtcpayWebhookEvent(event: BtcpayWebhookEvent) {
       orderId,
       event.invoiceId ?? null,
       typeof metadata.productSlug === "string" ? metadata.productSlug : null,
-      event.type ?? "btcpay.webhook",
+      normalizedStatus,
       event.type ?? null,
       JSON.stringify({ btcpayEvent: event }),
     ],
@@ -498,7 +708,8 @@ export async function recordShkeeperWebhookEvent(event: ShkeeperWebhookEvent) {
   const orderId =
     typeof event.external_id === "string" && event.external_id
       ? event.external_id
-      : `shkeeper-event-${crypto.randomUUID()}`;
+      : `shkeeper-event-${randomUUID()}`;
+  const normalizedStatus = getNormalizedShkeeperStatus(event);
 
   await getPool().query(
     `
@@ -508,21 +719,26 @@ export async function recordShkeeperWebhookEvent(event: ShkeeperWebhookEvent) {
         provider_invoice_id,
         status,
         last_event_type,
+        paid_at,
         metadata
       )
-      VALUES ($1, 'shkeeper', $2, $3, $4, $5::jsonb)
+      VALUES ($1, 'shkeeper', $2, $3, $4, CASE WHEN $3 = 'PAID' THEN now() ELSE null END, $5::jsonb)
       ON CONFLICT (order_id) DO UPDATE SET
         provider = EXCLUDED.provider,
         provider_invoice_id = COALESCE(EXCLUDED.provider_invoice_id, creator_orders.provider_invoice_id),
         status = EXCLUDED.status,
         last_event_type = EXCLUDED.last_event_type,
+        paid_at = CASE
+          WHEN EXCLUDED.status = 'PAID' THEN COALESCE(creator_orders.paid_at, now())
+          ELSE creator_orders.paid_at
+        END,
         metadata = creator_orders.metadata || EXCLUDED.metadata,
         updated_at = now()
     `,
     [
       orderId,
       null,
-      event.status ?? (event.paid ? "PAID" : "UNPAID"),
+      normalizedStatus,
       "shkeeper.webhook",
       JSON.stringify({ shkeeperEvent: event }),
     ],
@@ -537,6 +753,7 @@ export async function recordStripeCheckoutSessionEvent({
   eventId,
   eventType,
   sessionId,
+  clientReferenceId,
   paymentLinkId,
   productSlug,
   productTitle,
@@ -548,7 +765,15 @@ export async function recordStripeCheckoutSessionEvent({
 }: StripeCheckoutSessionRecord) {
   await ensureSchema();
 
-  const orderId = `stripe-${sessionId}`;
+  const orderId =
+    clientReferenceId?.startsWith("marky-stripe-")
+      ? clientReferenceId
+      : `stripe-${sessionId}`;
+  const fiatValue =
+    currency?.toUpperCase() === "EUR" && amountTotal
+      ? amountTotal / 100
+      : null;
+  const normalizedStatus = getNormalizedStripeStatus(eventType, status);
 
   await getPool().query(
     `
@@ -560,11 +785,14 @@ export async function recordStripeCheckoutSessionEvent({
         product_title,
         amount_cents,
         currency,
+        fiat_value_eur_at_transaction,
+        fiat_currency,
         status,
         last_event_type,
+        paid_at,
         metadata
       )
-      VALUES ($1, 'stripe', $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+      VALUES ($1, 'stripe', $2, $3, $4, $5, $6, $7, 'EUR', $8, $9, CASE WHEN $8 = 'PAID' THEN now() ELSE null END, $10::jsonb)
       ON CONFLICT (order_id) DO UPDATE SET
         provider = EXCLUDED.provider,
         provider_invoice_id = COALESCE(EXCLUDED.provider_invoice_id, creator_orders.provider_invoice_id),
@@ -572,8 +800,14 @@ export async function recordStripeCheckoutSessionEvent({
         product_title = COALESCE(EXCLUDED.product_title, creator_orders.product_title),
         amount_cents = COALESCE(EXCLUDED.amount_cents, creator_orders.amount_cents),
         currency = COALESCE(EXCLUDED.currency, creator_orders.currency),
+        fiat_value_eur_at_transaction = COALESCE(EXCLUDED.fiat_value_eur_at_transaction, creator_orders.fiat_value_eur_at_transaction),
+        fiat_currency = COALESCE(EXCLUDED.fiat_currency, creator_orders.fiat_currency),
         status = EXCLUDED.status,
         last_event_type = EXCLUDED.last_event_type,
+        paid_at = CASE
+          WHEN EXCLUDED.status = 'PAID' THEN COALESCE(creator_orders.paid_at, now())
+          ELSE creator_orders.paid_at
+        END,
         metadata = creator_orders.metadata || EXCLUDED.metadata,
         updated_at = now()
     `,
@@ -584,13 +818,15 @@ export async function recordStripeCheckoutSessionEvent({
       productTitle ?? null,
       amountTotal ?? null,
       currency?.toUpperCase() ?? null,
-      status,
+      fiatValue,
+      normalizedStatus,
       eventType,
       JSON.stringify({
         stripeEvent: {
           eventId,
           eventType,
           sessionId,
+          clientReferenceId,
           paymentLinkId,
           customerEmail,
           receivedAt: new Date().toISOString(),
@@ -620,6 +856,7 @@ export async function recordSolanaPayVerification({
         status = 'PAID',
         provider_invoice_id = COALESCE(provider_invoice_id, $2),
         last_event_type = 'solana-pay.verified',
+        paid_at = COALESCE(paid_at, now()),
         metadata = metadata || $3::jsonb,
         updated_at = now()
       WHERE order_id = $1
@@ -654,9 +891,12 @@ export async function getOrderById(orderId: string) {
         product_title,
         amount_cents,
         currency,
+        fiat_value_eur_at_transaction,
+        fiat_currency,
         status,
         checkout_link,
         last_event_type,
+        paid_at,
         metadata,
         created_at,
         updated_at
@@ -676,9 +916,12 @@ export async function getOrderById(orderId: string) {
         product_title: string | null;
         amount_cents: number | null;
         currency: string | null;
+        fiat_value_eur_at_transaction: string | number | null;
+        fiat_currency: string | null;
         status: string;
         checkout_link: string | null;
         last_event_type: string | null;
+        paid_at: Date | null;
         metadata: Record<string, unknown> | null;
         created_at: Date;
         updated_at: Date;
@@ -697,10 +940,13 @@ export async function getOrderById(orderId: string) {
     productTitle: row.product_title,
     amountCents: row.amount_cents,
     currency: row.currency,
+    fiatValueEurAtTransaction: toNumberOrNull(row.fiat_value_eur_at_transaction),
+    fiatCurrency: row.fiat_currency,
     status: row.status,
     checkoutLink: row.checkout_link,
     lastEventType: row.last_event_type,
     metadata: row.metadata ?? {},
+    paidAt: row.paid_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   } satisfies CreatorOrder;
@@ -799,10 +1045,181 @@ export async function grantEntitlementForOrder(orderId: string) {
     }
   }
 
+  if (order.productSlug === "vip-bundle") {
+    await ensurePrivateRequestForOrder({
+      orderId,
+      entitlementId: storedEntitlementId,
+      quotaTotal: 3,
+      subject: "VIP Infrastructure Access",
+    });
+  }
+
   return {
     entitlementId: storedEntitlementId,
     deliveryToken,
     order,
+  };
+}
+
+export async function ensurePrivateRequestForOrder({
+  orderId,
+  entitlementId,
+  quotaTotal = 1,
+  subject,
+}: {
+  orderId: string;
+  entitlementId?: string | null;
+  quotaTotal?: number;
+  subject?: string | null;
+}) {
+  await ensureSchema();
+
+  const requestId = `private-request-${orderId}`;
+
+  await getPool().query(
+    `
+      INSERT INTO creator_private_requests (
+        request_id,
+        order_id,
+        entitlement_id,
+        quota_total,
+        subject
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (request_id) DO UPDATE SET
+        entitlement_id = COALESCE(EXCLUDED.entitlement_id, creator_private_requests.entitlement_id),
+        quota_total = GREATEST(creator_private_requests.quota_total, EXCLUDED.quota_total),
+        subject = COALESCE(EXCLUDED.subject, creator_private_requests.subject),
+        updated_at = now()
+    `,
+    [requestId, orderId, entitlementId ?? null, quotaTotal, subject ?? null],
+  );
+
+  return requestId;
+}
+
+export async function recordPrivateRequestTicketFromTelegram({
+  chatId,
+  userId,
+  username,
+  message,
+}: PrivateRequestTicketRecord): Promise<PrivateRequestTicketResult> {
+  await ensureSchema();
+
+  const cleanMessage = message.trim().slice(0, 2_000);
+
+  if (!cleanMessage) {
+    return { ok: false, reason: "empty-message" };
+  }
+
+  const userIdText = userId === undefined ? null : String(userId);
+  const result = await getPool().query(
+    `
+      WITH selected_request AS (
+        SELECT
+          private_requests.request_id
+        FROM creator_private_requests private_requests
+        LEFT JOIN creator_entitlements entitlements
+          ON entitlements.entitlement_id = private_requests.entitlement_id
+        WHERE private_requests.status IN ('available', 'open')
+          AND private_requests.quota_used < private_requests.quota_total
+          AND (
+            private_requests.telegram_chat_id = $1
+            OR private_requests.telegram_user_id = $2
+            OR entitlements.telegram_chat_id = $1
+            OR entitlements.telegram_user_id = $2
+          )
+        ORDER BY private_requests.created_at ASC
+        LIMIT 1
+      )
+      UPDATE creator_private_requests private_requests
+      SET
+        telegram_chat_id = COALESCE(private_requests.telegram_chat_id, $1),
+        telegram_user_id = COALESCE(private_requests.telegram_user_id, $2),
+        last_message = $3,
+        quota_used = private_requests.quota_used + 1,
+        status = CASE
+          WHEN private_requests.quota_used + 1 >= private_requests.quota_total THEN 'used'
+          ELSE 'open'
+        END,
+        updated_at = now(),
+        closed_at = CASE
+          WHEN private_requests.quota_used + 1 >= private_requests.quota_total THEN now()
+          ELSE private_requests.closed_at
+        END
+      FROM selected_request
+      CROSS JOIN creator_orders orders
+      WHERE private_requests.request_id = selected_request.request_id
+        AND orders.order_id = private_requests.order_id
+      RETURNING
+        private_requests.request_id,
+        private_requests.order_id,
+        private_requests.quota_used,
+        private_requests.quota_total,
+        orders.product_title
+    `,
+    [chatId, userIdText, cleanMessage],
+  );
+
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        order_id: string;
+        quota_used: number;
+        quota_total: number;
+        product_title: string | null;
+      }
+    | undefined;
+
+  if (!row) {
+    const linked = await getPool().query(
+      `
+        SELECT 1
+        FROM creator_private_requests private_requests
+        LEFT JOIN creator_entitlements entitlements
+          ON entitlements.entitlement_id = private_requests.entitlement_id
+        WHERE (
+          private_requests.telegram_chat_id = $1
+          OR private_requests.telegram_user_id = $2
+          OR entitlements.telegram_chat_id = $1
+          OR entitlements.telegram_user_id = $2
+        )
+        LIMIT 1
+      `,
+      [chatId, userIdText],
+    );
+
+    return {
+      ok: false,
+      reason: linked.rowCount ? "quota-exhausted" : "not-linked",
+    };
+  }
+
+  await insertDeliveryEvent({
+    orderId: row.order_id,
+    eventType: "private_request.submitted",
+    metadata: {
+      requestId: row.request_id,
+      telegramChatId: chatId,
+      telegramUserId: userIdText,
+      telegramUsername: username ?? null,
+      quotaUsed: Number(row.quota_used),
+      quotaTotal: Number(row.quota_total),
+    },
+  });
+
+  const quotaUsed = Number(row.quota_used);
+  const quotaTotal = Number(row.quota_total);
+
+  return {
+    ok: true,
+    requestId: String(row.request_id),
+    orderId: String(row.order_id),
+    productTitle: row.product_title ? String(row.product_title) : null,
+    quotaUsed,
+    quotaTotal,
+    remaining: Math.max(0, quotaTotal - quotaUsed),
+    message: cleanMessage,
   };
 }
 
@@ -853,7 +1270,7 @@ export async function createDeliveryTokenForOrder({
   }
 
   const token = randomBytes(32).toString("base64url");
-  const tokenId = `delivery-${crypto.randomUUID()}`;
+  const tokenId = `delivery-${randomUUID()}`;
   const safeTtlDays = Number.isFinite(ttlDays)
     ? Math.min(30, Math.max(1, Math.floor(ttlDays)))
     : 7;
@@ -937,9 +1354,6 @@ export async function getDeliveryByToken(
   const redemptionSetSql = countRedemption
     ? "redemption_count = redemption_count + 1,"
     : "";
-  const redemptionLimitSql = countRedemption
-    ? "AND redemption_count < max_redemptions"
-    : "";
 
   const result = await getPool().query(
     `
@@ -951,7 +1365,7 @@ export async function getDeliveryByToken(
           redeemed_at = COALESCE(redeemed_at, now())
         WHERE token_hash = $1
           AND expires_at > now()
-          ${redemptionLimitSql}
+          AND redemption_count < max_redemptions
         RETURNING *
       )
       SELECT
@@ -966,9 +1380,12 @@ export async function getDeliveryByToken(
         orders.product_title,
         orders.amount_cents,
         orders.currency,
+        orders.fiat_value_eur_at_transaction,
+        orders.fiat_currency,
         orders.status,
         orders.checkout_link,
         orders.last_event_type,
+        orders.paid_at,
         orders.metadata,
         orders.created_at,
         orders.updated_at
@@ -995,9 +1412,12 @@ export async function getDeliveryByToken(
         product_title: string | null;
         amount_cents: number | null;
         currency: string | null;
+        fiat_value_eur_at_transaction: string | number | null;
+        fiat_currency: string | null;
         status: string;
         checkout_link: string | null;
         last_event_type: string | null;
+        paid_at: Date | null;
         metadata: Record<string, unknown> | null;
         created_at: Date;
         updated_at: Date;
@@ -1022,10 +1442,13 @@ export async function getDeliveryByToken(
       productTitle: row.product_title,
       amountCents: row.amount_cents,
       currency: row.currency,
+      fiatValueEurAtTransaction: toNumberOrNull(row.fiat_value_eur_at_transaction),
+      fiatCurrency: row.fiat_currency,
       status: row.status,
       checkoutLink: row.checkout_link,
       lastEventType: row.last_event_type,
       metadata: row.metadata ?? {},
+      paidAt: row.paid_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     },
@@ -1037,6 +1460,109 @@ export async function getDeliveryByToken(
   } satisfies CreatorDelivery;
 }
 
+export async function linkTelegramToDelivery({
+  token,
+  chatId,
+  userId,
+  username,
+  firstName,
+}: TelegramDeliveryLinkRecord) {
+  const delivery = await getDeliveryByToken(token);
+
+  if (!delivery) {
+    return null;
+  }
+
+  await getPool().query(
+    `
+      UPDATE creator_entitlements
+      SET
+        telegram_chat_id = $2,
+        telegram_user_id = $3,
+        telegram_username = $4,
+        telegram_linked_at = now()
+      WHERE entitlement_id = $1
+    `,
+    [
+      delivery.entitlementId,
+      chatId,
+      userId === undefined ? null : String(userId),
+      username ?? null,
+    ],
+  );
+
+  await getPool().query(
+    `
+      INSERT INTO creator_telegram_links (
+        link_id,
+        order_id,
+        entitlement_id,
+        token_id,
+        telegram_chat_id,
+        telegram_user_id,
+        telegram_username,
+        telegram_first_name
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (order_id, telegram_chat_id) DO UPDATE SET
+        entitlement_id = EXCLUDED.entitlement_id,
+        token_id = EXCLUDED.token_id,
+        telegram_user_id = EXCLUDED.telegram_user_id,
+        telegram_username = EXCLUDED.telegram_username,
+        telegram_first_name = EXCLUDED.telegram_first_name
+    `,
+    [
+      `telegram-link-${randomUUID()}`,
+      delivery.order.orderId,
+      delivery.entitlementId,
+      delivery.tokenId,
+      chatId,
+      userId === undefined ? null : String(userId),
+      username ?? null,
+      firstName ?? null,
+    ],
+  );
+
+  if (delivery.productSlug === "vip-bundle") {
+    await ensurePrivateRequestForOrder({
+      orderId: delivery.order.orderId,
+      entitlementId: delivery.entitlementId,
+      quotaTotal: 3,
+      subject: "VIP Infrastructure Access",
+    });
+
+    await getPool().query(
+      `
+        UPDATE creator_private_requests
+        SET
+          telegram_chat_id = $2,
+          telegram_user_id = $3,
+          updated_at = now()
+        WHERE order_id = $1
+      `,
+      [
+        delivery.order.orderId,
+        chatId,
+        userId === undefined ? null : String(userId),
+      ],
+    );
+  }
+
+  await insertDeliveryEvent({
+    orderId: delivery.order.orderId,
+    entitlementId: delivery.entitlementId,
+    tokenId: delivery.tokenId,
+    eventType: "telegram.delivery.linked",
+    metadata: {
+      telegramChatId: chatId,
+      telegramUserId: userId === undefined ? null : String(userId),
+      telegramUsername: username ?? null,
+    },
+  });
+
+  return delivery;
+}
+
 export async function getDeliveryAsset({
   token,
   assetId,
@@ -1044,7 +1570,7 @@ export async function getDeliveryAsset({
   token: string;
   assetId: string;
 }) {
-  const delivery = await getDeliveryByToken(token, { countRedemption: true });
+  const delivery = await getDeliveryByToken(token);
 
   if (!delivery) {
     return null;
@@ -1053,6 +1579,25 @@ export async function getDeliveryAsset({
   const asset = delivery.assets.find((item) => item.assetId === assetId);
 
   if (!asset) {
+    return null;
+  }
+
+  const redemption = await getPool().query(
+    `
+      UPDATE creator_delivery_tokens
+      SET
+        redemption_count = redemption_count + 1,
+        last_accessed_at = now(),
+        redeemed_at = COALESCE(redeemed_at, now())
+      WHERE token_id = $1
+        AND expires_at > now()
+        AND redemption_count < max_redemptions
+      RETURNING redemption_count
+    `,
+    [delivery.tokenId],
+  );
+
+  if (!redemption.rowCount) {
     return null;
   }
 
@@ -1079,7 +1624,7 @@ export async function recordContactRequest({
 }: ContactRequestRecord) {
   await ensureSchema();
 
-  await getPool().query(
+  const result = await getPool().query(
     `
       INSERT INTO creator_contact_requests (
         request_id,
@@ -1090,9 +1635,10 @@ export async function recordContactRequest({
         user_agent
       )
       VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING request_id
     `,
     [
-      `contact-${crypto.randomUUID()}`,
+      `contact-${randomUUID()}`,
       name || null,
       organization || null,
       message,
@@ -1100,4 +1646,119 @@ export async function recordContactRequest({
       userAgent || null,
     ],
   );
+
+  return String(result.rows[0]?.request_id);
+}
+
+export async function listOrdersForAccountingExport({
+  from,
+  to,
+  limit = 1_000,
+}: AccountingExportOptions = {}) {
+  await ensureSchema();
+
+  const safeLimit = Math.min(5_000, Math.max(1, Math.floor(limit)));
+  const result = await getPool().query(
+    `
+      SELECT
+        order_id,
+        provider,
+        provider_invoice_id,
+        product_slug,
+        product_title,
+        amount_cents,
+        currency,
+        fiat_value_eur_at_transaction,
+        fiat_currency,
+        status,
+        last_event_type,
+        legal_terms_version,
+        withdrawal_waiver_accepted_at,
+        paid_at,
+        created_at,
+        updated_at
+      FROM creator_orders
+      WHERE ($1::timestamptz IS NULL OR created_at >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
+      ORDER BY created_at DESC
+      LIMIT $3
+    `,
+    [from ?? null, to ?? null, safeLimit],
+  );
+
+  return result.rows.map((row) => ({
+    orderId: String(row.order_id),
+    provider: String(row.provider),
+    providerInvoiceId: row.provider_invoice_id
+      ? String(row.provider_invoice_id)
+      : null,
+    productSlug: row.product_slug ? String(row.product_slug) : null,
+    productTitle: row.product_title ? String(row.product_title) : null,
+    amountCents: row.amount_cents === null ? null : Number(row.amount_cents),
+    currency: row.currency ? String(row.currency) : null,
+    fiatValueEurAtTransaction: toNumberOrNull(row.fiat_value_eur_at_transaction),
+    fiatCurrency: row.fiat_currency ? String(row.fiat_currency) : null,
+    status: String(row.status),
+    lastEventType: row.last_event_type ? String(row.last_event_type) : null,
+    legalTermsVersion: row.legal_terms_version
+      ? String(row.legal_terms_version)
+      : null,
+    withdrawalWaiverAcceptedAt: row.withdrawal_waiver_accepted_at as Date | null,
+    paidAt: row.paid_at as Date | null,
+    createdAt: row.created_at as Date,
+    updatedAt: row.updated_at as Date,
+  })) satisfies CreatorOrderAccountingRow[];
+}
+
+export async function listPrivateRequestsForAdminExport({
+  from,
+  to,
+  limit = 1_000,
+}: AccountingExportOptions = {}) {
+  await ensureSchema();
+
+  const safeLimit = Math.min(5_000, Math.max(1, Math.floor(limit)));
+  const result = await getPool().query(
+    `
+      SELECT
+        private_requests.request_id,
+        private_requests.order_id,
+        orders.product_slug,
+        orders.product_title,
+        private_requests.telegram_chat_id,
+        private_requests.telegram_user_id,
+        private_requests.status,
+        private_requests.quota_total,
+        private_requests.quota_used,
+        private_requests.subject,
+        private_requests.last_message,
+        private_requests.created_at,
+        private_requests.updated_at,
+        private_requests.closed_at
+      FROM creator_private_requests private_requests
+      JOIN creator_orders orders ON orders.order_id = private_requests.order_id
+      WHERE ($1::timestamptz IS NULL OR private_requests.created_at >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR private_requests.created_at < $2::timestamptz)
+      ORDER BY private_requests.updated_at DESC
+      LIMIT $3
+    `,
+    [from ?? null, to ?? null, safeLimit],
+  );
+
+  return result.rows.map((row) => ({
+    requestId: String(row.request_id),
+    orderId: String(row.order_id),
+    productSlug: row.product_slug ? String(row.product_slug) : null,
+    productTitle: row.product_title ? String(row.product_title) : null,
+    telegramChatId: row.telegram_chat_id ? String(row.telegram_chat_id) : null,
+    telegramUserId: row.telegram_user_id ? String(row.telegram_user_id) : null,
+    status: String(row.status),
+    quotaTotal: Number(row.quota_total),
+    quotaUsed: Number(row.quota_used),
+    subject: row.subject ? String(row.subject) : null,
+    lastMessage: row.last_message ? String(row.last_message) : null,
+    createdAt: row.created_at as Date,
+    updatedAt: row.updated_at as Date,
+    closedAt: row.closed_at as Date | null,
+  }));
 }

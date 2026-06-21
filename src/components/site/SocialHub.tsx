@@ -12,7 +12,7 @@ export function SocialHub() {
       id="socials"
       eyebrow="Social hub"
       title="Follow the cute chaos."
-      description="Official links for updates, chat and business requests."
+      description="Official links for updates, chat, support and business requests."
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {socials.map((social) => {

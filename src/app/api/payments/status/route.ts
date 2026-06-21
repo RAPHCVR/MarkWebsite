@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { legalConfig } from "@/data/legal";
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
 import { isR2DeliveryConfigured } from "@/lib/server/orders";
@@ -40,6 +41,17 @@ export function GET() {
         .length,
       products: stripeProducts,
     },
+    legal: {
+      merchantName: legalConfig.merchantName,
+      termsVersion: legalConfig.termsVersion,
+      refundPolicyRoute: "/refund-policy",
+      privacyPolicyRoute: "/privacy",
+      legalNoticeRoute: "/legal",
+      commercialVocabulary: legalConfig.commercialVocabulary,
+      consumerMediatorConfigured: legalConfig.consumerMediatorConfigured,
+      checkoutConsentCaptured: true,
+      cryptoFiatAccountingField: "creator_orders.fiat_value_eur_at_transaction",
+    },
     stablecoin: {
       provider: paymentConfig.crypto.stablecoin.preferredProvider,
       checkoutEnabled: paymentConfig.crypto.stablecoin.checkoutEnabled,
@@ -75,6 +87,7 @@ export function GET() {
       botConfigured: isTelegramBotConfigured(),
       webhookConfigured: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
       adminNotificationsConfigured: Boolean(process.env.TELEGRAM_ADMIN_CHAT_ID),
+      vipInviteConfigured: Boolean(process.env.TELEGRAM_VIP_CHAT_ID),
     },
     delivery: {
       configured: isR2DeliveryConfigured(),
@@ -82,6 +95,19 @@ export function GET() {
       signedUrlTtlSeconds: Number(process.env.R2_SIGNED_URL_TTL_SECONDS || "300"),
       tokenTtlDays: Number(process.env.DELIVERY_TOKEN_TTL_DAYS || "7"),
       route: "/orders/[token]",
+    },
+    admin: {
+      accountingExportConfigured: Boolean(process.env.ADMIN_API_TOKEN),
+      dashboardRoute: "/admin",
+      accountingExportRoute: "/api/admin/orders/export",
+      privateRequestsExportRoute: "/api/admin/private-requests/export",
+    },
+    contact: {
+      turnstileSiteKeyConfigured: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
+      turnstileSecretConfigured: Boolean(process.env.TURNSTILE_SECRET_KEY),
+      turnstileRequired:
+        process.env.TURNSTILE_REQUIRED === "true" ||
+        process.env.NEXT_PUBLIC_TURNSTILE_REQUIRED === "true",
     },
   });
 }

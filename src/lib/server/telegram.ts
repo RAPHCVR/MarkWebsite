@@ -1,5 +1,10 @@
 import { siteConfig } from "@/data/site";
-import type { CreatorOrder } from "@/lib/server/orders";
+import {
+  linkTelegramToDelivery,
+  recordPrivateRequestTicketFromTelegram,
+  type CreatorOrder,
+  type PrivateRequestTicketResult,
+} from "@/lib/server/orders";
 import { getPublicUrl } from "@/lib/site-url";
 
 type TelegramInlineButton = {
@@ -68,6 +73,26 @@ export function getTelegramBotUrl(startPayload?: string) {
   return url.toString();
 }
 
+function getDeliveryTokenFromStartPayload(text: string) {
+  const match = text.match(/^\/start\s+delivery_([A-Za-z0-9_-]{20,})$/);
+
+  return match?.[1] || null;
+}
+
+function getStartPayload(text: string) {
+  const match = text.match(/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]+)$/);
+
+  return match?.[1] || null;
+}
+
+function getCommandText(text: string, command: string) {
+  return text.replace(new RegExp(`^/${command}(?:@\\w+)?\\s*`, "i"), "").trim();
+}
+
+export function getTelegramDeliveryLinkUrl(token: string) {
+  return getTelegramBotUrl(`delivery_${token}`);
+}
+
 export async function sendTelegramMessage({
   chatId,
   text,
@@ -103,6 +128,29 @@ export async function sendTelegramMessage({
   };
 }
 
+async function createTelegramInviteLink(chatId: string) {
+  if (!isTelegramBotConfigured()) {
+    return null;
+  }
+
+  const response = await fetch(getTelegramApiUrl("createChatInviteLink"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      name: "Marky VIP access",
+      expire_date: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+      member_limit: 1,
+      creates_join_request: false,
+    }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as TelegramApiResponse<{
+    invite_link?: string;
+  }>;
+
+  return response.ok && payload.ok ? payload.result?.invite_link || null : null;
+}
+
 export async function notifyDeliveryReady({
   order,
   deliveryUrl,
@@ -119,8 +167,8 @@ export async function notifyDeliveryReady({
   return sendTelegramMessage({
     chatId: adminChatId,
     text: [
-      "New paid Marky order",
-      `Product: ${order.productTitle || order.productSlug || "unknown"}`,
+      "New Marky access order",
+      `Access: ${order.productTitle || order.productSlug || "unknown"}`,
       `Provider: ${order.provider}`,
       `Order: ${order.orderId}`,
       `Delivery: ${getPublicUrl(deliveryUrl)}`,
@@ -138,18 +186,172 @@ export async function notifyDeliveryReady({
   });
 }
 
+async function notifyPrivateRequest(ticket: Extract<PrivateRequestTicketResult, { ok: true }>) {
+  const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+
+  if (!adminChatId) {
+    return { ok: false, skipped: true as const };
+  }
+
+  return sendTelegramMessage({
+    chatId: adminChatId,
+    text: [
+      "New VIP Infrastructure Access ticket",
+      `Request: ${ticket.requestId}`,
+      `Order: ${ticket.orderId}`,
+      `Access: ${ticket.productTitle || "VIP Infrastructure Access"}`,
+      `Quota: ${ticket.quotaUsed}/${ticket.quotaTotal}`,
+      "",
+      ticket.message,
+    ].join("\n"),
+    buttons: [
+      {
+        text: "Open support chat",
+        url: siteConfig.telegramChatUrl,
+      },
+    ],
+  });
+}
+
+export async function notifyContactRequest({
+  requestId,
+  name,
+  organization,
+  message,
+}: {
+  requestId?: string;
+  name?: string;
+  organization?: string;
+  message: string;
+}) {
+  const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+
+  if (!adminChatId) {
+    return { ok: false, skipped: true as const };
+  }
+
+  return sendTelegramMessage({
+    chatId: adminChatId,
+    text: [
+      "New Marky contact request",
+      requestId ? `Request: ${requestId}` : null,
+      name ? `Name: ${name}` : null,
+      organization ? `Brand: ${organization}` : null,
+      "",
+      message.slice(0, 1_500),
+    ]
+      .filter((line): line is string => typeof line === "string")
+      .join("\n"),
+    buttons: [
+      {
+        text: "Open site",
+        url: siteConfig.publicUrl,
+      },
+    ],
+  });
+}
+
 export async function handleTelegramUpdate(update: TelegramUpdate) {
   const chatId = update.message?.chat?.id;
   const text = update.message?.text?.trim() || "";
+  const from = update.message?.from;
 
   if (!chatId) {
     return { ok: true, ignored: true };
   }
 
+  if (text.startsWith("/chatid")) {
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: [
+        "Marky Concierge chat id",
+        `chat_id: ${chatId}`,
+        "Use this only for a private admin/support chat configured in Kubernetes.",
+      ].join("\n"),
+    });
+  }
+
+  if (text.startsWith("/help")) {
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: [
+        "Marky Concierge commands",
+        "/start - link a delivery token or open the site",
+        "/support - open support chat",
+        "/orders - get order delivery help",
+        "/request - submit a paid private request ticket",
+        "/chatid - show this chat id for admin setup",
+      ].join("\n"),
+      buttons: [
+        { text: "Open access passes", url: getPublicUrl("/#access-passes") },
+        { text: "Support chat", url: siteConfig.telegramChatUrl },
+      ],
+    });
+  }
+
+  const deliveryToken = getDeliveryTokenFromStartPayload(text);
+  const startPayload = getStartPayload(text);
+
+  if (startPayload === "request") {
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: [
+        "VIP Infrastructure Access",
+        "Buy or open a pass on the site, link Telegram from the delivery page, then send:",
+        "/request your message",
+        "",
+        "Requests are ticketed here. They do not go to Marky's personal account.",
+      ].join("\n"),
+      buttons: [
+        { text: "View access passes", url: getPublicUrl("/#access-passes") },
+        { text: "Support chat", url: siteConfig.telegramChatUrl },
+      ],
+    });
+  }
+
+  if (deliveryToken) {
+    const delivery = await linkTelegramToDelivery({
+      token: deliveryToken,
+      chatId: String(chatId),
+      userId: from?.id,
+      username: from?.username,
+      firstName: from?.first_name,
+    });
+
+    if (!delivery) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: "This access token is expired or invalid. Open the delivery page from the site or contact support.",
+        buttons: [{ text: "Support chat", url: siteConfig.telegramChatUrl }],
+      });
+    }
+
+    const vipInviteLink =
+      delivery.productSlug === "vip-bundle" && process.env.TELEGRAM_VIP_CHAT_ID
+        ? await createTelegramInviteLink(process.env.TELEGRAM_VIP_CHAT_ID).catch(
+            () => null,
+          )
+        : null;
+
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: [
+        "Telegram linked to your Marky access.",
+        `Access: ${delivery.productTitle || delivery.productSlug}`,
+        "Keep using the site delivery page for secure downloads. Telegram is only the concierge/support channel.",
+      ].join("\n"),
+      buttons: [
+        { text: "Open delivery", url: getPublicUrl(`/orders/${delivery.token}`) },
+        ...(vipInviteLink ? [{ text: "Join VIP", url: vipInviteLink }] : []),
+        { text: "Support chat", url: siteConfig.telegramChatUrl },
+      ],
+    });
+  }
+
   if (text.startsWith("/support")) {
     return sendTelegramMessage({
       chatId: String(chatId),
-      text: "For order help and custom requests, use the Marky chat.",
+      text: "For order help and private request tickets, use the Marky chat.",
       buttons: [{ text: "Open chat", url: siteConfig.telegramChatUrl }],
     });
   }
@@ -157,16 +359,73 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   if (text.startsWith("/orders")) {
     return sendTelegramMessage({
       chatId: String(chatId),
-      text: "Paid site orders are delivered through private markshnaknaks.com links. Open the delivery link from your checkout confirmation or ask support.",
+      text: "Paid site orders are delivered through private markshnaknaks.com access links. Open your delivery link or ask support.",
       buttons: [{ text: "Open support", url: siteConfig.telegramChatUrl }],
+    });
+  }
+
+  if (text.startsWith("/request")) {
+    const requestMessage = getCommandText(text, "request");
+
+    if (!requestMessage) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: [
+          "Send your private request in the same message.",
+          "Example:",
+          "/request I want to discuss a custom creator brief.",
+        ].join("\n"),
+        buttons: [
+          { text: "View access passes", url: getPublicUrl("/#access-passes") },
+          { text: "Support chat", url: siteConfig.telegramChatUrl },
+        ],
+      });
+    }
+
+    const ticket = await recordPrivateRequestTicketFromTelegram({
+      chatId: String(chatId),
+      userId: from?.id,
+      username: from?.username,
+      message: requestMessage,
+    });
+
+    if (!ticket.ok) {
+      const reason =
+        ticket.reason === "quota-exhausted"
+          ? "Your VIP Infrastructure Access quota is already used."
+          : "No active VIP Infrastructure Access entitlement is linked to this Telegram chat yet.";
+
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: reason,
+        buttons: [
+          { text: "View access passes", url: getPublicUrl("/#access-passes") },
+          { text: "Support chat", url: siteConfig.telegramChatUrl },
+        ],
+      });
+    }
+
+    await notifyPrivateRequest(ticket).catch(() => undefined);
+
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: [
+        "Private request recorded.",
+        `Ticket: ${ticket.requestId}`,
+        `Remaining quota: ${ticket.remaining}`,
+        "Support will follow up through the official channels.",
+      ].join("\n"),
+      buttons: [
+        { text: "Support chat", url: siteConfig.telegramChatUrl },
+      ],
     });
   }
 
   return sendTelegramMessage({
     chatId: String(chatId),
-    text: "Welcome to Marky. Use the official site for packs, Telegram for updates and support.",
+    text: "Welcome to Marky Concierge. Use the official site for digital access passes, Telegram for updates and support. Send /help for commands.",
     buttons: [
-      { text: "Open shop", url: getPublicUrl("/#photo-packs") },
+      { text: "Open access passes", url: getPublicUrl("/#access-passes") },
       { text: "Telegram channel", url: siteConfig.telegramChannelUrl },
       { text: "Support chat", url: siteConfig.telegramChatUrl },
     ],

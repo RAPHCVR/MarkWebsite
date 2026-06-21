@@ -1,6 +1,6 @@
 # Crypto Payment Strategy
 
-Last verified: 2026-06-21 18:42 Europe/Paris.
+Last verified: 2026-06-21 20:10 Europe/Paris.
 
 ## Current Production State
 
@@ -8,12 +8,12 @@ Last verified: 2026-06-21 18:42 Europe/Paris.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core runs on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/bitcoin`, `checkblocks=1`, `dbcache=4096`, `par=6`, DNS peer discovery, no forced `connect`/manual `addnode` list, standard internal P2P port `8333`, a `2 CPU` / `6Gi` request, and a `6 CPU` / `12Gi` limit to speed IBD while keeping OOM headroom.
-- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 18:42 Paris time showed the node advancing around block `946014` of `954724`, `verificationprogress=0.982088`, `initialblockdownload=true`, and `pruned=true` with a `55 GiB` prune target on a `90 GiB` local PV. During IBD, BTCPay can still return `{"synchronized":false}` and BTC checkout must remain disabled.
+- Bitcoin Core is now out of Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 20:10 Paris time showed `blocks=954728`, `headers=954728`, `initialblockdownload=false`, and `pruned=true` with a `55 GiB` prune target on a `90 GiB` local PV. BTC checkout still remains disabled because the Marky store does not yet return a usable `BTC-CHAIN` invoice payment method.
 - Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live checks on 2026-06-21 13:58 Paris time showed Litecoin at `blocks=3128925`, `headers=3128925`, `initialblockdownload=false`, and `pruned=true` with a `20 GiB` prune target on a `40 GiB` local PV. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
 - On 2026-06-20, blockchain data was moved off Longhorn/`valence-worker-02` after repeated kubelet and virtual volume I/O timeouts. BTC/LTC chainstate is intentionally treated as disposable cache and can be rebuilt from the networks.
 - A live check on 2026-06-20 showed `valence-worker-02` recovered after Longhorn iSCSI volume errors (`EXT4` remounted read-only, then the volume reattached). Active Longhorn volumes were healthy after the move, and the former 90 GiB blockchain Longhorn volume was no longer active.
 - BTCPay Server loads `Supported chains: LTC,BTC`. NBXplorer now runs with cookie authentication, and BTCPay mounts the NBXplorer PVC read-only at `/root/.nbxplorer` so `BTC` and `LTC` both use `/root/.nbxplorer/Main/.cookie`. The previous `--noauth` plus `explorercookiefile=0` setup was removed because BTCPay 2.2.1 still tried cookie auth and produced NBXplorer 500s. Live logs after the fix show BTC and LTC handshakes, RPC connection success, and `CoreSynching`.
-- BTCPay LTC is now public through Greenfield invoice creation. A live production smoke test on 2026-06-21 12:17 Paris time returned a usable LTC checkout link from BTCPay, so `BTCPAY_LTC_ENABLED=true` and `NEXT_PUBLIC_BTCPAY_LTC_ENABLED=true` are set in the `marky-payments` Kubernetes Secret. BTC remains disabled through `BTCPAY_BTC_WALLET_READY=false` until Bitcoin Core exits IBD and a BTC invoice smoke test passes.
+- BTCPay LTC is now public through Greenfield invoice creation. A live production smoke test on 2026-06-21 20:10 Paris time returned invoice `JWsAkxe4ZGzdDpsAJyfFA5` with an `LTC-CHAIN` payment link for `0.02539361 LTC` at rate `39.38`, so `BTCPAY_LTC_ENABLED=true` and `NEXT_PUBLIC_BTCPAY_LTC_ENABLED=true` are set in the `marky-payments` Kubernetes Secret. BTC remains disabled through `BTCPAY_BTC_WALLET_READY=false` until a BTC wallet/payment method is linked in BTCPay and a BTC invoice smoke test passes.
 - The storefront production secret contains Stripe Payment Links, Solana Pay settings and BTCPay env vars. Public selling is controlled by `SALES_ENABLED`, not by secrets simply existing.
 - The storefront has a signed Stripe webhook route at `POST /api/webhooks/stripe` for Payment Link reconciliation into `creator_orders`. On 2026-06-21 09:18 Paris time, one enabled Stripe webhook endpoint existed for `https://markshnaknaks.com/api/webhooks/stripe`, one stale endpoint for the same URL was disabled, `STRIPE_WEBHOOK_SECRET` was patched into the `marky-payments` Kubernetes Secret, and a signed production smoke event returned `202` then wrote and deleted a `stripe` row in central PostgreSQL.
 - The Marky PostgreSQL app password, BTCPay BTC/LTC internal RPC passwords, BTCPay site API key, BTCPay webhook secret and BTCPay admin bootstrap password were rotated on 2026-06-21 after runtime audit checks. The active BTCPay site key has only `cancreateinvoice` and `canviewinvoices` on the Marky store, and there is one active Marky webhook. Current secrets live only in Kubernetes secrets and local ignored env material; do not print full `printenv` output from payment pods.
@@ -27,7 +27,7 @@ Last verified: 2026-06-21 18:42 Europe/Paris.
 - Follow-up production smoke tests on 2026-06-21 05:32, 06:40, 07:04 and post-rollout at 07:23 Paris time verified the stablecoin pending path with two RPC fallbacks: public order creation returned `303`, the checkout page rendered a Solana Pay QR/link, central PostgreSQL stored new `solana-pay` orders as `UNPAID`, and unpaid verification returned `pending=1` without timing out at the public edge. Smoke rows were removed after validation.
 - On 2026-06-21 07:10 Paris time, both configured free read-only Solana RPC endpoints answered from the production pod: `api.mainnet-beta.solana.com` and `solana-rpc.publicnode.com`.
 - `GET /api/payments/status` exposes payment readiness without leaking secrets. Use it for operational checks before creating real smoke orders.
-- BTC/LTC checkout is constrained per invoice through BTCPay Greenfield `checkout.paymentMethods`, matching the official schema. The storefront only sends payment method IDs that have passed smoke tests: currently `LTC`; later `BTC` can be added by setting `BTCPAY_BTC_WALLET_READY=true` after sync, wallet setup and smoke validation. The runtime BTCPay API key stays least-privilege for the site and does not need store-settings read access.
+- BTC/LTC checkout is constrained per invoice through BTCPay Greenfield `checkout.paymentMethods`, matching the official schema. The storefront only sends payment method IDs that have passed smoke tests: currently `LTC`; later `BTC` can be added by setting `BTCPAY_BTC_WALLET_READY=true` after wallet setup and smoke validation. The runtime BTCPay API key stays least-privilege for the site and does not need store-settings read access.
 
 ## Kubernetes Storage Policy
 
@@ -101,7 +101,7 @@ Operational rules:
 | Rail | Status | Best Use | Buyer Cost | Operator Cost | Decision |
 | --- | --- | --- | --- | --- | --- |
 | Stripe | Live and smoke-tested | Cards, clean accounting, refunds/disputes | Card fees, no blockchain fee | Stripe fees | Primary public checkout |
-| BTC on-chain via BTCPay | Installed, syncing, not public | Self-hosted crypto, non-custodial checkout | Low during calm mempool, slower settlement | Bitcoin node, sync, backups | Keep, but do not block launch on BTC |
+| BTC on-chain via BTCPay | Node synced, wallet not public | Self-hosted crypto, non-custodial checkout | Low during calm mempool, slower settlement | Bitcoin wallet backup and invoice smoke | Keep, but do not block launch on BTC |
 | LTC via BTCPay | Live and smoke-tested | Cheap UTXO payments for buyers | Very low network fee | Separate Litecoin node, wallet backup, invoice smoke | First public self-hosted UTXO rail |
 | USDC on Solana | Live and smoke-tested | Low-fee stablecoin payments | Usually sub-cent network fee, token account edge cases | Solana wallet backup, read-only RPC fallback monitoring | Best free/self-hosted stablecoin rail for v1 |
 | USDC on Polygon | Route modelled, fallback | Low-fee EVM stablecoin | Low, but chain/wallet UX is less universal than Solana for this audience | SHKeeper/Bitcart plus EVM RPC | Later, only if Solana support disappoints buyers |
@@ -121,8 +121,8 @@ This is a snapshot, not a hardcoded rule.
 
 Do not set `CRYPTO_CHECKOUT_ENABLED=true` for BTC until all items pass:
 
-- `https://pay.markshnaknaks.com/api/v1/health` returns `{"synchronized":true}`.
-- Bitcoin Core is out of Initial Block Download.
+- `https://pay.markshnaknaks.com/api/v1/health` returns `{"synchronized":true}`. This is already true as of 2026-06-21 20:10 Paris time.
+- Bitcoin Core is out of Initial Block Download. This is already true as of 2026-06-21 20:10 Paris time.
 - NBXplorer reports BTC as connected and synced.
 - The `Marky` store has a BTC on-chain wallet/payment method.
 - The wallet seed or xpub backup is stored outside Git and outside chat logs.

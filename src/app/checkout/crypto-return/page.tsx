@@ -32,10 +32,10 @@ export default async function CryptoReturnPage({
           ) : null}
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Link
-              href="/#photo-packs"
+              href="/#access-passes"
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
             >
-              Back to packs
+              Back to passes
             </Link>
             <a
               href={siteConfig.telegramChatUrl}

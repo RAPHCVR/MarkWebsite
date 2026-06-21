@@ -1,0 +1,129 @@
+param(
+  [string]$PublicUrl = "https://markshnaknaks.com",
+  [string]$Namespace = "marky",
+  [string]$SecretName = "marky-payments",
+  [switch]$SkipKubeSecretLookup,
+  [switch]$DropPendingUpdates
+)
+
+$ErrorActionPreference = "Stop"
+
+function Get-KubeSecretValue {
+  param([string]$Name)
+
+  if ($SkipKubeSecretLookup) {
+    return ""
+  }
+
+  $jsonPath = "{.data.$Name}"
+  $encoded = kubectl -n $Namespace get secret $SecretName -o jsonpath=$jsonPath 2>$null
+
+  if ($LASTEXITCODE -ne 0 -or -not $encoded) {
+    return ""
+  }
+
+  [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+}
+
+function Get-ConfigValue {
+  param(
+    [string]$EnvName,
+    [string]$SecretKey
+  )
+
+  $value = [Environment]::GetEnvironmentVariable($EnvName)
+
+  if ($value) {
+    return $value
+  }
+
+  Get-KubeSecretValue $SecretKey
+}
+
+function Invoke-TelegramApi {
+  param(
+    [string]$Method,
+    [hashtable]$Body
+  )
+
+  $uri = "https://api.telegram.org/bot$BotToken/$Method"
+
+  Invoke-RestMethod `
+    -Method Post `
+    -Uri $uri `
+    -ContentType "application/json" `
+    -Body ($Body | ConvertTo-Json -Depth 8 -Compress)
+}
+
+$BotToken = Get-ConfigValue -EnvName "TELEGRAM_BOT_TOKEN" -SecretKey "TELEGRAM_BOT_TOKEN"
+$WebhookSecret = Get-ConfigValue -EnvName "TELEGRAM_WEBHOOK_SECRET" -SecretKey "TELEGRAM_WEBHOOK_SECRET"
+$AdminChatId = Get-ConfigValue -EnvName "TELEGRAM_ADMIN_CHAT_ID" -SecretKey "TELEGRAM_ADMIN_CHAT_ID"
+
+if (-not $BotToken) {
+  throw "TELEGRAM_BOT_TOKEN is missing from env or Kubernetes secret $Namespace/$SecretName."
+}
+
+if (-not $WebhookSecret) {
+  throw "TELEGRAM_WEBHOOK_SECRET is missing from env or Kubernetes secret $Namespace/$SecretName."
+}
+
+$webhookUrl = "$PublicUrl/api/webhooks/telegram"
+
+$me = Invoke-TelegramApi -Method "getMe" -Body @{}
+Write-Host "Bot: @$($me.result.username)"
+
+Invoke-TelegramApi -Method "setWebhook" -Body @{
+  url = $webhookUrl
+  secret_token = $WebhookSecret
+  allowed_updates = @("message")
+  drop_pending_updates = [bool]$DropPendingUpdates
+} | Out-Null
+Write-Host "Webhook configured: $webhookUrl"
+
+Invoke-TelegramApi -Method "setMyName" -Body @{
+  name = "Marky Concierge"
+} | Out-Null
+
+Invoke-TelegramApi -Method "setMyShortDescription" -Body @{
+  short_description = "Access links, VIP support and request tickets."
+} | Out-Null
+
+Invoke-TelegramApi -Method "setMyDescription" -Body @{
+  description = "Marky Concierge links site delivery tokens to Telegram, routes support, and keeps Private Request Passes ticketed. Payments and private delivery remain on markshnaknaks.com."
+} | Out-Null
+
+Invoke-TelegramApi -Method "setMyCommands" -Body @{
+  commands = @(
+    @{ command = "start"; description = "Link a delivery token or open the site" },
+    @{ command = "help"; description = "Show available commands" },
+    @{ command = "support"; description = "Open the support chat" },
+    @{ command = "orders"; description = "Get help with site orders" },
+    @{ command = "request"; description = "Private Request Pass guidance" },
+    @{ command = "chatid"; description = "Show this chat id for admin setup" }
+  )
+} | Out-Null
+Write-Host "Commands configured."
+
+if (-not $AdminChatId) {
+  Write-Warning "TELEGRAM_ADMIN_CHAT_ID is not configured. Create a private admin chat with the bot, send /chatid, then add the returned chat_id to Kubernetes secret $Namespace/$SecretName."
+}
+
+try {
+  Invoke-TelegramApi -Method "setChatMenuButton" -Body @{
+    menu_button = @{
+      type = "web_app"
+      text = "Open Marky"
+      web_app = @{ url = $PublicUrl }
+    }
+  } | Out-Null
+  Write-Host "Menu button configured."
+} catch {
+  Write-Warning "Menu button setup failed: $($_.Exception.Message)"
+}
+
+$info = Invoke-TelegramApi -Method "getWebhookInfo" -Body @{}
+[pscustomobject]@{
+  Url = $info.result.url
+  PendingUpdates = $info.result.pending_update_count
+  LastError = $info.result.last_error_message
+} | Format-List

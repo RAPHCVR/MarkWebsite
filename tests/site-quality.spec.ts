@@ -1,7 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const sectionIds = ["top", "socials", "photo-packs", "lookbook", "contact"];
+const sectionIds = ["top", "socials", "access-passes", "lookbook", "contact"];
+const publicTextRoutes = ["/", "/legal", "/terms", "/refund-policy", "/privacy"];
+const restrictedCommercialWording =
+  /\b(photo\s*pack|pack\s+photo|video\s*pack|pack\s+vid[eé]o|adult\s+content|contenu\s+adulte|18\+|onlyfans|vente\s+de\s+photos?)\b/i;
 
 test("homepage renders all key sections without horizontal overflow", async ({ page }) => {
   await page.goto("/");
@@ -64,7 +67,12 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
-  expect(await sitemap.text()).toContain("https://markshnaknaks.com");
+  const sitemapText = await sitemap.text();
+  expect(sitemapText).toContain("https://markshnaknaks.com");
+  expect(sitemapText).toContain("https://markshnaknaks.com/legal");
+  expect(sitemapText).toContain("https://markshnaknaks.com/terms");
+  expect(sitemapText).toContain("https://markshnaknaks.com/refund-policy");
+  expect(sitemapText).toContain("https://markshnaknaks.com/privacy");
 
   const manifest = await request.get("/manifest.webmanifest");
   expect(manifest.status()).toBe(200);
@@ -131,6 +139,25 @@ test("interactive elements are named and external links are hardened", async ({ 
   expect(audit.mailtoForms).toEqual([]);
 });
 
+test("public pages avoid payment-risk wording", async ({ page }) => {
+  for (const route of publicTextRoutes) {
+    await page.goto(route);
+
+    const visibleText = await page.locator("body").innerText();
+
+    expect(visibleText).not.toMatch(restrictedCommercialWording);
+  }
+});
+
+test("commerce wording stays aligned with access-platform positioning", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByText("Digital Access Pass").first()).toBeVisible();
+  await expect(page.getByText("Premium Platform Membership").first()).toBeVisible();
+  await expect(page.getByText("Content Delivery Token").first()).toBeVisible();
+  await expect(page.getByText("VIP Infrastructure Access").first()).toBeVisible();
+});
+
 test("checkout links reflect runtime sales flags", async ({ page, request }) => {
   await page.goto("/");
 
@@ -138,17 +165,29 @@ test("checkout links reflect runtime sales flags", async ({ page, request }) => 
   const status = await response.json() as { salesEnabled?: boolean };
 
   if (status.salesEnabled) {
-    await expect(page.getByRole("link", { name: /buy with stripe/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /get access with stripe/i }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /pay with usdc/i }).first()).toBeVisible();
   } else {
-    await expect(page.getByRole("link", { name: /buy with stripe/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /get access with stripe/i })).toHaveCount(0);
   }
 
   await expect(page.getByRole("link", { name: /buy with crypto/i })).toHaveCount(0);
-  await expect(page.getByText(/preview lineup/i)).toBeVisible();
+  await expect(page.getByText(/access lineup/i)).toBeVisible();
   await expect(page.getByRole("link", { name: /preview soon/i })).toHaveAttribute("aria-disabled", "true");
-  await expect(page.getByText(/onlyfans/i).first()).toBeVisible();
+  await expect(page.getByText(/private channel/i).first()).toBeVisible();
   await expect(page.getByText(/planned/i).first()).toBeVisible();
+});
+
+test("Stripe checkout requires POST and terms acceptance", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
+
+  const getResponse = await request.get("/api/checkout/stripe?product=cosplay-starter-pack");
+  expect(getResponse.status()).toBe(405);
+
+  const missingConsent = await request.post("/api/checkout/stripe", {
+    form: { product: "cosplay-starter-pack" },
+  });
+  expect([400, 403]).toContain(missingConsent.status());
 });
 
 test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ request }, testInfo) => {
@@ -158,7 +197,7 @@ test("BTCPay checkout requires POST and disabled sales stay blocked", async ({ r
   expect(getResponse.status()).toBe(405);
 
   const postResponse = await request.post("/api/checkout/btcpay", {
-    data: { product: "not-a-real-product" },
+    data: { product: "not-a-real-product", termsAccepted: true },
   });
   expect([403, 404]).toContain(postResponse.status());
 });
@@ -170,7 +209,7 @@ test("stablecoin checkout requires POST and disabled sales stay blocked", async 
   expect(getResponse.status()).toBe(405);
 
   const postResponse = await request.post("/api/checkout/stablecoin", {
-    data: { product: "not-a-real-product", rail: "usdc-solana" },
+    data: { product: "not-a-real-product", rail: "usdc-solana", termsAccepted: true },
   });
   expect([403, 404]).toContain(postResponse.status());
 });
@@ -212,6 +251,15 @@ test("payment status endpoint reports readiness without exposing secrets", async
       supportedMethods?: string[];
       healthUrl?: string;
     };
+    admin?: {
+      accountingExportConfigured?: boolean;
+      accountingExportRoute?: string;
+      privateRequestsExportRoute?: string;
+    };
+    legal?: {
+      cryptoFiatAccountingField?: string;
+      commercialVocabulary?: string[];
+    };
   };
 
   expect(status.ok).toBe(true);
@@ -226,7 +274,27 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.stablecoin?.solanaPay?.invoiceTtlMinutes).toBeGreaterThanOrEqual(5);
   expect(status.btcpay?.supportedMethods?.length).toBeGreaterThanOrEqual(1);
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
+  expect(status.legal?.cryptoFiatAccountingField).toBe("creator_orders.fiat_value_eur_at_transaction");
+  expect(status.legal?.commercialVocabulary).toContain("Digital Access Pass");
+  expect(status.admin?.accountingExportRoute).toBe("/api/admin/orders/export");
+  expect(status.admin?.privateRequestsExportRoute).toBe("/api/admin/private-requests/export");
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
+});
+
+test("admin accounting export is protected", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Admin route check only needs one project");
+
+  const response = await request.get("/api/admin/orders/export");
+
+  expect([401, 503]).toContain(response.status());
+});
+
+test("admin private request export is protected", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Admin route check only needs one project");
+
+  const response = await request.get("/api/admin/private-requests/export");
+
+  expect([401, 503]).toContain(response.status());
 });
 
 test("Stripe webhook rejects unsigned requests", async ({ request }, testInfo) => {
@@ -289,7 +357,6 @@ test("social links use recognizable brand icons", async ({ page }) => {
     "telegram",
     "x",
     "gmail",
-    "onlyfans",
     "bitcoin",
     "litecoin",
     "circle",

@@ -24,14 +24,14 @@ export function Lookbook() {
     <SectionShell
       id="lookbook"
       eyebrow="Lookbook"
-      title="Soft cosplay universe, SFW."
+      title="Soft cosplay universe, public preview."
       description="Pastel cosplay, catboy details and backstage previews."
     >
       <div className="grid auto-rows-[18rem] gap-4 md:grid-cols-4">
         <article className="relative overflow-hidden rounded-[2rem] border border-pink-100 bg-[linear-gradient(135deg,#fff_0%,#FFECEE_58%,#FFD4DE_100%)] p-5 shadow-sm md:col-span-2 md:row-span-2">
           <Image
             src="/images/mark-chibi-sketch.png"
-            alt={`Cute SFW chibi drawing of ${siteConfig.brandName}`}
+            alt={`Cute public chibi drawing of ${siteConfig.brandName}`}
             fill
             loading="eager"
             sizes="(max-width: 768px) 92vw, 560px"

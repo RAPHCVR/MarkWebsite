@@ -8,9 +8,9 @@ export type GalleryItem = {
 
 export const galleryItems: GalleryItem[] = [
   {
-    title: "Cosplay",
+    title: "Signature look",
     category: "soft set",
-    description: "Pastel details, gentle posing and clean previews.",
+    description: "Pastel details, gentle styling and clean previews.",
     size: "wide",
     tone: "blush",
   },
@@ -45,7 +45,7 @@ export const galleryItems: GalleryItem[] = [
   {
     title: "Cute chaos",
     category: "playful",
-    description: "Tiny hearts, sparkles and expressive SFW set ideas.",
+    description: "Tiny hearts, sparkles and expressive public ideas.",
     size: "square",
     tone: "hot",
   },

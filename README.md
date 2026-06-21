@@ -1,12 +1,12 @@
 # Marky Creator Storefront
 
-SFW creator site for `@markshnaknaks`.
+Public creator platform site for `@markshnaknaks`.
 
 The site is a single long landing page with:
 
 - hero and creator profile card
 - social hub
-- payment-ready photo pack previews, guarded by runtime sales flags
+- payment-ready digital access previews, guarded by runtime sales flags
 - soft lookbook
 - collab contact section
 - footer links
@@ -23,7 +23,7 @@ The site is a single long landing page with:
 - Playwright + axe for browser and accessibility QA
 - Docker + Kubernetes manifests for local-first deployment
 - PostgreSQL central for orders, entitlements, contacts and rate limits
-- Cloudflare R2 private bucket for paid pack files
+- Cloudflare R2 private bucket for paid access assets
 
 ## Commands
 
@@ -85,9 +85,18 @@ URLs. Telegram bot/webhook support is configured for `@markshnaknaksbot`; admin
 delivery notifications remain disabled until `TELEGRAM_ADMIN_CHAT_ID` points to
 a trusted private chat or channel.
 
+Admin/accounting is token-protected. Configure `ADMIN_API_TOKEN`, then open
+`/admin` and enter the token locally in the browser to inspect recent orders,
+download accounting CSVs and review VIP Infrastructure Access tickets. The same
+token protects `GET /api/admin/orders/export` and
+`GET /api/admin/private-requests/export` through
+`Authorization: Bearer <token>`. Do not paste this token in Telegram groups or
+public issue threads.
+
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
-requests are stored in `creator_contact_requests`; otherwise the form redirects
-cleanly without storing data. The direct email CTA remains available for urgent briefs.
+requests are stored in `creator_contact_requests`; when `TELEGRAM_ADMIN_CHAT_ID`
+is configured, the same request is also relayed to the private admin chat. The
+direct email CTA remains available for urgent briefs.
 Public write endpoints use a small PostgreSQL-backed rate limit in
 `creator_rate_limits`, keyed by a hash of the client fingerprint. This keeps
 checkout/contact spam out of the production database without adding a separate
@@ -117,11 +126,40 @@ Use `GET /api/payments/status` to audit runtime readiness without exposing secre
 
 Detailed crypto rail decisions and fee notes live in `docs/crypto-payment-strategy.md`.
 
+## Legal / MoR Direction
+
+The site is operated by `Raphael Tech Solutions` as technical platform operator
+and Merchant of Record for Marky digital access services:
+
+- Entrepreneur: Raphael Chauvier
+- SIREN: `105765424`
+- Legal form: Entrepreneur individuel / Micro-entreprise
+- APE: `6201Z`
+- TVA: franchise en base, article 293 B CGI
+
+Public wording should stay accurate and aligned with the actual service:
+Digital Access Pass, Premium Platform Membership, Content Delivery Token,
+VIP Infrastructure Access, private delivery, Telegram concierge/support and
+ticketed requests. Do not use misleading wording to hide what is being sold
+from Stripe or buyers. If the offer changes, review payment-provider rules
+before launch.
+
+Legal pages are part of the app:
+
+- `/legal`
+- `/terms`
+- `/refund-policy`
+- `/privacy`
+
+Checkout buttons require explicit CGV/immediate digital delivery acceptance
+before reaching Stripe, BTCPay or Solana Pay. The order table stores the terms
+version, waiver timestamp and `fiat_value_eur_at_transaction` for accounting.
+
 ## Payment Direction
 
 Recommended launch path:
 
-- Use Stripe Payment Links first for SFW photo packs if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables.
+- Use Stripe Payment Links first for digital access checkout if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables.
 - Stripe webhook reconciliation is live in production. The endpoint points to `https://markshnaknaks.com/api/webhooks/stripe` with `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired`, so paid sessions are recorded in the shared `creator_orders` table.
 - Move to Stripe Checkout Sessions later if the site needs a cart, automatic delivery, coupons tied to accounts, or richer order metadata than Payment Links provide.
 - Use Solana Pay as the first free/self-hosted stablecoin rail: the site creates a USDC payment request, stores the order in PostgreSQL, displays a QR/link, and verifies the reference on-chain before marking the order paid.
@@ -129,20 +167,22 @@ Recommended launch path:
 - Use Litecoin as the first cheap UTXO crypto rail. It is live in production through BTCPay after node sync, NBXplorer wiring and an LTC invoice smoke test.
 - Keep SHKeeper/Bitcart as later processors if you need generated wallet addresses, callbacks or multi-chain rails such as Polygon/Tron. Do not deploy them just to accept USDC on Solana.
 - Keep TRON/USDT and TON as later rails. TRON is popular for stablecoins but resource/energy fees can be surprisingly high without a managed energy strategy; TON only makes sense if Telegram becomes the primary paid flow.
-- Use Telegram for channel updates, VIP invites, support, custom requests and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
-- Keep Stripe products clearly non-explicit: cosplay sets, outfit previews, soft creator photos, and clean paid packs. If the offer changes, review payment-provider rules before launch.
+- Use Telegram for channel updates, VIP invites, support, VIP Infrastructure Access tickets and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
+- Keep Stripe products clearly framed as digital platform access services. If the offer changes, review payment-provider rules before launch.
 
 ## Private Delivery
 
-Private pack delivery is site-owned and backed by Cloudflare R2:
+Private access delivery is site-owned and backed by Cloudflare R2:
 
 - Private media objects live in the private R2 bucket `marky-private-packs`.
 - R2 public `r2.dev` access stays disabled; do not attach a public custom domain to private pack storage.
 - Paid orders grant an entitlement in PostgreSQL, generate a bearer delivery token, and expose a page at `/orders/<token>`.
 - File downloads use `/api/delivery/assets/<assetId>?token=...`, which validates the token and redirects to a short-lived signed R2 URL.
 - Telegram is support and optional admin notification, not the source of truth for delivery access.
-- Use `scripts/upsert-r2-delivery-asset.ps1` to upload a real pack file and register it in `creator_assets` without manual SQL.
+- VIP Infrastructure Access requests are ticketed through `@markshnaknaksbot` with `/request <message>` after Telegram is linked from the delivery page.
+- Use `scripts/upsert-r2-delivery-asset.ps1` to upload a real private asset and register it in `creator_assets` without manual SQL. New uploads default to the `access-assets/<product-slug>/...` R2 prefix.
 - `scripts/audit-payment-readiness.ps1 -RunDeliverySmoke` creates and cleans up a smoke entitlement against the real bucket and confirms signed URL delivery.
+- `scripts/setup-telegram-bot.ps1` configures the bot webhook, commands, description and menu button from Kubernetes secrets without printing the token.
 
 Required BTCPay env vars when enabling crypto checkout:
 
@@ -192,10 +232,14 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_SIGNED_URL_TTL_SECONDS=300
 DELIVERY_TOKEN_TTL_DAYS=7
+ADMIN_API_TOKEN=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_BOT_USERNAME=markshnaknaksbot
 TELEGRAM_WEBHOOK_SECRET=
 TELEGRAM_ADMIN_CHAT_ID=
+TELEGRAM_VIP_CHAT_ID=
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
 SALES_ENABLED=true
 NEXT_PUBLIC_SALES_ENABLED=true
 CRYPTO_CHECKOUT_ENABLED=false
@@ -206,7 +250,7 @@ Crypto rail policy:
 
 - Launch default: Stripe for cards and Solana Pay for USDC if crypto is desired immediately.
 - Current UTXO rail: LTC through BTCPay after node/explorer sync and a payable invoice smoke test.
-- Next UTXO rail: BTC after Bitcoin Core exits IBD, wallet setup and a payable BTC invoice smoke test.
+- Next UTXO rail: BTC after wallet setup and a payable BTC invoice smoke test. Bitcoin Core is synced, but the Marky BTCPay store still needs a usable BTC wallet/payment method before public BTC checkout.
 - Provider split: BTCPay for BTC/LTC-style rails; Solana Pay for USDC Solana; SHKeeper/Bitcart only if multi-chain stablecoins become necessary.
 - No manual wallets on the public site unless there is a reconciliation backend; otherwise order matching and delivery are too fragile.
 - Runtime flags are conservative: `BTCPAY_BTC_WALLET_READY=true` means node sync, wallet setup and invoice smoke test have already passed.
@@ -225,6 +269,14 @@ Stablecoin production checklist before enabling public buttons:
 - `creator_rate_limits` is present so checkout creation and verification cannot be spammed freely.
 - Only then set `STABLECOIN_PROVIDER=solana-pay`, `SOLANA_PAY_ENABLED=true`, `NEXT_PUBLIC_SOLANA_PAY_ENABLED=true`, `STABLECOIN_RAIL_READY=true`, `NEXT_PUBLIC_STABLECOIN_RAIL_READY=true`, and `STABLECOIN_USDC_SOLANA_ENABLED=true`.
 
+Contact spam protection:
+
+- `TURNSTILE_SECRET_KEY` enables server-side Cloudflare Turnstile checks.
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` renders the widget on the contact form.
+- `TURNSTILE_REQUIRED=true` should be set in production once both keys are
+  configured. Until then, the form still has a honeypot and PostgreSQL-backed
+  rate limit, but Turnstile is the proper anti-bot layer.
+
 BTCPay BTC production checklist before enabling BTC on the public site:
 
 - `pay.markshnaknaks.com/api/v1/health` returns 200 and `synchronized:true`.
@@ -237,6 +289,11 @@ BTCPay BTC production checklist before enabling BTC on the public site:
 BTCPay LTC is already public. Keep it enabled only while
 `scripts/audit-payment-readiness.ps1 -RunBtcpaySmoke` keeps returning an
 `LTC-CHAIN` destination, payment link, exchange rate and amount due.
+
+BTC Core is synced, but BTC checkout is still intentionally hidden until the
+Marky BTCPay store has a BTC wallet/payment method linked and a BTC invoice
+smoke test returns a `BTC-CHAIN` destination. Do not set
+`BTCPAY_BTC_WALLET_READY=true` just because `/api/v1/health` is synchronized.
 
 No Stripe secret key is required in the frontend repo for Payment Links. If Checkout Sessions are added later, the secret key must live only in Kubernetes secrets or a server-side env store. Rotate any live secret key that has been pasted into chat, logs or local notes.
 
@@ -289,9 +346,11 @@ The manifest exposes:
 - `markshnaknaks.com`
 - `www.markshnaknaks.com`
 
-## SFW Boundary
+## Public Boundary
 
-This version is a SFW preview site. OnlyFans is marked as a future creator-channel integration, not as an adult-content section. Keep paid packs non-explicit unless a separate compliant flow is designed later.
+This version is a public preview site for platform access services. Future
+creator-channel integrations should stay separate from the site checkout unless
+a compliant flow is designed intentionally.
 
 ## QA
 

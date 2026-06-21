@@ -3,12 +3,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
-import { siteConfig } from "@/data/site";
 import { getDeliveryByToken, isR2DeliveryConfigured } from "@/lib/server/orders";
+import { getTelegramDeliveryLinkUrl } from "@/lib/server/telegram";
 import { getExternalLinkProps } from "@/lib/links";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const metadata = {
+  title: "Private delivery",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 type DeliveryPageProps = {
   params: Promise<{ token: string }>;
@@ -66,11 +73,11 @@ export default async function DeliveryPage({ params }: DeliveryPageProps) {
                 Private delivery
               </p>
               <h1 className="mt-3 font-serif text-4xl font-black leading-tight text-rose-950 sm:text-5xl">
-                {delivery.productTitle || "Your pack"}
+                {delivery.productTitle || "Your access pass"}
               </h1>
               <p className="mt-4 text-base leading-7 text-rose-950/68">
                 This private page is tied to a confirmed order. Keep the link
-                for yourself; downloads are short-lived and generated on demand.
+                for yourself; downloads are generated as short-lived private links.
               </p>
             </div>
 
@@ -89,7 +96,7 @@ export default async function DeliveryPage({ params }: DeliveryPageProps) {
             {[
               ["Order", delivery.order.provider.toUpperCase()],
               ["Status", delivery.order.status],
-              ["Delivery", r2Ready ? "R2 private" : "Pending upload"],
+              ["Delivery", r2Ready ? "Private storage" : "Preparing"],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -106,7 +113,7 @@ export default async function DeliveryPage({ params }: DeliveryPageProps) {
           </div>
 
           <div className="mt-8">
-            <h2 className="text-2xl font-black text-rose-950">Files</h2>
+            <h2 className="text-2xl font-black text-rose-950">Secure assets</h2>
 
             {delivery.assets.length ? (
               <div className="mt-4 grid gap-3">
@@ -125,7 +132,7 @@ export default async function DeliveryPage({ params }: DeliveryPageProps) {
                         </p>
                       ) : null}
                       <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-pink-500">
-                        {formatBytes(asset.sizeBytes) || "Private file"}
+                        {formatBytes(asset.sizeBytes) || "Private asset"}
                       </p>
                     </div>
 
@@ -158,12 +165,12 @@ export default async function DeliveryPage({ params }: DeliveryPageProps) {
                   <Lock className="size-5" aria-hidden="true" />
                 </div>
                 <h3 className="mt-4 text-lg font-black text-rose-950">
-                  Files are not attached yet.
+                  Delivery is being prepared.
                 </h3>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-rose-950/65">
-                  The payment and access are recorded. Upload the final pack to
-                  R2 and attach it to this product; this page will show the
-                  download automatically.
+                  The payment and access are recorded. Support can attach the
+                  final delivery files to this access pass without changing your
+                  private link.
                 </p>
               </div>
             )}
@@ -171,18 +178,18 @@ export default async function DeliveryPage({ params }: DeliveryPageProps) {
 
           <div className="mt-8 flex flex-col gap-3 rounded-3xl border border-pink-100 bg-white/72 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-black text-rose-950">Need help?</p>
+              <p className="font-black text-rose-950">Telegram concierge</p>
               <p className="text-sm text-rose-950/62">
-                Use the Telegram chat for order support or custom requests.
+                Link this access pass to Telegram for support and private request tickets.
               </p>
             </div>
             <a
-              href={siteConfig.telegramChatUrl}
-              {...getExternalLinkProps(siteConfig.telegramChatUrl)}
+              href={getTelegramDeliveryLinkUrl(token)}
+              {...getExternalLinkProps(getTelegramDeliveryLinkUrl(token))}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-5 text-sm font-black text-pink-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
             >
               <MessageCircle className="size-4" aria-hidden="true" />
-              Telegram support
+              Link Telegram
             </a>
           </div>
         </section>

@@ -1,7 +1,9 @@
+import { legalConfig } from "@/data/legal";
 import { publicSocialUrls, siteConfig } from "@/data/site";
 
 const absoluteUrl = (path: string) => new URL(path, siteConfig.publicUrl).toString();
 const personId = `${siteConfig.publicUrl}/#person`;
+const organizationId = `${siteConfig.publicUrl}/#merchant`;
 
 const personStructuredData = {
   "@type": "Person",
@@ -18,6 +20,15 @@ export const seoStructuredData = {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": organizationId,
+      name: legalConfig.merchantName,
+      legalName: legalConfig.entrepreneurName,
+      identifier: legalConfig.siren,
+      url: siteConfig.publicUrl,
+      email: legalConfig.supportEmail,
+    },
+    {
       "@type": "WebSite",
       "@id": `${siteConfig.publicUrl}/#website`,
       name: siteConfig.brandName,
@@ -26,7 +37,7 @@ export const seoStructuredData = {
       inLanguage: "en",
       description: siteConfig.description,
       publisher: {
-        "@id": personId,
+        "@id": organizationId,
       },
     },
     {

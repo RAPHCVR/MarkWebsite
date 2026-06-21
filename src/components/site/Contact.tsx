@@ -1,4 +1,5 @@
 import { Mail, Send, Sparkles } from "lucide-react";
+import Script from "next/script";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,12 +8,14 @@ import { SectionShell } from "@/components/site/SectionShell";
 import { collabMailto } from "@/data/site";
 
 export function Contact() {
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
   return (
     <SectionShell
       id="contact"
       eyebrow="Collabs"
       title="Collabs & business"
-      description="Campaigns, promos, shoots and paid requests."
+      description="Campaigns, promos, platform partnerships and creator briefs."
       className="pb-20"
     >
       <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
@@ -24,7 +27,7 @@ export function Contact() {
             Send the brief.
           </h3>
           <p className="mt-3 leading-7 text-rose-950/68">
-            Include the brand, timeline, deliverables, usage and contact details.
+            Include the brand, timeline, usage rights and contact details.
           </p>
           <a
             href={collabMailto}
@@ -73,11 +76,26 @@ export function Contact() {
               <span className="text-sm font-bold text-rose-950">Message</span>
               <Textarea
                 name="message"
-                placeholder="Tell me about your campaign, shoot or collab idea..."
+                required
+                placeholder="Tell me about your campaign, partnership or platform idea..."
                 className="min-h-36 rounded-3xl border-pink-200 bg-white/80"
               />
             </label>
           </div>
+
+          {turnstileSiteKey ? (
+            <div className="mt-4 rounded-2xl border border-pink-100 bg-white/70 p-3">
+              <Script
+                src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+                strategy="lazyOnload"
+              />
+              <div
+                className="cf-turnstile"
+                data-sitekey={turnstileSiteKey}
+                data-theme="light"
+              />
+            </div>
+          ) : null}
 
           <Button
             type="submit"
@@ -88,7 +106,7 @@ export function Contact() {
             Send request
           </Button>
           <p id="contact-form-note" className="mt-3 text-center text-xs font-medium text-rose-950/55">
-            Sends the request to the site inbox. Email is available for urgent briefs.
+            Stored in the site inbox. Email remains available for urgent briefs.
           </p>
         </form>
       </div>

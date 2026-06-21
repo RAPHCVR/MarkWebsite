@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { legalConfig } from "@/data/legal";
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
 import {
@@ -22,15 +23,22 @@ function requiredEnv(name: string) {
   return value;
 }
 
-async function readProductSlug(request: NextRequest) {
+async function readCheckoutPayload(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
     const body = (await request.json().catch(() => null)) as {
       product?: string;
+      termsAccepted?: boolean | string;
     } | null;
 
-    return body?.product;
+    return {
+      product: body?.product,
+      termsAccepted:
+        body?.termsAccepted === true ||
+        body?.termsAccepted === "true" ||
+        body?.termsAccepted === "on",
+    };
   }
 
   if (
@@ -39,11 +47,18 @@ async function readProductSlug(request: NextRequest) {
   ) {
     const form = await request.formData();
     const product = form.get("product");
+    const termsAccepted = form.get("termsAccepted");
 
-    return typeof product === "string" ? product : undefined;
+    return {
+      product: typeof product === "string" ? product : undefined,
+      termsAccepted:
+        termsAccepted === "true" ||
+        termsAccepted === "on" ||
+        termsAccepted === "1",
+    };
   }
 
-  return undefined;
+  return { product: undefined, termsAccepted: false };
 }
 
 function getEnabledBtcpayPaymentMethods() {
@@ -92,16 +107,24 @@ export async function POST(request: NextRequest) {
     return rateLimited;
   }
 
-  const productSlug = await readProductSlug(request);
+  const payload = await readCheckoutPayload(request);
+  const productSlug = payload.product;
+
+  if (!payload.termsAccepted) {
+    return NextResponse.json(
+      { error: "Terms and immediate delivery consent are required" },
+      { status: 400 },
+    );
+  }
   const product = products.find((item) => item.slug === productSlug);
 
   if (!product) {
-    return NextResponse.json({ error: "Unknown product" }, { status: 404 });
+    return NextResponse.json({ error: "Unknown access pass" }, { status: 404 });
   }
 
   if (product.status === "coming-soon") {
     return NextResponse.json(
-      { error: "This product is not available yet" },
+      { error: "This access pass is not available yet" },
       { status: 409 },
     );
   }
@@ -129,6 +152,9 @@ export async function POST(request: NextRequest) {
           productSlug: product.slug,
           productTitle: product.title,
           source: "markshnaknaks.com",
+          legalTermsVersion: legalConfig.termsVersion,
+          immediateDigitalDeliveryAccepted: true,
+          withdrawalWaiverAccepted: true,
         },
         checkout: {
           redirectURL: getPublicUrl(
@@ -165,8 +191,16 @@ export async function POST(request: NextRequest) {
       providerInvoiceId: invoice.id,
       checkoutLink: invoice.checkoutLink,
       providerStatus: invoice.status,
+      legalTermsVersion: legalConfig.termsVersion,
+      withdrawalWaiverAcceptedAt: new Date().toISOString(),
       metadata: {
         source: "checkout-route",
+        legal: {
+          termsVersion: legalConfig.termsVersion,
+          immediateDigitalDeliveryAccepted: true,
+          withdrawalWaiverAccepted: true,
+          acceptedAt: new Date().toISOString(),
+        },
       },
     });
 

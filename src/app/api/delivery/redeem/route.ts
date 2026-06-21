@@ -55,21 +55,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({
-    ok: true,
-    product: {
-      slug: delivery.productSlug,
-      title: delivery.productTitle,
+  return NextResponse.json(
+    {
+      ok: true,
+      product: {
+        slug: delivery.productSlug,
+        title: delivery.productTitle,
+      },
+      expiresAt: delivery.expiresAt.toISOString(),
+      assets: delivery.assets.map((asset) => ({
+        assetId: asset.assetId,
+        title: asset.title,
+        description: asset.description,
+        sizeBytes: asset.sizeBytes,
+        downloadUrl: `/api/delivery/assets/${encodeURIComponent(
+          asset.assetId,
+        )}?token=${encodeURIComponent(token)}`,
+      })),
     },
-    expiresAt: delivery.expiresAt.toISOString(),
-    assets: delivery.assets.map((asset) => ({
-      assetId: asset.assetId,
-      title: asset.title,
-      description: asset.description,
-      sizeBytes: asset.sizeBytes,
-      downloadUrl: `/api/delivery/assets/${encodeURIComponent(
-        asset.assetId,
-      )}?token=${encodeURIComponent(token)}`,
-    })),
-  });
+    {
+      headers: {
+        "Cache-Control": "no-store, private",
+      },
+    },
+  );
 }

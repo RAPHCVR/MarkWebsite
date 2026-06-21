@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { legalConfig } from "@/data/legal";
 import { paymentConfig, type StablecoinRailId } from "@/data/payments";
-import { products } from "@/data/products";
+import { products, type Product } from "@/data/products";
 import {
   ensureOrdersDatabaseReady,
   isOrdersDatabaseConfigured,
   recordCheckoutInvoice,
 } from "@/lib/server/orders";
 import { enforceRateLimit } from "@/lib/server/request-guard";
-import { createSolanaPayInvoice } from "@/lib/server/solana-pay";
+import {
+  createSolanaPayInvoice,
+  getSolanaPayAmount,
+} from "@/lib/server/solana-pay";
 import { getPublicUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
@@ -16,6 +20,7 @@ export const runtime = "nodejs";
 type CheckoutPayload = {
   product?: string;
   rail?: StablecoinRailId;
+  termsAccepted?: boolean;
 };
 
 type ShkeeperPaymentRequestResponse = {
@@ -43,7 +48,20 @@ async function readPayload(request: NextRequest): Promise<CheckoutPayload> {
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
-    return ((await request.json().catch(() => ({}))) ?? {}) as CheckoutPayload;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+      product?: string;
+      rail?: StablecoinRailId;
+      termsAccepted?: boolean | string;
+    };
+
+    return {
+      product: body.product,
+      rail: body.rail,
+      termsAccepted:
+        body.termsAccepted === true ||
+        body.termsAccepted === "true" ||
+        body.termsAccepted === "on",
+    };
   }
 
   if (
@@ -57,36 +75,42 @@ async function readPayload(request: NextRequest): Promise<CheckoutPayload> {
     return {
       product: typeof product === "string" ? product : undefined,
       rail: typeof rail === "string" ? (rail as StablecoinRailId) : undefined,
+      termsAccepted:
+        form.get("termsAccepted") === "true" ||
+        form.get("termsAccepted") === "on" ||
+        form.get("termsAccepted") === "1",
     };
   }
 
   return {};
 }
 
-function getStablecoinFiatAmount(amountCents: number, productCurrency: string) {
+async function getStablecoinFiatAmount(product: Product) {
   const fiat = process.env.STABLECOIN_FIAT || "USD";
 
-  if (productCurrency === fiat) {
+  if (product.currency === fiat) {
     return {
       fiat,
-      amount: (amountCents / 100).toFixed(2),
+      amount: (product.amountCents / 100).toFixed(2),
+      exchangeRate: undefined,
+      exchangeRateAsOf: undefined,
+      exchangeRateSource: "native-fiat",
     };
   }
 
-  if (productCurrency === "EUR" && fiat === "USD") {
-    const rate = Number(process.env.STABLECOIN_EUR_TO_USD_RATE);
-
-    if (!Number.isFinite(rate) || rate <= 0) {
-      throw new Error("STABLECOIN_EUR_TO_USD_RATE is required for EUR products");
-    }
+  if (product.currency === "EUR" && fiat === "USD") {
+    const priced = await getSolanaPayAmount(product);
 
     return {
       fiat,
-      amount: ((amountCents / 100) * rate).toFixed(2),
+      amount: priced.amount,
+      exchangeRate: priced.rate.rate.toString(),
+      exchangeRateAsOf: priced.rate.asOf,
+      exchangeRateSource: priced.rate.source,
     };
   }
 
-  throw new Error(`Stablecoin fiat ${fiat} cannot price ${productCurrency}`);
+  throw new Error(`Stablecoin fiat ${fiat} cannot price ${product.currency}`);
 }
 
 export async function GET() {
@@ -135,15 +159,22 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = await readPayload(request);
+
+  if (!payload.termsAccepted) {
+    return NextResponse.json(
+      { error: "Terms and immediate delivery consent are required" },
+      { status: 400 },
+    );
+  }
   const product = products.find((item) => item.slug === payload.product);
 
   if (!product) {
-    return NextResponse.json({ error: "Unknown product" }, { status: 404 });
+    return NextResponse.json({ error: "Unknown access pass" }, { status: 404 });
   }
 
   if (product.status === "coming-soon") {
     return NextResponse.json(
-      { error: "This product is not available yet" },
+      { error: "This access pass is not available yet" },
       { status: 409 },
     );
   }
@@ -176,6 +207,8 @@ export async function POST(request: NextRequest) {
         providerInvoiceId: invoice.reference,
         checkoutLink,
         providerStatus: "UNPAID",
+        legalTermsVersion: legalConfig.termsVersion,
+        withdrawalWaiverAcceptedAt: new Date().toISOString(),
         metadata: {
           provider: "solana-pay",
           railId: rail.id,
@@ -186,6 +219,12 @@ export async function POST(request: NextRequest) {
           exchangeRate: invoice.exchangeRate,
           exchangeRateAsOf: invoice.exchangeRateAsOf,
           exchangeRateSource: invoice.exchangeRateSource,
+          legal: {
+            termsVersion: legalConfig.termsVersion,
+            immediateDigitalDeliveryAccepted: true,
+            withdrawalWaiverAccepted: true,
+            acceptedAt: new Date().toISOString(),
+          },
           solanaPayInvoice: invoice,
         },
       });
@@ -198,10 +237,8 @@ export async function POST(request: NextRequest) {
       requiredEnv("STABLECOIN_PROCESSOR_URL").replace(/\/$/, "");
     const apiKey = requiredEnv("SHKEEPER_API_KEY");
     const orderId = `marky-${rail.id}-${product.slug}-${crypto.randomUUID()}`;
-    const { fiat, amount } = getStablecoinFiatAmount(
-      product.amountCents,
-      product.currency,
-    );
+    const { fiat, amount, exchangeRate, exchangeRateAsOf, exchangeRateSource } =
+      await getStablecoinFiatAmount(product);
 
     await ensureOrdersDatabaseReady();
 
@@ -249,6 +286,8 @@ export async function POST(request: NextRequest) {
       providerInvoiceId: String(invoice.id),
       checkoutLink,
       providerStatus: "UNPAID",
+      legalTermsVersion: legalConfig.termsVersion,
+      withdrawalWaiverAcceptedAt: new Date().toISOString(),
       metadata: {
         provider: "shkeeper",
         railId: rail.id,
@@ -256,6 +295,15 @@ export async function POST(request: NextRequest) {
         cryptoName: rail.cryptoName,
         fiat,
         fiatAmount: amount,
+        exchangeRate,
+        exchangeRateAsOf,
+        exchangeRateSource,
+        legal: {
+          termsVersion: legalConfig.termsVersion,
+          immediateDigitalDeliveryAccepted: true,
+          withdrawalWaiverAccepted: true,
+          acceptedAt: new Date().toISOString(),
+        },
         shkeeperInvoice: {
           amount: invoice.amount,
           displayName: invoice.display_name,

@@ -1,0 +1,89 @@
+import { NextRequest, NextResponse } from "next/server";
+
+import { listPrivateRequestsForAdminExport } from "@/lib/server/orders";
+import {
+  getAdminAuthErrorResponse,
+  getAdminAuthStatus,
+} from "@/lib/server/admin-auth";
+
+export const runtime = "nodejs";
+
+const csvHeaders = [
+  "request_id",
+  "order_id",
+  "product_slug",
+  "product_title",
+  "telegram_chat_id",
+  "telegram_user_id",
+  "status",
+  "quota_total",
+  "quota_used",
+  "subject",
+  "last_message",
+  "created_at",
+  "updated_at",
+  "closed_at",
+] as const;
+
+function parseDate(value: string | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+
+  return Number.isFinite(date.getTime()) ? date : undefined;
+}
+
+function csvValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const text = value instanceof Date ? value.toISOString() : String(value);
+
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+export async function GET(request: NextRequest) {
+  const auth = getAdminAuthStatus(request);
+
+  if (auth !== "ok") {
+    return getAdminAuthErrorResponse(auth);
+  }
+
+  const from = parseDate(request.nextUrl.searchParams.get("from"));
+  const to = parseDate(request.nextUrl.searchParams.get("to"));
+  const limit = Number(request.nextUrl.searchParams.get("limit") || "1000");
+  const rows = await listPrivateRequestsForAdminExport({ from, to, limit });
+  const csvRows = rows.map((row) =>
+    [
+      row.requestId,
+      row.orderId,
+      row.productSlug,
+      row.productTitle,
+      row.telegramChatId,
+      row.telegramUserId,
+      row.status,
+      row.quotaTotal,
+      row.quotaUsed,
+      row.subject,
+      row.lastMessage,
+      row.createdAt,
+      row.updatedAt,
+      row.closedAt,
+    ]
+      .map(csvValue)
+      .join(","),
+  );
+
+  return new NextResponse([csvHeaders.join(","), ...csvRows].join("\n"), {
+    status: 200,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Disposition":
+        'attachment; filename="marky-private-requests.csv"',
+      "Content-Type": "text/csv; charset=utf-8",
+    },
+  });
+}

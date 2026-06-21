@@ -1,0 +1,36 @@
+export const legalConfig = {
+  merchantName: "Raphael Tech Solutions",
+  entrepreneurName: "Raphael Chauvier",
+  legalForm: "Entrepreneur individuel - Micro-entreprise",
+  siren: "105765424",
+  siret: "10576542400012",
+  apeCode: "6201Z",
+  activity:
+    "Programmation informatique, developpement de sites web, conseil en systemes informatiques et mise a disposition d'infrastructures logicielles (API, SaaS).",
+  vatStatus: "TVA non applicable, article 293 B du Code general des impots",
+  registeredAddress: "27 Rue Marcel Miquel, 92130 Issy-les-Moulineaux, France",
+  supportEmail: "collabs@markshnaknaks.com",
+  privacyEmail: "collabs@markshnaknaks.com",
+  termsVersion: "2026-06-21",
+  privacyVersion: "2026-06-21",
+  merchantRole:
+    "Raphael Tech Solutions acts as the technical platform operator and Merchant of Record for Marky digital access services.",
+  creatorName: "Marky",
+  publicationDirector: "Raphael Chauvier",
+  hosting:
+    "Application self-hosted on the publisher's Kubernetes infrastructure; Cloudflare provides DNS, proxy/security and private R2 object storage.",
+  commercialVocabulary: [
+    "Digital Access Pass",
+    "Premium Platform Membership",
+    "Content Delivery Token",
+    "VIP Infrastructure Access",
+  ],
+  consumerMediatorConfigured: false,
+} as const;
+
+export const legalLinks = [
+  { label: "Mentions legales", href: "/legal" },
+  { label: "CGV", href: "/terms" },
+  { label: "Remboursements", href: "/refund-policy" },
+  { label: "Confidentialite", href: "/privacy" },
+] as const;

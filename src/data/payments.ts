@@ -163,7 +163,7 @@ export const stablecoinRails = [
         process.env.NEXT_PUBLIC_STABLECOIN_USDC_SOLANA_ENABLED === "true") &&
       (stablecoinProvider === "solana-pay" ? solanaPayReady : stablecoinRailReady),
     recommended: true,
-    buyerCost: "Lowest expected stablecoin network cost for small packs.",
+    buyerCost: "Lowest expected stablecoin network cost for small access passes.",
     operations:
       stablecoinProvider === "solana-pay"
         ? "Solana Pay transfer request with order reference validation through RPC."
@@ -214,7 +214,7 @@ export const cryptoRails = [
     buyerCost: "Low when mempool is calm; slower finality than cards.",
     operations: btcpayBtcWalletReady
       ? "BTCPay BTC wallet is marked ready for invoice creation."
-      : "BTCPay is installed, but node sync and a BTC wallet must be verified before public checkout.",
+      : "Bitcoin Core is synced; link and smoke-test a BTC wallet in BTCPay before public checkout.",
   },
   {
     id: "ltc-onchain",
@@ -239,7 +239,7 @@ export const cryptoRails = [
     status: stablecoinCheckoutConfigured && stablecoinRails[0].enabled ? "ready" : "planned",
     icon: "circle",
     recommended: true,
-    buyerCost: "Usually the cheapest stablecoin rail for small digital packs.",
+    buyerCost: "Usually the cheapest stablecoin rail for small digital access passes.",
     operations:
       stablecoinCheckoutConfigured && stablecoinRails[0].enabled
         ? "Solana Pay checkout is live: invoices are recorded in PostgreSQL and verified on-chain by reference."
@@ -349,7 +349,7 @@ export const paymentConfig = {
         btcpayLtcEnabled ? "LTC on-chain" : "LTC after wallet setup and invoice smoke test",
         btcpayBtcWalletReady
           ? "BTC on-chain"
-          : "BTC on-chain after node sync and wallet setup",
+          : "BTC on-chain after wallet setup and invoice smoke test",
       ],
     },
     wallets: [] satisfies CryptoWallet[],
@@ -357,8 +357,8 @@ export const paymentConfig = {
   telegram: {
     channelUrl: siteConfig.telegramChannelUrl,
     chatUrl: siteConfig.telegramChatUrl,
-    vipUrl: siteConfig.telegramChatUrl,
-    requestBotUrl: siteConfig.telegramChatUrl,
+    vipUrl: "#access-passes",
+    requestBotUrl: "https://t.me/markshnaknaksbot?start=request",
     deliveryRole: "VIP, support and delivery follow-up",
   },
 };

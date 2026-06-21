@@ -18,6 +18,7 @@ type StripeWebhookEvent = {
       id?: string;
       object?: string;
       amount_total?: number | null;
+      client_reference_id?: string | null;
       currency?: string | null;
       customer_email?: string | null;
       customer_details?: {
@@ -197,6 +198,7 @@ export async function POST(request: NextRequest) {
     eventId: event.id,
     eventType: event.type,
     sessionId: session.id,
+    clientReferenceId: session.client_reference_id,
     paymentLinkId,
     productSlug: product?.slug,
     productTitle: product?.title,

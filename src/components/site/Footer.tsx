@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Heart } from "lucide-react";
 
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
+import { legalLinks } from "@/data/legal";
 import { siteConfig } from "@/data/site";
 import { socials } from "@/data/socials";
 import { getExternalLinkProps } from "@/lib/links";
@@ -46,12 +47,27 @@ export function Footer() {
           </nav>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 border-t border-pink-100 pt-5 text-sm font-semibold text-rose-950/58 sm:flex-row sm:items-center sm:justify-between">
+        <nav
+          aria-label="Legal links"
+          className="mt-6 flex flex-wrap gap-2 border-t border-pink-100 pt-5"
+        >
+          {legalLinks.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="inline-flex min-h-10 items-center rounded-full border border-pink-100 bg-white/60 px-4 text-xs font-black uppercase tracking-[0.12em] text-rose-950/62 transition hover:border-pink-300 hover:text-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="mt-5 flex flex-col gap-3 text-sm font-semibold text-rose-950/58 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-center gap-2">
             <Heart className="size-4 text-pink-500" aria-hidden="true" />
-            SFW preview site. Creator channel planned later.
+            Public preview site. Private channel planned later.
           </p>
-          <p>Copyright 2026 {siteConfig.brandName}.</p>
+          <p>Copyright 2026 {siteConfig.brandName}. Merchant of Record: Raphael Tech Solutions.</p>
         </div>
       </div>
     </footer>

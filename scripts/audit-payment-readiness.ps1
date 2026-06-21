@@ -355,6 +355,7 @@ if ($RunStablecoinSmoke) {
       -Form @{
         product = "cosplay-starter-pack"
         rail = "usdc-solana"
+        termsAccepted = "true"
       }
 
     if ($checkout.Status -ne 303 -or -not $checkout.Location) {

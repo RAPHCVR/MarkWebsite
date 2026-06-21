@@ -34,7 +34,7 @@ const providerIcon = {
 };
 
 const providerLabel = {
-  stripe: "photo pack",
+  stripe: "access pass",
   crypto: "crypto option",
   telegram: "VIP channel",
   soon: "preview",
@@ -63,7 +63,7 @@ const cryptoRailClass = {
 
 function getCta(product: Product) {
   if (!paymentConfig.salesEnabled) {
-    return product.status === "coming-soon" ? "Preview soon" : "Preview pack";
+    return product.status === "coming-soon" ? "Preview soon" : "Preview access";
   }
 
   if (product.status === "coming-soon") {
@@ -71,18 +71,18 @@ function getCta(product: Product) {
   }
 
   if (product.checkoutProvider === "stripe" && product.stripePaymentLink) {
-    return "Buy with Stripe";
+    return "Get access with Stripe";
   }
 
   if (product.checkoutProvider === "crypto" && product.cryptoCheckoutUrl) {
-    return "Buy with crypto";
+    return "Pay with crypto";
   }
 
   if (product.checkoutProvider === "telegram" && product.telegramVipUrl) {
     return "Join VIP";
   }
 
-  return "Preview pack";
+  return "Preview access";
 }
 
 function getHref(product: Product) {
@@ -144,14 +144,14 @@ function canShowStablecoinCheckout(product: Product) {
 export function ProductCards() {
   return (
     <SectionShell
-      id="photo-packs"
-      eyebrow="Shop preview"
-      title="Photo pack shop"
-      description="Cute cosplay drops, soft previews and VIP requests."
+      id="access-passes"
+      eyebrow="Access preview"
+      title="Digital access passes"
+      description="Private delivery, support follow-up and ticketed VIP requests."
       className="pt-8"
     >
       <div className="mb-5 flex flex-wrap gap-3">
-        {["Preview lineup", "Private delivery", "SFW packs"].map((item) => (
+        {["Access lineup", "Private delivery", "Concierge support"].map((item) => (
           <Badge
             key={item}
             variant="outline"
@@ -167,9 +167,9 @@ export function ProductCards() {
         <div>
           <div className="mb-4 grid gap-3 rounded-3xl border border-pink-100 bg-white/72 p-3 shadow-sm backdrop-blur sm:grid-cols-3">
             {[
-              ["4 packs", "First lineup"],
-              ["Private", "Site link or Telegram follow-up"],
-              ["SFW", "Clean storefront"],
+              ["4 passes", "First lineup"],
+              ["Delivery", "Site token or Telegram follow-up"],
+              ["Operator", "Raphael Tech Solutions"],
             ].map(([value, label]) => (
               <div key={value} className="rounded-2xl bg-pink-50/70 px-4 py-3">
                 <p className="text-sm font-black text-pink-700">{value}</p>
@@ -184,8 +184,10 @@ export function ProductCards() {
           const providerLogo = providerBrandIcon[product.checkoutProvider];
           const cta = getCta(product);
           const disabled = product.status === "coming-soon";
+          const checkoutDisabled =
+            !paymentConfig.salesEnabled || disabled || !product.stripePaymentLink;
           const href = getHref(product);
-          const safeHref = disabled ? "#photo-packs" : href;
+          const safeHref = checkoutDisabled ? "#contact" : href;
           const showCryptoCheckout = canShowCryptoCheckout(product);
           const showStablecoinCheckout = canShowStablecoinCheckout(product);
           const btcpayButton = getBtcpayButton();
@@ -245,55 +247,85 @@ export function ProductCards() {
                 </ul>
 
                 <div className="mt-5 grid gap-2">
-                  <a
-                    href={safeHref}
-                    {...getExternalLinkProps(safeHref)}
-                    aria-disabled={disabled}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 aria-disabled:pointer-events-none aria-disabled:bg-pink-200 aria-disabled:text-pink-800"
-                  >
-                    {disabled ? <Lock className="size-4" aria-hidden="true" /> : <ProviderIcon className="size-4" aria-hidden="true" />}
-                    {cta}
-                    {!disabled ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
-                  </a>
-                  {showCryptoCheckout ? (
-                    <form method="post" action={paymentConfig.crypto.btcpay.checkoutRoute}>
+                  {checkoutDisabled ? (
+                    <a
+                      href={safeHref}
+                      aria-disabled={disabled ? "true" : undefined}
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-pink-200 px-4 text-sm font-black text-pink-800 transition hover:bg-pink-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 aria-disabled:pointer-events-none"
+                    >
+                      {disabled ? (
+                        <Lock className="size-4" aria-hidden="true" />
+                      ) : (
+                        <ProviderIcon className="size-4" aria-hidden="true" />
+                      )}
+                      {cta}
+                    </a>
+                  ) : (
+                    <form method="post" className="grid gap-2">
                       <input type="hidden" name="product" value={product.slug} />
+                      <label className="flex items-start gap-2 rounded-2xl border border-pink-100 bg-pink-50/65 p-3 text-xs font-bold leading-5 text-rose-950/68">
+                        <input
+                          required
+                          type="checkbox"
+                          name="termsAccepted"
+                          value="true"
+                          className="mt-1 size-4 rounded border-pink-300 text-pink-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                        />
+                        <span>
+                          I accept the <a href="/terms" className="text-pink-700 underline decoration-pink-300 underline-offset-2">CGV</a>, immediate digital delivery and loss of withdrawal right once access is issued.
+                        </span>
+                      </label>
                       <button
                         type="submit"
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-amber-200 bg-white px-4 text-sm font-black text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-100"
+                        formAction="/api/checkout/stripe"
+                        formMethod="post"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300"
                       >
-                        <span
-                          className="flex size-5 items-center justify-center text-[var(--brand-color)]"
-                          style={brandIconStyle(btcpayButton.icon)}
-                        >
-                          <BrandIcon name={btcpayButton.icon} className="size-4" />
-                        </span>
-                        {btcpayButton.label}
+                        <ProviderIcon className="size-4" aria-hidden="true" />
+                        {cta}
+                        <ArrowRight className="size-4" aria-hidden="true" />
                       </button>
-                    </form>
-                  ) : null}
-                  {showStablecoinCheckout ? (
-                    <form method="post" action={paymentConfig.crypto.stablecoin.checkoutRoute}>
-                      <input type="hidden" name="product" value={product.slug} />
-                      <input
-                        type="hidden"
-                        name="rail"
-                        value={paymentConfig.crypto.stablecoin.defaultRail}
-                      />
-                      <button
-                        type="submit"
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-sky-200 bg-white px-4 text-sm font-black text-sky-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
-                      >
-                        <span
-                          className="flex size-5 items-center justify-center text-[var(--brand-color)]"
-                          style={brandIconStyle("circle")}
+                      {showCryptoCheckout ? (
+                        <button
+                          type="submit"
+                          formAction={paymentConfig.crypto.btcpay.checkoutRoute}
+                          formMethod="post"
+                          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-amber-200 bg-white px-4 text-sm font-black text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-100"
                         >
-                          <BrandIcon name="circle" className="size-4" />
-                        </span>
-                        Pay with USDC
-                      </button>
+                          <span
+                            className="flex size-5 items-center justify-center text-[var(--brand-color)]"
+                            style={brandIconStyle(btcpayButton.icon)}
+                          >
+                            <BrandIcon name={btcpayButton.icon} className="size-4" />
+                          </span>
+                          {btcpayButton.label}
+                        </button>
+                      ) : null}
+                      {showStablecoinCheckout ? (
+                        <>
+                          <input
+                            type="hidden"
+                            name="rail"
+                            value={paymentConfig.crypto.stablecoin.defaultRail}
+                          />
+                          <button
+                            type="submit"
+                            formAction={paymentConfig.crypto.stablecoin.checkoutRoute}
+                            formMethod="post"
+                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-sky-200 bg-white px-4 text-sm font-black text-sky-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"
+                          >
+                            <span
+                              className="flex size-5 items-center justify-center text-[var(--brand-color)]"
+                              style={brandIconStyle("circle")}
+                            >
+                              <BrandIcon name="circle" className="size-4" />
+                            </span>
+                            Pay with USDC
+                          </button>
+                        </>
+                      ) : null}
                     </form>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </article>
@@ -308,14 +340,14 @@ export function ProductCards() {
             Access
           </h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Start with the pack preview, then use Telegram for VIP access,
-            requests and delivery follow-up.
+            Start with a digital access pass, then use Telegram for VIP support,
+            ticketed requests and delivery follow-up.
           </p>
           <div className="mt-4 space-y-3">
             {[
-              ["Delivery", "Private link or Telegram follow-up."],
-              ["Support", "Order help and custom requests."],
-              ["Checkout", "Stripe first; crypto opens per verified rail."],
+              ["Delivery", "Private site token or Telegram follow-up."],
+              ["Support", "Order help and private request tickets."],
+              ["Checkout", "Stripe first; crypto only on verified rails."],
             ].map(([title, text]) => (
               <div key={title} className="rounded-2xl border border-pink-100 bg-white/76 p-3">
                 <p className="text-sm font-black text-rose-950">{title}</p>
@@ -329,7 +361,7 @@ export function ProductCards() {
             className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 text-sm font-black text-pink-700 transition hover:border-pink-300 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
           >
             <Send className="size-4" aria-hidden="true" />
-            Request custom drop
+            Request private pass
           </a>
         </div>
       </div>
@@ -343,7 +375,7 @@ export function ProductCards() {
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
             {paymentConfig.salesEnabled
               ? "Stripe Payment Links are live for card checkout."
-              : "Stripe Payment Links are ready for public drops."}
+              : "Stripe Payment Links are ready for checkout."}
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
             Secure payment page
@@ -371,7 +403,7 @@ export function ProductCards() {
           </div>
           <h3 className="mt-4 text-lg font-black text-rose-950">Crypto rails</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            USDC uses Solana Pay. BTCPay handles BTC/LTC after node sync and wallet setup.
+            USDC uses Solana Pay. BTCPay handles LTC and BTC on verified wallets.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {paymentConfig.crypto.rails.filter((rail) => rail.recommended).map((rail) => (
@@ -390,7 +422,7 @@ export function ProductCards() {
           </span>
           <h3 className="mt-4 text-lg font-black text-rose-950">Telegram VIP</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Announcements, support, private invites and delivery follow-up.
+            Announcements, support, private invite links and delivery follow-up.
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
             Updates and private invites

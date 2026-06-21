@@ -1,21 +1,23 @@
+import { legalConfig } from "@/data/legal";
+
 export const siteConfig = {
   brandName: "Marky",
-  legalDisplayName: "Marky",
+  legalDisplayName: legalConfig.creatorName,
   handle: "@markshnaknaks",
   domain: "markshnaknaks.com",
   publicUrl: "https://markshnaknaks.com",
   title: "Marky - Your Kitten Master",
   description:
-    "Marky's SFW creator storefront for cosplay drops, social links, photo pack previews and collab requests.",
+    "Marky's public platform for digital access passes, social links, private delivery and collab requests.",
   shortDescription:
-    "SFW cosplay drops, social links, photo pack previews and collabs.",
+    "Digital access, social links, private delivery and collabs.",
   socialImage: "/images/marky-og.png",
   iconImage: "/favicon.png",
   appleTouchIconImage: "/apple-touch-icon.png",
   manifestIconImage: "/images/marky-icon-512.png",
   logoImage: "/images/marky-logo.png",
   portraitImage: "/images/mark-portrait-sketch.png",
-  collabEmail: "collabs@markshnaknaks.com",
+  collabEmail: legalConfig.supportEmail,
   instagramUrl: "https://instagram.com/markshnaknaks",
   tiktokUrl: "https://tiktok.com/@markshnaknaks",
   telegramChannelUrl: "https://t.me/markreyvakh",

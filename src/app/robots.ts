@@ -6,7 +6,15 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/private/", "/account/", "/auth/", "/checkout/"],
+      disallow: [
+        "/api/",
+        "/admin/",
+        "/orders/",
+        "/private/",
+        "/account/",
+        "/auth/",
+        "/checkout/",
+      ],
     },
     sitemap: `${siteConfig.publicUrl}/sitemap.xml`,
     host: siteConfig.publicUrl,

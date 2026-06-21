@@ -5,6 +5,16 @@ import type { CreatorDeliveryAsset } from "@/lib/server/orders";
 
 let client: S3Client | undefined;
 
+function getDownloadFileName(asset: CreatorDeliveryAsset) {
+  return (
+    (asset.downloadName || asset.title || "marky-access-file")
+      .replace(/[\r\n"]/g, "")
+      .replace(/[^\w .()[\]-]/g, "-")
+      .trim()
+      .slice(0, 160) || "marky-access-file"
+  );
+}
+
 function getR2Endpoint() {
   const accountId = process.env.R2_ACCOUNT_ID;
 
@@ -54,12 +64,11 @@ export async function createAssetDownloadUrl(asset: CreatorDeliveryAsset) {
     Math.max(60, Number(process.env.R2_SIGNED_URL_TTL_SECONDS || "300")),
   );
   const bucket = asset.bucket || getPrivateBucketName();
+  const downloadName = getDownloadFileName(asset);
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: asset.objectKey,
-    ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
-      asset.downloadName || asset.title,
-    )}"`,
+    ResponseContentDisposition: `attachment; filename="${downloadName}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
     ResponseContentType: asset.contentType || undefined,
   });
 

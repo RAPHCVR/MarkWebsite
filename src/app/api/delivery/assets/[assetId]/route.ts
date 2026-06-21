@@ -47,6 +47,9 @@ export async function GET(request: NextRequest, { params }: DownloadRouteProps) 
   }
 
   const signedUrl = await createAssetDownloadUrl(deliveryAsset.asset);
+  const response = NextResponse.redirect(signedUrl, 303);
 
-  return NextResponse.redirect(signedUrl, 303);
+  response.headers.set("Cache-Control", "no-store, private");
+
+  return response;
 }

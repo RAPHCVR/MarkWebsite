@@ -122,7 +122,7 @@ export default async function StablecoinCheckoutPage({
           ) : null}
           {expired || isExpired ? (
             <div className="mt-6 rounded-3xl border border-rose-100 bg-rose-50 p-4 text-center text-sm font-black text-rose-700">
-              This checkout link has expired. Create a fresh link from the pack card before paying.
+              This checkout link has expired. Create a fresh link from the access pass card before paying.
             </div>
           ) : null}
 
@@ -240,7 +240,7 @@ export default async function StablecoinCheckoutPage({
                 Checkout link expired.
               </p>
               <p className="mt-2 text-sm leading-6 text-rose-950/60">
-                The USDC amount is tied to a live exchange rate. Go back to the pack and create a new link.
+                The USDC amount is tied to a live exchange rate. Go back to the access pass and create a new link.
               </p>
             </div>
           ) : order && invoice.wallet ? (
@@ -290,17 +290,17 @@ export default async function StablecoinCheckoutPage({
                 No active stablecoin invoice found.
               </p>
               <p className="mt-2 text-sm leading-6 text-rose-950/60">
-                Start from a pack card to create a fresh checkout link.
+                Start from an access pass card to create a fresh checkout link.
               </p>
             </div>
           )}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Link
-              href="/#photo-packs"
+              href="/#access-passes"
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
             >
-              Back to packs
+              Back to passes
             </Link>
             <a
               href={siteConfig.telegramChatUrl}

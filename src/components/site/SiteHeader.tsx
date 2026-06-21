@@ -38,7 +38,7 @@ export function SiteHeader() {
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
           {[
             ["Home", "#top"],
-            ["Packs", "#photo-packs"],
+            ["Passes", "#access-passes"],
             ["Socials", "#socials"],
             ["Lookbook", "#lookbook"],
             ["Collab", "#contact"],
