@@ -277,18 +277,43 @@ try {
 }
 
 if ($RunBtcpaySmoke) {
-  $smokeScript = @'
+  $btcpaySmokeMethods = @()
+
+  if ($status -and $status.btcpay.ltcEnabled) {
+    $btcpaySmokeMethods += [pscustomobject]@{
+      Code = "LTC"
+      PaymentMethodId = "LTC-CHAIN"
+      Name = "BTCPay LTC invoice smoke"
+    }
+  }
+
+  if ($status -and $status.btcpay.btcWalletReady) {
+    $btcpaySmokeMethods += [pscustomobject]@{
+      Code = "BTC"
+      PaymentMethodId = "BTC-CHAIN"
+      Name = "BTCPay BTC invoice smoke"
+    }
+  }
+
+  if ($btcpaySmokeMethods.Count -eq 0) {
+    Add-Check "WARN" "BTCPay invoice smoke" "Skipped because no BTCPay payment method is marked ready."
+  }
+
+  foreach ($method in $btcpaySmokeMethods) {
+    $smokeScript = @'
 const base = process.env.BTCPAY_SERVER_URL.replace(/\/$/, '');
 const store = process.env.BTCPAY_STORE_ID;
 const key = process.env.BTCPAY_API_KEY;
+const code = process.argv[process.argv.length - 2];
+const paymentMethodId = process.argv[process.argv.length - 1];
 const res = await fetch(`${base}/api/v1/stores/${store}/invoices`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', Authorization: `token ${key}` },
   body: JSON.stringify({
     amount: '1.00',
     currency: 'EUR',
-    metadata: { orderId: `btcpay-smoke-${crypto.randomUUID()}`, source: 'readiness-smoke' },
-    checkout: { paymentMethods: ['LTC'] }
+    metadata: { orderId: `btcpay-${code.toLowerCase()}-smoke-${crypto.randomUUID()}`, source: 'readiness-smoke' },
+    checkout: { paymentMethods: [code] }
   })
 });
 const text = await res.text();
@@ -302,14 +327,14 @@ if (res.ok && body.id) {
   const methodsText = await methodsRes.text();
   let methods;
   try { methods = JSON.parse(methodsText); } catch { methods = []; }
-  const ltc = Array.isArray(methods) ? methods.find((method) => method.paymentMethodId === 'LTC-CHAIN') : null;
+  const selected = Array.isArray(methods) ? methods.find((method) => method.paymentMethodId === paymentMethodId) : null;
   paymentMethod = {
     status: methodsRes.status,
-    amount: ltc?.amount || null,
-    currency: ltc?.currency || null,
-    destination: Boolean(ltc?.destination),
-    paymentLink: Boolean(ltc?.paymentLink),
-    rate: ltc?.rate || null
+    amount: selected?.amount || null,
+    currency: selected?.currency || null,
+    destination: Boolean(selected?.destination),
+    paymentLink: Boolean(selected?.paymentLink),
+    rate: selected?.rate || null
   };
 }
 console.log(JSON.stringify({
@@ -321,29 +346,30 @@ console.log(JSON.stringify({
 }));
 '@
 
-  try {
-    $smoke = $smokeScript | kubectl -n $StorefrontNamespace exec -i deploy/marky-storefront -- node -
-    $result = $smoke | ConvertFrom-Json
+    try {
+      $smoke = $smokeScript | kubectl -n $StorefrontNamespace exec -i deploy/marky-storefront -- node - $method.Code $method.PaymentMethodId
+      $result = $smoke | ConvertFrom-Json
 
-    if (
-      $result.status -ge 200 -and
-      $result.status -lt 300 -and
-      $result.checkoutLink -and
-      $result.paymentMethod.status -eq 200 -and
-      $result.paymentMethod.currency -eq "LTC" -and
-      $result.paymentMethod.destination -and
-      $result.paymentMethod.paymentLink -and
-      $result.paymentMethod.amount
-    ) {
-      Add-Check "PASS" "BTCPay LTC invoice smoke" "Invoice $($result.invoiceId) returned an LTC payment link for $($result.paymentMethod.amount) LTC at rate $($result.paymentMethod.rate)."
-    } else {
-      Add-Check "FAIL" "BTCPay LTC invoice smoke" "status=$($result.status), message=$($result.message), paymentMethod=$($result.paymentMethod | ConvertTo-Json -Compress)"
+      if (
+        $result.status -ge 200 -and
+        $result.status -lt 300 -and
+        $result.checkoutLink -and
+        $result.paymentMethod.status -eq 200 -and
+        $result.paymentMethod.currency -eq $method.Code -and
+        $result.paymentMethod.destination -and
+        $result.paymentMethod.paymentLink -and
+        $result.paymentMethod.amount
+      ) {
+        Add-Check "PASS" $method.Name "Invoice $($result.invoiceId) returned a $($method.Code) payment link for $($result.paymentMethod.amount) $($method.Code) at rate $($result.paymentMethod.rate)."
+      } else {
+        Add-Check "FAIL" $method.Name "status=$($result.status), message=$($result.message), paymentMethod=$($result.paymentMethod | ConvertTo-Json -Compress)"
+      }
+    } catch {
+      Add-Check "FAIL" $method.Name $_.Exception.Message
     }
-  } catch {
-    Add-Check "FAIL" "BTCPay LTC invoice smoke" $_.Exception.Message
   }
 } else {
-  Add-Check "WARN" "BTCPay LTC invoice smoke" "Skipped. Re-run with -RunBtcpaySmoke after wallet setup."
+  Add-Check "WARN" "BTCPay invoice smoke" "Skipped. Re-run with -RunBtcpaySmoke after wallet setup."
 }
 
 if ($RunStablecoinSmoke) {

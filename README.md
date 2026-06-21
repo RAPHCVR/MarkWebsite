@@ -70,9 +70,8 @@ Stripe fields can be stored per product:
 Public buying is disabled unless `SALES_ENABLED=true` and `NEXT_PUBLIC_SALES_ENABLED=true`.
 Crypto checkout also requires `CRYPTO_CHECKOUT_ENABLED=true`,
 `NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=true` and `DATABASE_URL` for order
-tracking. BTCPay LTC is enabled in production after a live invoice smoke test;
-BTC still requires a synced Bitcoin node and a wallet-ready flag. USDC on
-Solana uses the separate Solana Pay path.
+tracking. BTCPay BTC and LTC are enabled in production after live invoice smoke
+tests. USDC on Solana uses the separate Solana Pay path.
 BTCPay env vars being present is not enough to show crypto checkout. The site
 also requires explicit readiness flags and constrains Greenfield invoices with
 `checkout.paymentMethods`, so the UI exposes only rails that passed live smoke
@@ -249,8 +248,7 @@ NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=false
 Crypto rail policy:
 
 - Launch default: Stripe for cards and Solana Pay for USDC if crypto is desired immediately.
-- Current UTXO rail: LTC through BTCPay after node/explorer sync and a payable invoice smoke test.
-- Next UTXO rail: BTC after wallet setup and a payable BTC invoice smoke test. Bitcoin Core is synced, but the Marky BTCPay store still needs a usable BTC wallet/payment method before public BTC checkout.
+- Current UTXO rails: LTC and BTC through BTCPay after node/explorer sync and payable invoice smoke tests.
 - Provider split: BTCPay for BTC/LTC-style rails; Solana Pay for USDC Solana; SHKeeper/Bitcart only if multi-chain stablecoins become necessary.
 - No manual wallets on the public site unless there is a reconciliation backend; otherwise order matching and delivery are too fragile.
 - Runtime flags are conservative: `BTCPAY_BTC_WALLET_READY=true` means node sync, wallet setup and invoice smoke test have already passed.
@@ -277,23 +275,19 @@ Contact spam protection:
   configured. Until then, the form still has a honeypot and PostgreSQL-backed
   rate limit, but Turnstile is the proper anti-bot layer.
 
-BTCPay BTC production checklist before enabling BTC on the public site:
+BTCPay BTC production checklist:
 
 - `pay.markshnaknaks.com/api/v1/health` returns 200 and `synchronized:true`.
 - Bitcoin Core is out of Initial Block Download.
 - NBXplorer reports BTC as connected/synced.
 - The Marky store has a BTC on-chain payment method.
 - The wallet seed/xpub backup is stored outside the repo.
-- A small invoice creation smoke test succeeds.
+- A small invoice creation smoke test returns a `BTC-CHAIN` destination, payment link, exchange rate and amount due.
 
-BTCPay LTC is already public. Keep it enabled only while
+BTCPay BTC and LTC are public-ready. Keep them enabled only while
 `scripts/audit-payment-readiness.ps1 -RunBtcpaySmoke` keeps returning an
-`LTC-CHAIN` destination, payment link, exchange rate and amount due.
-
-BTC Core is synced, but BTC checkout is still intentionally hidden until the
-Marky BTCPay store has a BTC wallet/payment method linked and a BTC invoice
-smoke test returns a `BTC-CHAIN` destination. Do not set
-`BTCPAY_BTC_WALLET_READY=true` just because `/api/v1/health` is synchronized.
+`LTC-CHAIN` and `BTC-CHAIN` destination, payment link, exchange rate and
+amount due.
 
 No Stripe secret key is required in the frontend repo for Payment Links. If Checkout Sessions are added later, the secret key must live only in Kubernetes secrets or a server-side env store. Rotate any live secret key that has been pasted into chat, logs or local notes.
 
