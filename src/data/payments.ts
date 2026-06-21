@@ -221,7 +221,10 @@ export const cryptoRails = [
     icon: "circle",
     recommended: true,
     buyerCost: "Usually the cheapest stablecoin rail for small digital packs.",
-    operations: "Stablecoin checkout is separated from BTCPay and must pass webhook reconciliation before launch.",
+    operations:
+      stablecoinCheckoutConfigured && stablecoinRails[0].enabled
+        ? "Solana Pay checkout is live: invoices are recorded in PostgreSQL and verified on-chain by reference."
+        : "Stablecoin checkout stays hidden until invoice creation, QR rendering and on-chain verification pass.",
   },
   {
     id: "usdc-polygon",

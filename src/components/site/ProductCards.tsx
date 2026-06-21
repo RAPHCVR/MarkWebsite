@@ -317,7 +317,9 @@ export function ProductCards() {
           </span>
           <h3 className="mt-4 text-lg font-black text-rose-950">Card checkout</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Clean card payments for public drops when sales open.
+            {paymentConfig.salesEnabled
+              ? "Stripe Payment Links are live for card checkout."
+              : "Stripe Payment Links are ready for public drops."}
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
             Secure payment page
