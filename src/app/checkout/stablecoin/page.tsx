@@ -1,8 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Send, WalletCards } from "lucide-react";
+import QRCode from "qrcode";
 
 import { siteConfig } from "@/data/site";
 import { getOrderById, isOrdersDatabaseConfigured } from "@/lib/server/orders";
+import type { SolanaPayInvoice } from "@/lib/server/solana-pay";
 
 function getInvoiceMetadata(metadata: Record<string, unknown>) {
   const invoice = metadata.shkeeperInvoice;
@@ -19,15 +22,48 @@ function getInvoiceMetadata(metadata: Record<string, unknown>) {
   };
 }
 
+function getSolanaPayInvoice(metadata: Record<string, unknown>) {
+  const invoice = metadata.solanaPayInvoice;
+
+  if (!invoice || typeof invoice !== "object") {
+    return null;
+  }
+
+  const candidate = invoice as Partial<SolanaPayInvoice>;
+
+  if (
+    !candidate.amount ||
+    !candidate.recipient ||
+    !candidate.reference ||
+    !candidate.solanaUrl ||
+    !candidate.splToken
+  ) {
+    return null;
+  }
+
+  return candidate as SolanaPayInvoice;
+}
+
 export default async function StablecoinCheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orderId?: string }>;
+  searchParams: Promise<{ orderId?: string; pending?: string; verified?: string }>;
 }) {
-  const { orderId } = await searchParams;
+  const { orderId, pending, verified } = await searchParams;
   const order =
     orderId && isOrdersDatabaseConfigured() ? await getOrderById(orderId) : null;
   const invoice = order ? getInvoiceMetadata(order.metadata) : {};
+  const solanaPayInvoice = order ? getSolanaPayInvoice(order.metadata) : null;
+  const qrCode = solanaPayInvoice
+    ? await QRCode.toDataURL(solanaPayInvoice.solanaUrl, {
+        margin: 1,
+        scale: 8,
+        color: {
+          dark: "#3f1029",
+          light: "#fff7fb",
+        },
+      })
+    : null;
   const railLabel =
     typeof order?.metadata.railLabel === "string"
       ? order.metadata.railLabel
@@ -54,14 +90,102 @@ export default async function StablecoinCheckoutPage({
             Stablecoin checkout
           </p>
           <h1 className="mt-2 text-center text-3xl font-black">
-            Send exactly the invoice amount
+            {solanaPayInvoice ? "Pay with USDC on Solana" : "Send exactly the invoice amount"}
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-center text-sm leading-6 text-rose-950/65">
-            This address is generated for one order only. After confirmation,
-            support can match the payment using the order reference.
+            {solanaPayInvoice
+              ? "Scan the Solana Pay QR or open your wallet. The order reference is validated on-chain before delivery."
+              : "This address is generated for one order only. After confirmation, support can match the payment using the order reference."}
           </p>
 
-          {order && invoice.wallet ? (
+          {verified ? (
+            <div className="mt-6 rounded-3xl border border-emerald-100 bg-emerald-50 p-4 text-center text-sm font-black text-emerald-700">
+              Payment verified. Delivery can now be matched to this order.
+            </div>
+          ) : null}
+          {pending ? (
+            <div className="mt-6 rounded-3xl border border-amber-100 bg-amber-50 p-4 text-center text-sm font-black text-amber-700">
+              Payment not found yet. Wait a few seconds after signing, then verify again.
+            </div>
+          ) : null}
+
+          {order && solanaPayInvoice ? (
+            <div className="mt-6 space-y-4">
+              <div className="rounded-3xl border border-pink-100 bg-pink-50/70 p-4">
+                <p className="text-sm font-black text-pink-700">{railLabel}</p>
+                <p className="mt-1 text-xs font-bold text-rose-950/58">
+                  USDC on Solana · {solanaPayInvoice.amount} USDC
+                </p>
+              </div>
+
+              {qrCode ? (
+                <div className="rounded-[2rem] border border-pink-100 bg-white p-4 shadow-inner">
+                  <Image
+                    alt={`Solana Pay QR code for order ${order.orderId}`}
+                    height={256}
+                    src={qrCode}
+                    unoptimized
+                    width={256}
+                    className="mx-auto size-64 max-w-full rounded-3xl"
+                  />
+                </div>
+              ) : null}
+
+              <a
+                href={solanaPayInvoice.solanaUrl}
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-pink-600 px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+              >
+                Open wallet
+              </a>
+
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
+                  Solana Pay URL
+                </span>
+                <textarea
+                  className="mt-2 min-h-24 w-full resize-none rounded-3xl border border-pink-100 bg-white p-4 text-xs font-bold leading-5 text-rose-950 shadow-inner outline-none"
+                  readOnly
+                  value={solanaPayInvoice.solanaUrl}
+                />
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-3xl border border-pink-100 bg-white p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
+                    Amount
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-rose-950">
+                    {solanaPayInvoice.amount} USDC
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-pink-100 bg-white p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
+                    Status
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-rose-950">
+                    {order.status === "PAID" ? "Paid" : "Waiting"}
+                  </p>
+                </div>
+              </div>
+
+              <p className="break-all rounded-2xl border border-pink-100 bg-white px-4 py-3 text-xs font-bold text-rose-950/70">
+                Reference: {solanaPayInvoice.reference}
+              </p>
+              <p className="rounded-2xl border border-pink-100 bg-white px-4 py-3 text-xs font-bold text-rose-950/70">
+                Order: {order.orderId}
+              </p>
+
+              <form method="post" action="/api/checkout/stablecoin/verify">
+                <input type="hidden" name="orderId" value={order.orderId} />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-emerald-200 bg-white px-5 text-sm font-black text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
+                >
+                  I paid, verify
+                </button>
+              </form>
+            </div>
+          ) : order && invoice.wallet ? (
             <div className="mt-6 space-y-4">
               <div className="rounded-3xl border border-pink-100 bg-pink-50/70 p-4">
                 <p className="text-sm font-black text-pink-700">{railLabel}</p>
@@ -108,8 +232,8 @@ export default async function StablecoinCheckoutPage({
                 No active stablecoin invoice found.
               </p>
               <p className="mt-2 text-sm leading-6 text-rose-950/60">
-                Stablecoin checkout is hidden until the processor and wallets
-                pass the production smoke test.
+                Stablecoin checkout is hidden until the selected rail passes the
+                production smoke test.
               </p>
             </div>
           )}

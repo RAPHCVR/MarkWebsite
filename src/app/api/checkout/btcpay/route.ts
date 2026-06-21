@@ -7,6 +7,7 @@ import {
   isOrdersDatabaseConfigured,
   recordBtcpayCheckoutInvoice,
 } from "@/lib/server/orders";
+import { getPublicUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -104,7 +105,9 @@ export async function POST(request: NextRequest) {
           source: "markshnaknaks.com",
         },
         checkout: {
-          redirectURL: `${request.nextUrl.origin}/checkout/crypto-return?orderId=${encodeURIComponent(orderId)}`,
+          redirectURL: getPublicUrl(
+            `/checkout/crypto-return?orderId=${encodeURIComponent(orderId)}`,
+          ),
         },
       }),
     });

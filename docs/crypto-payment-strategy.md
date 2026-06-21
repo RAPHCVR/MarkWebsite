@@ -8,15 +8,15 @@ Last verified: 2026-06-21.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core runs on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/bitcoin`, `checkblocks=1`, `dbcache=1024`, `par=4`, DNS peer discovery, no forced `connect`/manual `addnode` list, standard internal P2P port `8333`, a `4Gi` memory request, and an `8Gi` memory limit to avoid OOM during IBD.
-- Bitcoin Core is in Initial Block Download on a fresh pruned volume. A live RPC check on 2026-06-21 showed `716102 / 954626` headers, `verificationprogress=0.5168544954083899`, `initialblockdownload=true`, and `size_on_disk=34561176128`. During IBD, BTCPay should return `{"synchronized":false}` and crypto checkout must remain disabled.
-- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. A live RPC check on 2026-06-21 showed `2726398 / 3128648` headers, `verificationprogress=0.67157030155292`, `initialblockdownload=true`, and `size_on_disk=19933402120`. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
+- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live logs on 2026-06-21 showed the node advancing around block `756522` with `progress=0.568921`. During IBD, BTCPay returns `{"synchronized":false}` and BTC checkout must remain disabled.
+- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live logs on 2026-06-21 showed the node advancing around block `2802107` with `progress=0.737429`. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
 - On 2026-06-20, blockchain data was moved off Longhorn/`valence-worker-02` after repeated kubelet and virtual volume I/O timeouts. BTC/LTC chainstate is intentionally treated as disposable cache and can be rebuilt from the networks.
 - A live check on 2026-06-20 showed `valence-worker-02` recovered after Longhorn iSCSI volume errors (`EXT4` remounted read-only, then the volume reattached). Active Longhorn volumes were healthy after the move, and the former 90 GiB blockchain Longhorn volume was no longer active.
 - BTCPay Server loads `Supported chains: LTC,BTC`. NBXplorer now runs with cookie authentication, and BTCPay mounts the NBXplorer PVC read-only at `/root/.nbxplorer` so `BTC` and `LTC` both use `/root/.nbxplorer/Main/.cookie`. The previous `--noauth` plus `explorercookiefile=0` setup was removed because BTCPay 2.2.1 still tried cookie auth and produced NBXplorer 500s. Live logs after the fix show BTC and LTC handshakes, RPC connection success, and `CoreSynching`.
 - BTCPay currently has no BTC wallet/payment method configured.
-- The storefront production secret contains Stripe Payment Links and BTCPay env vars, but `SALES_ENABLED=false`.
-- The storefront now has disabled-by-default stablecoin checkout plumbing: `POST /api/checkout/stablecoin`, `POST /api/webhooks/shkeeper`, the internal page `/checkout/stablecoin`, and shared PostgreSQL reconciliation through `creator_orders`. Runtime flags currently keep it off with `STABLECOIN_PROVIDER=none` and `STABLECOIN_RAIL_READY=false`; no SHKeeper pod is deployed yet.
-- Crypto checkout must stay disabled until BTCPay returns `synchronized:true` and a BTC wallet/payment method exists.
+- The storefront production secret contains Stripe Payment Links, Solana Pay settings and BTCPay env vars. Public selling is controlled by `SALES_ENABLED`, not by secrets simply existing.
+- The storefront has stablecoin checkout plumbing: `POST /api/checkout/stablecoin`, the internal page `/checkout/stablecoin`, `POST /api/checkout/stablecoin/verify`, optional `POST /api/webhooks/shkeeper`, and shared PostgreSQL reconciliation through `creator_orders`.
+- BTC/LTC checkout must stay disabled until BTCPay returns `synchronized:true` and the relevant store wallet/payment method exists.
 
 ## Kubernetes Storage Policy
 
@@ -51,10 +51,10 @@ because they inflate storage and slow heavy append/compact workloads during IBD.
 Use five payment layers, in this order:
 
 1. Stripe Payment Links for card checkout and accounting.
-2. Litecoin as the first self-hosted crypto rail once the LTC node is synced and wired to an explorer/store.
-3. BTCPay BTC on-chain after Bitcoin node sync and wallet setup.
-4. USDC on Solana through a separate SHKeeper stablecoin processor once the wallet/RPC/callback smoke test passes.
-5. USDC on Polygon or USDT on TRON only as buyer-demand fallbacks.
+2. USDC on Solana through Solana Pay for the first free/self-hosted stablecoin rail.
+3. Litecoin as the first cheap UTXO crypto rail once the LTC node is synced and wired to an explorer/store.
+4. BTCPay BTC on-chain after Bitcoin node sync and wallet setup.
+5. SHKeeper/Bitcart only for generated-address multi-chain stablecoins such as Polygon/Tron if buyer demand justifies the extra service.
 
 Telegram should stay the VIP/support/delivery layer, not the main checkout system. Telegram Stars can continue inside Telegram-native flows, but website orders should still be reconciled by the site backend.
 
@@ -62,12 +62,12 @@ Telegram should stay the VIP/support/delivery layer, not the main checkout syste
 
 | Rail | Status | Best Use | Buyer Cost | Operator Cost | Decision |
 | --- | --- | --- | --- | --- | --- |
-| Stripe | Ready but disabled | Cards, clean accounting, refunds/disputes | Card fees, no blockchain fee | Stripe fees | Primary public checkout when products/legal are ready |
+| Stripe | Ready by config | Cards, clean accounting, refunds/disputes | Card fees, no blockchain fee | Stripe fees | Primary public checkout when products/legal are ready |
 | BTC on-chain via BTCPay | Installed, not wallet-ready | Self-hosted crypto, non-custodial checkout | Low during calm mempool, slower settlement | Bitcoin node, sync, backups | Keep, but do not block launch on BTC |
 | LTC node | Installed, syncing | Cheap UTXO payments for buyers | Very low network fee | Separate Litecoin node and explorer | First self-hosted crypto rail to finish |
-| USDC on Solana | Route coded, processor not deployed | Low-fee stablecoin payments | Usually sub-cent network fee, token account edge cases | SHKeeper plus Solana wallet/RPC strategy | Best stablecoin rail if self-hosting remains required |
-| USDC on Polygon | Route coded, fallback | Low-fee EVM stablecoin | Low, but chain/wallet UX is less universal than Solana for some buyers | SHKeeper documented `POLYGON-USDC` support plus EVM RPC | Practical fallback if Solana support is awkward |
-| USDT on TRON | Route coded, disabled | Buyer familiarity, exchange withdrawals | Can be cheap with Energy, expensive without it | Energy/rental/staking strategy and processor support | Later, only if buyers demand TRON |
+| USDC on Solana | Route coded, configured by secret | Low-fee stablecoin payments | Usually sub-cent network fee, token account edge cases | Solana wallet backup, public/keyed RPC monitoring | Best free/self-hosted stablecoin rail for v1 |
+| USDC on Polygon | Route modelled, fallback | Low-fee EVM stablecoin | Low, but chain/wallet UX is less universal than Solana for this audience | SHKeeper/Bitcart plus EVM RPC | Later, only if Solana support disappoints buyers |
+| USDT on TRON | Modelled, disabled | Buyer familiarity, exchange withdrawals | Can be cheap with Energy, expensive without it | Energy/rental/staking strategy and processor support | Later, only if buyers demand TRON |
 | TON | Research | Telegram-native audience | Low network fee | Bot/mini-app and wallet ops | Later, if Telegram becomes paid flow |
 
 ## Fee Snapshot
@@ -124,13 +124,13 @@ Do not bolt USDC/Solana or TRON into the BTC-only BTCPay deployment.
 
 Current decision:
 
-1. Use SHKeeper first for stablecoins because its API can create invoices with a unique `external_id`, fiat amount, callback URL and generated wallet address.
+1. Use Solana Pay first for USDC because it is free, non-custodial and already fits the site-owned order table: each order gets a unique reference, a QR/link and server-side on-chain verification.
 2. Keep the stablecoin route separate from `/api/checkout/btcpay`: `POST /api/checkout/stablecoin`.
-3. Use `POST /api/webhooks/shkeeper` for callback reconciliation into the same `creator_orders` table.
-4. Store processor API keys and webhook secrets in Kubernetes secrets.
-5. Enable `STABLECOIN_RAIL_READY=true` only after the selected rail appears in `GET /api/v1/crypto`, invoice creation works, webhook callbacks update PostgreSQL, and delivery is gated by order state.
+3. Use `POST /api/checkout/stablecoin/verify` for Solana Pay reconciliation into the same `creator_orders` table.
+4. Keep `POST /api/webhooks/shkeeper` available for a later generated-address processor.
+5. Enable `STABLECOIN_RAIL_READY=true` only after invoice creation, QR rendering, verification and PostgreSQL status updates work against production runtime env.
 
-SHKeeper is attractive for stablecoins because it is open-source and self-hosted and its API covers invoice creation plus callbacks. Its public API documentation lists `payment_request` creation and callback behavior, and documents crypto names including `USDC`, `USDT` and `POLYGON-USDC`. Use the instance's own `GET /api/v1/crypto` result as the source of truth before enabling a rail.
+SHKeeper remains attractive for later multi-chain stablecoins because it is open-source and self-hosted and its API covers invoice creation plus callbacks. Use the instance's own `GET /api/v1/crypto` result as the source of truth before enabling any SHKeeper rail.
 
 Running a real private Solana RPC is heavy; using a public/paid RPC is easier but not fully self-hosted. This is not weaker than the BTC/LTC setup in the same category: BTC/LTC are light enough to self-host as pruned full nodes, while Solana RPC is a separate infrastructure class. For Marky v1, non-custodial wallet ownership plus self-hosted invoice/order reconciliation is enough. If strict RPC self-hosting becomes mandatory, revisit Solana versus Polygon before deploying rather than forcing a large Solana RPC node into the current cluster.
 
@@ -140,26 +140,28 @@ Bitcart remains a backup candidate if SHKeeper cannot support the exact rail or 
 
 Status: Accepted for v1, guarded by feature flags.
 
-Decision: Keep three separate payment contexts instead of one universal crypto stack:
+Decision: Keep four separate payment contexts instead of one universal crypto stack:
 
 - `Stripe`: public card checkout and accounting.
 - `BTCPay`: BTC/LTC UTXO invoices through BTCPay + NBXplorer.
-- `Stablepay`: SHKeeper-based stablecoin invoices through `/api/checkout/stablecoin` and `/api/webhooks/shkeeper`.
+- `Solana Pay`: USDC transfer requests through `/api/checkout/stablecoin` and `/api/checkout/stablecoin/verify`.
+- `Stablepay processor`: optional SHKeeper/Bitcart generated-address stablecoins later.
 
 Alternatives rejected:
 
 - Manual wallet addresses on product cards: rejected because order matching and delivery would be fragile.
 - Forcing USDC/TRON into BTCPay: rejected because the current BTCPay deployment is cleanly scoped to BTC/LTC and should not absorb unrelated wallet/RPC risk.
+- Deploying SHKeeper immediately: rejected for v1 because USDC Solana Pay already covers the free stablecoin need without another service.
 - Telegram-only payments: rejected for website orders because reconciliation, refunds, delivery and accounting would be weaker than site-owned order state.
 
 Consequences:
 
 - Positive: each processor has a clear failure boundary; all orders still land in central PostgreSQL.
 - Positive: public buttons can stay hidden until a specific rail passes live smoke tests.
-- Negative: SHKeeper adds another service and wallet/RPC dependency.
-- Negative: EUR products need an explicit USD conversion rate if SHKeeper fiat support remains USD-only.
+- Negative: Solana Pay depends on RPC availability unless a heavy private Solana RPC is deployed.
+- Negative: EUR products need an explicit USD conversion rate or explicit stablecoin pricing.
 
-Reversibility: low-to-medium cost. The site route is isolated, so SHKeeper can be replaced with Bitcart or a custom processor by changing the `/api/checkout/stablecoin` implementation while keeping the `creator_orders` table and product model.
+Reversibility: low-to-medium cost. The site route is isolated, so Solana Pay can be replaced with SHKeeper, Bitcart or a custom processor by changing the `/api/checkout/stablecoin` implementation while keeping the `creator_orders` table and product model.
 
 Owner/check path: `C:\Users\Raphael\Documents\Mark`, with runtime checks through `kubectl -n btcpay`, `kubectl -n marky`, and the processor health/API endpoints.
 
@@ -180,3 +182,4 @@ Owner/check path: `C:\Users\Raphael\Documents\Mark`, with runtime checks through
 - Bitcart overview: https://docs.bitcart.ai/
 - TRON resource model: https://developers.tron.network/docs/resource-model
 - Solana fees: https://solana.com/docs/core/fees
+- Solana Pay package/docs: https://www.npmjs.com/package/@solana/pay

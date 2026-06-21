@@ -7,6 +7,8 @@ import {
   isOrdersDatabaseConfigured,
   recordCheckoutInvoice,
 } from "@/lib/server/orders";
+import { createSolanaPayInvoice } from "@/lib/server/solana-pay";
+import { getPublicUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -111,7 +113,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (paymentConfig.crypto.stablecoin.preferredProvider !== "shkeeper") {
+  if (
+    paymentConfig.crypto.stablecoin.preferredProvider !== "shkeeper" &&
+    paymentConfig.crypto.stablecoin.preferredProvider !== "solana-pay"
+  ) {
     return NextResponse.json(
       { error: "Stablecoin provider is not supported by this route" },
       { status: 503 },
@@ -145,6 +150,35 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (paymentConfig.crypto.stablecoin.preferredProvider === "solana-pay") {
+      const orderId = `marky-solana-pay-${product.slug}-${crypto.randomUUID()}`;
+      const invoice = createSolanaPayInvoice({ orderId, product });
+      const checkoutLink = getPublicUrl(
+        `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}`,
+      );
+
+      await ensureOrdersDatabaseReady();
+      await recordCheckoutInvoice({
+        orderId,
+        provider: "solana-pay",
+        product,
+        providerInvoiceId: invoice.reference,
+        checkoutLink,
+        providerStatus: "UNPAID",
+        metadata: {
+          provider: "solana-pay",
+          railId: rail.id,
+          railLabel: rail.label,
+          cryptoName: "USDC",
+          fiat: "USD",
+          fiatAmount: invoice.amount,
+          solanaPayInvoice: invoice,
+        },
+      });
+
+      return NextResponse.redirect(checkoutLink, 303);
+    }
+
     const processorUrl =
       paymentConfig.crypto.stablecoin.processorUrl.replace(/\/$/, "") ||
       requiredEnv("STABLECOIN_PROCESSOR_URL").replace(/\/$/, "");
@@ -169,7 +203,7 @@ export async function POST(request: NextRequest) {
           external_id: orderId,
           fiat,
           amount,
-          callback_url: `${request.nextUrl.origin}/api/webhooks/shkeeper`,
+          callback_url: getPublicUrl("/api/webhooks/shkeeper"),
         }),
       },
     );
@@ -190,7 +224,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const checkoutLink = `${request.nextUrl.origin}/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}`;
+    const checkoutLink = getPublicUrl(
+      `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}`,
+    );
 
     await recordCheckoutInvoice({
       orderId,

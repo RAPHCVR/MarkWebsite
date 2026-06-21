@@ -31,6 +31,13 @@ type ShkeeperWebhookEvent = {
   transactions?: Array<Record<string, unknown>>;
 };
 
+type SolanaPayVerificationRecord = {
+  orderId: string;
+  signature: string;
+  slot?: string;
+  confirmationStatus?: string | null;
+};
+
 type ContactRequestRecord = {
   name: string;
   organization: string;
@@ -257,6 +264,40 @@ export async function recordShkeeperWebhookEvent(event: ShkeeperWebhookEvent) {
       event.status ?? (event.paid ? "PAID" : "UNPAID"),
       "shkeeper.webhook",
       JSON.stringify({ shkeeperEvent: event }),
+    ],
+  );
+}
+
+export async function recordSolanaPayVerification({
+  orderId,
+  signature,
+  slot,
+  confirmationStatus,
+}: SolanaPayVerificationRecord) {
+  await ensureSchema();
+
+  await getPool().query(
+    `
+      UPDATE creator_orders
+      SET
+        status = 'PAID',
+        provider_invoice_id = COALESCE(provider_invoice_id, $2),
+        last_event_type = 'solana-pay.verified',
+        metadata = metadata || $3::jsonb,
+        updated_at = now()
+      WHERE order_id = $1
+    `,
+    [
+      orderId,
+      signature,
+      JSON.stringify({
+        solanaPayVerification: {
+          signature,
+          slot,
+          confirmationStatus,
+          verifiedAt: new Date().toISOString(),
+        },
+      }),
     ],
   );
 }

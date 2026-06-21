@@ -345,7 +345,7 @@ export function ProductCards() {
           </div>
           <h3 className="mt-4 text-lg font-black text-rose-950">Crypto rails</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            BTCPay handles BTC/LTC. Stablecoins use a separate processor so each order gets its own invoice.
+            USDC uses Solana Pay. BTCPay handles BTC/LTC after node sync and wallet setup.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {paymentConfig.crypto.rails.filter((rail) => rail.recommended).map((rail) => (

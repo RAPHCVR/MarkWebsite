@@ -38,6 +38,9 @@ test-results
 .env*
 !.env.example
 
+# local private wallet/key material
+.secrets/
+
 # vercel
 .vercel
 

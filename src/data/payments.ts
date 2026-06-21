@@ -11,6 +11,7 @@ export type CryptoWallet = {
 
 export type CryptoProvider =
   | "btcpay-server"
+  | "solana-pay"
   | "shkeeper"
   | "bitcart"
   | "manual-wallet"
@@ -47,7 +48,7 @@ export type StablecoinRail = {
   label: string;
   asset: "USDC" | "USDT";
   network: string;
-  provider: Extract<CryptoProvider, "shkeeper" | "bitcart">;
+  provider: Extract<CryptoProvider, "solana-pay" | "shkeeper" | "bitcart">;
   cryptoName: string;
   enabled: boolean;
   recommended: boolean;
@@ -83,6 +84,7 @@ const btcpayLtcEnabled =
 const btcpayLtcNodeInstalled = true;
 
 const stablecoinProvider =
+  process.env.STABLECOIN_PROVIDER === "solana-pay" ||
   process.env.STABLECOIN_PROVIDER === "shkeeper" ||
   process.env.STABLECOIN_PROVIDER === "bitcart"
     ? process.env.STABLECOIN_PROVIDER
@@ -98,10 +100,13 @@ const stablecoinProcessorUrl =
   "";
 
 const stablecoinCheckoutConfigured = Boolean(
-  stablecoinProvider !== "none" &&
-    stablecoinProcessorUrl &&
-    (process.env.SHKEEPER_API_KEY || process.env.STABLECOIN_API_KEY) &&
-    process.env.STABLECOIN_WEBHOOK_SECRET,
+  stablecoinProvider === "solana-pay"
+    ? process.env.SOLANA_PAY_RECIPIENT &&
+        process.env.STABLECOIN_EUR_TO_USD_RATE
+    : stablecoinProvider !== "none" &&
+        stablecoinProcessorUrl &&
+        (process.env.SHKEEPER_API_KEY || process.env.STABLECOIN_API_KEY) &&
+        process.env.STABLECOIN_WEBHOOK_SECRET,
 );
 
 const plannedStablecoinProvider =
@@ -110,21 +115,40 @@ const plannedStablecoinProvider =
 const stablecoinDefaultRail = (process.env.STABLECOIN_DEFAULT_RAIL ||
   "usdc-solana") as StablecoinRailId;
 
+const solanaPayReady =
+  stablecoinProvider === "solana-pay" &&
+  process.env.SOLANA_PAY_ENABLED === "true" &&
+  process.env.NEXT_PUBLIC_SOLANA_PAY_ENABLED === "true" &&
+  Boolean(process.env.SOLANA_PAY_RECIPIENT) &&
+  Boolean(process.env.STABLECOIN_EUR_TO_USD_RATE) &&
+  stablecoinRailReady;
+
 export const stablecoinRails = [
   {
     id: "usdc-solana",
     label: "USDC on Solana",
     asset: "USDC",
     network: "Solana",
-    provider: plannedStablecoinProvider === "bitcart" ? "bitcart" : "shkeeper",
-    cryptoName: process.env.SHKEEPER_USDC_SOLANA_CRYPTO_NAME || "USDC",
+    provider:
+      plannedStablecoinProvider === "bitcart"
+        ? "bitcart"
+        : plannedStablecoinProvider === "solana-pay"
+          ? "solana-pay"
+          : "shkeeper",
+    cryptoName:
+      process.env.SHKEEPER_USDC_SOLANA_CRYPTO_NAME ||
+      process.env.SOLANA_PAY_USDC_MINT ||
+      "USDC",
     enabled:
-      process.env.STABLECOIN_USDC_SOLANA_ENABLED === "true" &&
-      stablecoinRailReady,
+      (process.env.STABLECOIN_USDC_SOLANA_ENABLED === "true" ||
+        process.env.NEXT_PUBLIC_STABLECOIN_USDC_SOLANA_ENABLED === "true") &&
+      (stablecoinProvider === "solana-pay" ? solanaPayReady : stablecoinRailReady),
     recommended: true,
     buyerCost: "Lowest expected stablecoin network cost for small packs.",
     operations:
-      "Use SHKeeper with a tested Solana wallet/RPC path; keep disabled until callbacks reconcile orders.",
+      stablecoinProvider === "solana-pay"
+        ? "Solana Pay transfer request with order reference validation through RPC."
+        : "Use SHKeeper with a tested Solana wallet/RPC path; keep disabled until callbacks reconcile orders.",
   },
   {
     id: "usdc-polygon",
@@ -193,7 +217,7 @@ export const cryptoRails = [
     asset: "USDC",
     network: "Solana",
     provider: plannedStablecoinProvider,
-    status: stablecoinCheckoutConfigured && stablecoinRailReady ? "ready" : "planned",
+    status: stablecoinCheckoutConfigured && stablecoinRails[0].enabled ? "ready" : "planned",
     icon: "circle",
     recommended: true,
     buyerCost: "Usually the cheapest stablecoin rail for small digital packs.",
@@ -271,6 +295,15 @@ export const paymentConfig = {
       fiatEnv: "STABLECOIN_FIAT",
       eurToUsdRateEnv: "STABLECOIN_EUR_TO_USD_RATE",
       recommendedLaunchRail: "USDC on Solana",
+      solanaPay: {
+        enabled: solanaPayReady,
+        recipientConfigured: Boolean(process.env.SOLANA_PAY_RECIPIENT),
+        rpcUrlEnv: "SOLANA_PAY_RPC_URL",
+        recipientEnv: "SOLANA_PAY_RECIPIENT",
+        mintEnv: "SOLANA_PAY_USDC_MINT",
+        defaultRpcUrl: "https://api.mainnet-beta.solana.com",
+        publicProviderCost: "Free public RPC for MVP; move to a keyed free/paid RPC when volume starts.",
+      },
     },
     btcpay: {
       configured: btcpayConfigured,
