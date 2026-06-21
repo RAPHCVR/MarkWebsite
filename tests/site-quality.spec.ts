@@ -123,12 +123,16 @@ test("interactive elements are named and external links are hardened", async ({ 
     const mailtoForms = [...document.querySelectorAll('form[action^="mailto:"]')]
       .map((element) => element.getAttribute("aria-label") || element.outerHTML.slice(0, 120));
 
+    const mailtoLinks = [...document.querySelectorAll('a[href^="mailto:"]')]
+      .map((element) => element.getAttribute("href"));
+
     return {
       emptyInteractive,
       unlabeledControls,
       unsafeExternalLinks,
       emptyLinks,
       mailtoForms,
+      mailtoLinks,
     };
   });
 
@@ -137,6 +141,22 @@ test("interactive elements are named and external links are hardened", async ({ 
   expect(audit.unsafeExternalLinks).toEqual([]);
   expect(audit.emptyLinks).toEqual([]);
   expect(audit.mailtoForms).toEqual([]);
+  expect(audit.mailtoLinks).toEqual([]);
+});
+
+test("public pages do not expose crawlable email addresses", async ({ page }) => {
+  const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+  for (const route of publicTextRoutes) {
+    await page.goto(route);
+
+    const html = await page.content();
+    const visibleText = await page.locator("body").innerText();
+
+    expect(html).not.toMatch(emailPattern);
+    expect(html).not.toContain("mailto:");
+    expect(visibleText).not.toMatch(emailPattern);
+  }
 });
 
 test("public pages avoid payment-risk wording", async ({ page }) => {

@@ -21,8 +21,9 @@ export const legalConfig = {
     "Programmation informatique, developpement de sites web, conseil en systemes informatiques et mise a disposition d'infrastructures logicielles (API, SaaS).",
   vatStatus: "TVA non applicable, article 293 B du Code general des impots",
   registeredAddress: "27 Rue Marcel Miquel, 92130 Issy-les-Moulineaux, France",
-  supportEmail: "collabs@markshnaknaks.com",
-  privacyEmail: "collabs@markshnaknaks.com",
+  supportContactLabel: "formulaire de contact securise du site",
+  privacyContactLabel: "formulaire de contact securise du site",
+  contactPath: "/#contact",
   termsVersion: "2026-06-21",
   privacyVersion: "2026-06-21",
   merchantRole:

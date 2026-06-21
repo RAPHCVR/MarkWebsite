@@ -26,7 +26,6 @@ export const seoStructuredData = {
       legalName: legalConfig.entrepreneurName,
       identifier: legalConfig.siren,
       url: siteConfig.publicUrl,
-      email: legalConfig.supportEmail,
     },
     {
       "@type": "WebSite",

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionShell } from "@/components/site/SectionShell";
-import { collabMailto } from "@/data/site";
 
 export function Contact() {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -27,18 +26,19 @@ export function Contact() {
             Send the brief.
           </h3>
           <p className="mt-3 leading-7 text-rose-950/68">
-            Include the brand, timeline, usage rights and contact details.
+            Include the brand, timeline, usage rights and safest reply channel.
           </p>
           <a
-            href={collabMailto}
+            href="#contact-form"
             className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-pink-600 px-5 text-sm font-black text-white shadow-[0_16px_34px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300"
           >
             <Mail className="size-4" aria-hidden="true" />
-            Email collabs
+            Open secure form
           </a>
         </div>
 
         <form
+          id="contact-form"
           className="rounded-[2rem] border border-pink-100 bg-white/78 p-5 shadow-[0_24px_60px_rgba(236,72,153,0.12)] backdrop-blur sm:p-6"
           action="/api/contact"
           method="post"
@@ -106,7 +106,7 @@ export function Contact() {
             Send request
           </Button>
           <p id="contact-form-note" className="mt-3 text-center text-xs font-medium text-rose-950/55">
-            Stored in the site inbox. Email remains available for urgent briefs.
+            Stored in the site inbox. Turnstile filters automated spam when enabled.
           </p>
         </form>
       </div>

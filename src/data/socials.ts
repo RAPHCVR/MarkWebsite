@@ -1,5 +1,5 @@
 import type { BrandIconKey } from "@/lib/brand-icons";
-import { collabMailto, siteConfig } from "@/data/site";
+import { siteConfig } from "@/data/site";
 
 export type SocialLink = {
   label: string;
@@ -55,9 +55,9 @@ export const socials: SocialLink[] = [
   {
     label: "Collabs",
     handle: "business inbox",
-    href: collabMailto,
+    href: siteConfig.collabContactUrl,
     description: "Campaigns, shoots, promos and business requests.",
-    cta: "Send email",
+    cta: "Open form",
     icon: "gmail",
   },
   {

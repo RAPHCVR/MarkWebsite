@@ -17,7 +17,7 @@ export const siteConfig = {
   manifestIconImage: "/images/marky-icon-512.png",
   logoImage: "/images/marky-logo.png",
   portraitImage: "/images/mark-portrait-sketch.png",
-  collabEmail: legalConfig.supportEmail,
+  collabContactUrl: legalConfig.contactPath,
   instagramUrl: "https://instagram.com/markshnaknaks",
   tiktokUrl: "https://tiktok.com/@markshnaknaks",
   telegramChannelUrl: "https://t.me/markreyvakh",
@@ -25,9 +25,6 @@ export const siteConfig = {
   xUrl: "https://x.com/MarkyReykvakh",
   onlyFansUrl: "",
 } as const;
-
-export const collabMailto =
-  `mailto:${siteConfig.collabEmail}?subject=Collab%20request%20for%20${siteConfig.brandName}`;
 
 export const publicSocialUrls = [
   siteConfig.instagramUrl,

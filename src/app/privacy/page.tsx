@@ -20,7 +20,7 @@ export default function PrivacyPage() {
           title: "Responsable du traitement",
           body: [
             `${legalConfig.merchantName}, opere par ${legalConfig.entrepreneurName}, agit comme responsable du traitement pour le checkout, les droits d'acces, la livraison numerique, le support et les demandes professionnelles.`,
-            `Contact donnees personnelles: ${legalConfig.privacyEmail}.`,
+            `Contact donnees personnelles: ${legalConfig.privacyContactLabel}.`,
           ],
         },
         {
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
           title: "Droits",
           body: [
             "Toute personne concernee peut demander l'acces, la rectification, l'effacement, la limitation ou l'opposition lorsque ces droits s'appliquent.",
-            `Les demandes doivent etre envoyees a ${legalConfig.privacyEmail}. Une preuve raisonnable d'identite ou de possession de commande peut etre demandee avant toute action sur un compte ou un acces.`,
+            `Les demandes doivent passer par le ${legalConfig.privacyContactLabel}. Une preuve raisonnable d'identite ou de possession de commande peut etre demandee avant toute action sur un compte ou un acces.`,
             "En cas de difficulte persistante, la personne concernee peut contacter l'autorite de controle competente.",
           ],
         },

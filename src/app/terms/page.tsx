@@ -67,7 +67,7 @@ export default function TermsPage() {
         {
           title: "Support",
           body: [
-            `Support principal: ${legalConfig.supportEmail}. Telegram peut etre utilise pour l'assistance, les invitations privees et le suivi de livraison, mais le site reste la source de verite des droits d'acces.`,
+            `Support principal: ${legalConfig.supportContactLabel}. Telegram peut etre utilise pour l'assistance, les invitations privees et le suivi de livraison, mais le site reste la source de verite des droits d'acces.`,
             "Le support peut demander une reference de commande, un email de paiement ou une preuve raisonnable de possession du lien de livraison avant toute action sur un acces.",
           ],
         },

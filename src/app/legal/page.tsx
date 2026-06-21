@@ -37,7 +37,7 @@ export default function LegalPage() {
         {
           title: "Contact",
           body: [
-            `Support et demandes professionnelles: ${legalConfig.supportEmail}.`,
+            `Support et demandes professionnelles: ${legalConfig.supportContactLabel}.`,
             "Les demandes liees aux commandes doivent inclure la reference de commande ou le lien de livraison, sans partager de donnees sensibles dans un groupe public.",
           ],
         },

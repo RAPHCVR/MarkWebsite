@@ -28,7 +28,7 @@ export default function RefundPolicyPage() {
           title: "Cas eligibles",
           body: [
             "Un remboursement peut etre etudie si le paiement a ete double, si l'acces n'a jamais ete emis, si une erreur technique empeche totalement la livraison, ou si la commande a ete manifestement facturee par erreur.",
-            "La demande doit etre envoyee a l'adresse support avec la reference de commande, le moyen de paiement et une description concise du probleme.",
+            "La demande doit etre envoyee via le formulaire de contact avec la reference de commande, le moyen de paiement et une description concise du probleme.",
           ],
         },
         {
@@ -42,7 +42,7 @@ export default function RefundPolicyPage() {
         {
           title: "Contact",
           body: [
-            `Support remboursements: ${legalConfig.supportEmail}.`,
+            `Support remboursements: ${legalConfig.supportContactLabel}.`,
             "Delai cible de premiere reponse: 3 a 5 jours ouvres.",
           ],
         },
