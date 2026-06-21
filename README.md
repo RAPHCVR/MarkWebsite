@@ -76,6 +76,10 @@ while Bitcoin Core is still syncing or the store has no wallet.
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
 requests are stored in `creator_contact_requests`; otherwise the form redirects
 cleanly without storing data. The direct email CTA remains available for urgent briefs.
+Public write endpoints use a small PostgreSQL-backed rate limit in
+`creator_rate_limits`, keyed by a hash of the client fingerprint. This keeps
+checkout/contact spam out of the production database without adding a separate
+Redis dependency.
 
 Optional non-Stripe destinations:
 
@@ -172,6 +176,7 @@ Stablecoin production checklist before enabling public buttons:
 - `POST /api/checkout/stablecoin` creates a Solana Pay order in `creator_orders`.
 - `/checkout/stablecoin` shows a QR/link containing a unique reference.
 - `POST /api/checkout/stablecoin/verify` verifies the transfer and marks the order `PAID`.
+- `creator_rate_limits` is present so checkout creation and verification cannot be spammed freely.
 - Only then set `STABLECOIN_PROVIDER=solana-pay`, `SOLANA_PAY_ENABLED=true`, `NEXT_PUBLIC_SOLANA_PAY_ENABLED=true`, `STABLECOIN_RAIL_READY=true`, `NEXT_PUBLIC_STABLECOIN_RAIL_READY=true`, and `STABLECOIN_USDC_SOLANA_ENABLED=true`.
 
 BTCPay production checklist before enabling crypto on the public site:

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getOrderById, recordSolanaPayVerification } from "@/lib/server/orders";
+import { enforceRateLimit } from "@/lib/server/request-guard";
 import {
   type SolanaPayInvoice,
   verifySolanaPayInvoice,
@@ -62,6 +63,16 @@ export async function POST(request: NextRequest) {
 
   if (!orderId) {
     return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
+  }
+
+  const rateLimited = await enforceRateLimit(request, {
+    action: "stablecoin-verify",
+    limit: 30,
+    windowSeconds: 60,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   const order = await getOrderById(orderId);

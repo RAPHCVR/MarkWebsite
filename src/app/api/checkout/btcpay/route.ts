@@ -7,6 +7,7 @@ import {
   isOrdersDatabaseConfigured,
   recordBtcpayCheckoutInvoice,
 } from "@/lib/server/orders";
+import { enforceRateLimit } from "@/lib/server/request-guard";
 import { getPublicUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
@@ -65,6 +66,16 @@ export async function POST(request: NextRequest) {
       { error: "BTCPay checkout is not fully configured yet" },
       { status: 503 },
     );
+  }
+
+  const rateLimited = await enforceRateLimit(request, {
+    action: "btcpay-checkout",
+    limit: 12,
+    windowSeconds: 60,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   const productSlug = await readProductSlug(request);

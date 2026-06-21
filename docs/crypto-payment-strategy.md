@@ -8,8 +8,8 @@ Last verified: 2026-06-21.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core runs on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/bitcoin`, `checkblocks=1`, `dbcache=1024`, `par=4`, DNS peer discovery, no forced `connect`/manual `addnode` list, standard internal P2P port `8333`, a `4Gi` memory request, and an `8Gi` memory limit to avoid OOM during IBD.
-- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 06:40 Paris time showed the node advancing around block `829197` of `954645`, `verificationprogress=0.712448`, `initialblockdownload=true`, `pruned=true`, and `size_on_disk=50.2 GiB`. During IBD, BTCPay returns `{"synchronized":false}` and BTC checkout must remain disabled.
-- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live checks on 2026-06-21 06:40 Paris time showed the node advancing around block `2987241` of `3128764`, `verificationprogress=0.886365`, `initialblockdownload=true`, `pruned=true`, and `size_on_disk=20.7 GiB`. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
+- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 07:24 Paris time showed the node advancing around block `835515` of `954653`, `verificationprogress=0.724198`, `initialblockdownload=true`, `pruned=true`, and `/data` using about `5.7 GiB` reported by Bitcoin Core on a `300 GiB` filesystem. During IBD, BTCPay returns `{"synchronized":false}` and BTC checkout must remain disabled.
+- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live checks on 2026-06-21 07:24 Paris time showed the node advancing around block `3038291` of `3128785`, `verificationprogress=0.927368`, `initialblockdownload=true`, `pruned=true`, and `size_on_disk=20.7 GiB`. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
 - On 2026-06-20, blockchain data was moved off Longhorn/`valence-worker-02` after repeated kubelet and virtual volume I/O timeouts. BTC/LTC chainstate is intentionally treated as disposable cache and can be rebuilt from the networks.
 - A live check on 2026-06-20 showed `valence-worker-02` recovered after Longhorn iSCSI volume errors (`EXT4` remounted read-only, then the volume reattached). Active Longhorn volumes were healthy after the move, and the former 90 GiB blockchain Longhorn volume was no longer active.
 - BTCPay Server loads `Supported chains: LTC,BTC`. NBXplorer now runs with cookie authentication, and BTCPay mounts the NBXplorer PVC read-only at `/root/.nbxplorer` so `BTC` and `LTC` both use `/root/.nbxplorer/Main/.cookie`. The previous `--noauth` plus `explorercookiefile=0` setup was removed because BTCPay 2.2.1 still tried cookie auth and produced NBXplorer 500s. Live logs after the fix show BTC and LTC handshakes, RPC connection success, and `CoreSynching`.
@@ -17,8 +17,10 @@ Last verified: 2026-06-21.
 - The storefront production secret contains Stripe Payment Links, Solana Pay settings and BTCPay env vars. Public selling is controlled by `SALES_ENABLED`, not by secrets simply existing.
 - The Marky PostgreSQL app password, BTCPay BTC/LTC internal RPC passwords, BTCPay site API key, BTCPay webhook secret and BTCPay admin bootstrap password were rotated on 2026-06-21 after runtime audit checks. The active BTCPay site key has only `cancreateinvoice` and `canviewinvoices` on the Marky store, and there is one active Marky webhook. Current secrets live only in Kubernetes secrets and local ignored env material; do not print full `printenv` output from payment pods.
 - The storefront has stablecoin checkout live for USDC on Solana: `POST /api/checkout/stablecoin`, the internal page `/checkout/stablecoin`, `POST /api/checkout/stablecoin/verify`, optional `POST /api/webhooks/shkeeper`, and shared PostgreSQL reconciliation through `creator_orders`. Solana Pay verification supports `SOLANA_PAY_RPC_URLS` as a comma-separated read-only RPC fallback list.
+- Public write paths are protected by a small PostgreSQL-backed rate limit table, `creator_rate_limits`, keyed by hashed client fingerprints. This protects checkout creation, stablecoin verification and contact writes without adding a Redis dependency.
 - A production smoke test on 2026-06-21 created a Solana Pay invoice for `cosplay-starter-pack`, rendered the public QR/link page, persisted the order in central PostgreSQL as `UNPAID`, and correctly returned `pending=1` when verification was attempted without an on-chain payment.
-- Follow-up production smoke tests on 2026-06-21 05:32 and 06:40 Paris time verified the stablecoin pending path with two RPC fallbacks: public order creation returned `303`, the checkout page rendered a Solana Pay QR/link, and central PostgreSQL stored new `solana-pay` orders as `UNPAID` without timing out at the public edge.
+- Follow-up production smoke tests on 2026-06-21 05:32, 06:40, 07:04 and post-rollout at 07:23 Paris time verified the stablecoin pending path with two RPC fallbacks: public order creation returned `303`, the checkout page rendered a Solana Pay QR/link, central PostgreSQL stored new `solana-pay` orders as `UNPAID`, and unpaid verification returned `pending=1` without timing out at the public edge. Smoke rows were removed after validation.
+- On 2026-06-21 07:10 Paris time, both configured free read-only Solana RPC endpoints answered from the production pod: `api.mainnet-beta.solana.com` and `solana-rpc.publicnode.com`.
 - `GET /api/payments/status` exposes payment readiness without leaking secrets. Use it for operational checks before creating real smoke orders.
 - BTC/LTC checkout must stay disabled until BTCPay returns `synchronized:true` and the relevant store wallet/payment method exists.
 
@@ -83,10 +85,10 @@ Telegram should stay the VIP/support/delivery layer, not the main checkout syste
 
 This is a snapshot, not a hardcoded rule.
 
-- BTC: mempool.space returned `1 sat/vB` hour/economy and `4 sat/vB` fastest. With a typical 140 vB receive transaction, that is roughly `140-560 sats`; actual EUR cost depends on BTC/EUR at the payment moment.
+- BTC: mempool.space returned `1 sat/vB` economy/hour/half-hour and `2 sat/vB` fastest. With a typical 140 vB receive transaction, that is roughly `140-280 sats`; actual EUR cost depends on BTC/EUR at the payment moment.
 - LTC: litecoinspace returned `1 litoshi/vB`. In practice the network fee is normally far below one euro cent, but running LTC still adds node/explorer operations.
-- Solana: Solana base fee is `5,000 lamports` per signature. At `59.49 EUR/SOL`, base fee is roughly `0.0003 EUR`; token account creation/rent can add more in edge cases.
-- TRON/TRC20: TRON uses Bandwidth and Energy. Public fee estimates vary, but TRC20 stablecoin transfers are often several TRX without Energy. With `0.28062 EUR/TRX`, `6.5-13 TRX` is roughly `1.82-3.65 EUR`, and fresh-wallet transfers can be higher.
+- Solana: Solana base fee is `5,000 lamports` per signature. At about `63.94 EUR/SOL`, base fee is roughly `0.0003 EUR`; token account creation/rent can add more in edge cases.
+- TRON/TRC20: TRON uses Bandwidth and Energy. Public fee estimates vary, but TRC20 stablecoin transfers are often several TRX without Energy. With about `0.284 EUR/TRX`, `6.5-13 TRX` is roughly `1.85-3.69 EUR`, and fresh-wallet transfers can be higher.
 
 ## BTCPay Completion Checklist
 
@@ -179,6 +181,7 @@ Owner/check path: `C:\Users\Raphael\Documents\Mark`, with runtime checks through
 - Never publish manual wallet addresses on the public site unless order reconciliation is implemented.
 - Keep Stripe as the first launch rail for sales because it is easiest for refunds, accounting and customer support.
 - Keep crypto disabled by explicit feature flags. Env vars present do not mean a rail is safe to show.
+- Keep rate limits active on public POST routes; invoice creation should be intentional user action, not crawler-accessible state churn.
 - Rotate any Stripe secret key that has been pasted into chat or logs.
 - Keep private wallet material out of Git, screenshots, chat and Kubernetes manifests.
 - Prefer `SOLANA_PAY_RPC_URLS` with more than one free read-only RPC before enabling serious volume; move to a keyed provider only after real rate-limit evidence.

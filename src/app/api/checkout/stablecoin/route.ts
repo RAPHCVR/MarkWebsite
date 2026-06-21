@@ -7,6 +7,7 @@ import {
   isOrdersDatabaseConfigured,
   recordCheckoutInvoice,
 } from "@/lib/server/orders";
+import { enforceRateLimit } from "@/lib/server/request-guard";
 import { createSolanaPayInvoice } from "@/lib/server/solana-pay";
 import { getPublicUrl } from "@/lib/site-url";
 
@@ -111,6 +112,16 @@ export async function POST(request: NextRequest) {
       { error: "Order database is not configured" },
       { status: 503 },
     );
+  }
+
+  const rateLimited = await enforceRateLimit(request, {
+    action: "stablecoin-checkout",
+    limit: 12,
+    windowSeconds: 60,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   if (

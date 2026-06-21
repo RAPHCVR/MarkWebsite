@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { Pool } from "pg";
 
 import type { Product } from "@/data/products";
@@ -44,6 +46,13 @@ type ContactRequestRecord = {
   message: string;
   source?: string;
   userAgent?: string;
+};
+
+type RateLimitCheck = {
+  action: string;
+  key: string;
+  limit: number;
+  windowSeconds: number;
 };
 
 export type CreatorOrder = {
@@ -120,9 +129,72 @@ async function ensureSchema() {
 
     CREATE INDEX IF NOT EXISTS creator_contact_requests_created_at_idx
       ON creator_contact_requests(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS creator_rate_limits (
+      rate_key text NOT NULL,
+      bucket_start timestamptz NOT NULL,
+      hits integer NOT NULL DEFAULT 0,
+      PRIMARY KEY (rate_key, bucket_start)
+    );
   `).then(() => undefined);
 
   return schemaReady;
+}
+
+function hashRateLimitKey(action: string, key: string) {
+  return createHash("sha256").update(`${action}:${key}`).digest("hex");
+}
+
+function getBucketStart(windowSeconds: number) {
+  const safeWindowSeconds = Math.max(1, Math.floor(windowSeconds));
+  const bucketMs = safeWindowSeconds * 1000;
+
+  return new Date(Math.floor(Date.now() / bucketMs) * bucketMs);
+}
+
+export async function checkRateLimit({
+  action,
+  key,
+  limit,
+  windowSeconds,
+}: RateLimitCheck) {
+  await ensureSchema();
+
+  const safeLimit = Math.max(1, Math.floor(limit));
+  const safeWindowSeconds = Math.max(1, Math.floor(windowSeconds));
+  const rateKey = hashRateLimitKey(action, key || "unknown");
+  const bucketStart = getBucketStart(safeWindowSeconds);
+
+  const result = await getPool().query(
+    `
+      INSERT INTO creator_rate_limits (rate_key, bucket_start, hits)
+      VALUES ($1, $2, 1)
+      ON CONFLICT (rate_key, bucket_start) DO UPDATE SET
+        hits = creator_rate_limits.hits + 1
+      RETURNING hits
+    `,
+    [rateKey, bucketStart],
+  );
+
+  const hits = Number(result.rows[0]?.hits ?? 0);
+
+  if (Math.random() < 0.02) {
+    await getPool()
+      .query(
+        `
+          DELETE FROM creator_rate_limits
+          WHERE bucket_start < now() - interval '24 hours'
+        `,
+      )
+      .catch(() => undefined);
+  }
+
+  return {
+    allowed: hits <= safeLimit,
+    hits,
+    limit: safeLimit,
+    retryAfterSeconds: safeWindowSeconds,
+  };
 }
 
 export async function ensureOrdersDatabaseReady() {

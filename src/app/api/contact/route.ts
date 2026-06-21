@@ -5,6 +5,7 @@ import {
   isOrdersDatabaseConfigured,
   recordContactRequest,
 } from "@/lib/server/orders";
+import { enforceRateLimit } from "@/lib/server/request-guard";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,16 @@ export async function POST(request: NextRequest) {
 
   if (website) {
     return NextResponse.redirect(redirectUrl, 303);
+  }
+
+  const rateLimited = await enforceRateLimit(request, {
+    action: "contact",
+    limit: 5,
+    windowSeconds: 60,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   if (message && isOrdersDatabaseConfigured()) {
