@@ -111,7 +111,7 @@ Detailed crypto rail decisions and fee notes live in `docs/crypto-payment-strate
 Recommended launch path:
 
 - Use Stripe Payment Links first for SFW photo packs if you want the cleanest card checkout and micro-enterprise accounting. The code supports per-product links through environment variables.
-- Add a Stripe webhook endpoint pointing to `https://markshnaknaks.com/api/webhooks/stripe` with `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired` so paid sessions are recorded in the shared `creator_orders` table.
+- Stripe webhook reconciliation is live in production. The endpoint points to `https://markshnaknaks.com/api/webhooks/stripe` with `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired`, so paid sessions are recorded in the shared `creator_orders` table.
 - Move to Stripe Checkout Sessions later if the site needs a cart, automatic delivery, coupons tied to accounts, or richer order metadata than Payment Links provide.
 - Use Solana Pay as the first free/self-hosted stablecoin rail: the site creates a USDC payment request, stores the order in PostgreSQL, displays a QR/link, and verifies the reference on-chain before marking the order paid.
 - Use BTCPay Server as the best self-hosted BTC/LTC option if low card fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the node is synced, and the store has an on-chain wallet/payment method configured.
@@ -204,7 +204,7 @@ $env:STRIPE_SECRET_KEY = "<your Stripe live secret key>"
 Remove-Item Env:\STRIPE_SECRET_KEY
 ```
 
-The script creates a Stripe webhook endpoint for `https://markshnaknaks.com/api/webhooks/stripe`, stores only the returned `STRIPE_WEBHOOK_SECRET` in the `marky-payments` Kubernetes Secret, and rolls the storefront deployment. It does not write the Stripe secret key to Git.
+The script creates a Stripe webhook endpoint for `https://markshnaknaks.com/api/webhooks/stripe`, stores only the returned `STRIPE_WEBHOOK_SECRET` in the `marky-payments` Kubernetes Secret, disables stale enabled endpoints for the same URL when `-ForceNew` is used, and rolls the storefront deployment. It does not write the Stripe secret key to Git.
 
 BTCPay storage policy:
 

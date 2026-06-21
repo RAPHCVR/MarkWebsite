@@ -65,6 +65,13 @@ if ($matchingEndpoint -and -not $ForceNew) {
   exit 2
 }
 
+$staleMatchingEndpoints = @()
+if ($ForceNew) {
+  $staleMatchingEndpoints = @($existing.data | Where-Object {
+    $_.url -eq $WebhookUrl -and $_.status -eq "enabled"
+  })
+}
+
 $pairs = [System.Collections.Generic.List[object]]::new()
 $pairs.Add([pscustomobject]@{ Name = "url"; Value = $WebhookUrl })
 $pairs.Add([pscustomobject]@{ Name = "description"; Value = "Marky Payment Link reconciliation" })
@@ -90,7 +97,29 @@ $patch = @{
   }
 } | ConvertTo-Json -Compress
 
-kubectl -n $Namespace patch secret $SecretName --type merge -p $patch | Out-Host
+$patchFile = New-TemporaryFile
+try {
+  Set-Content -LiteralPath $patchFile -Value $patch -NoNewline -Encoding UTF8
+  kubectl -n $Namespace patch secret $SecretName --type merge --patch-file $patchFile | Out-Host
+
+  if ($LASTEXITCODE -ne 0) {
+    Invoke-StripeApi `
+      -Method POST `
+      -Path "/v1/webhook_endpoints/$($endpoint.id)" `
+      -Body "disabled=true" | Out-Null
+    throw "Failed to patch Kubernetes secret. Disabled newly-created Stripe webhook endpoint $($endpoint.id)."
+  }
+} finally {
+  Remove-Item -LiteralPath $patchFile -Force -ErrorAction SilentlyContinue
+}
+
+foreach ($staleEndpoint in $staleMatchingEndpoints) {
+  Invoke-StripeApi `
+    -Method POST `
+    -Path "/v1/webhook_endpoints/$($staleEndpoint.id)" `
+    -Body "disabled=true" | Out-Null
+  Write-Host "Disabled stale Stripe webhook endpoint: $($staleEndpoint.id)"
+}
 
 if (-not $SkipRollout) {
   kubectl -n $Namespace rollout restart "deployment/$DeploymentName" | Out-Host
