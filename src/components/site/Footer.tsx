@@ -35,7 +35,7 @@ export function Footer() {
                 key={social.label}
                 href={social.href}
                 {...getExternalLinkProps(social.href)}
-                className="inline-flex items-center gap-2 rounded-full border border-pink-100 bg-white/70 px-4 py-2 text-sm font-bold text-rose-950/72 transition hover:border-pink-300 hover:text-pink-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-pink-100 bg-white/70 px-4 py-2.5 text-sm font-bold text-rose-950/72 transition hover:border-pink-300 hover:text-pink-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
               >
                 <span className="text-[var(--brand-color)]" style={brandIconStyle(social.icon)}>
                   <BrandIcon name={social.icon} className="size-3.5" />

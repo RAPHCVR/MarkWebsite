@@ -162,6 +162,44 @@ test("stablecoin checkout requires POST and disabled sales stay blocked", async 
   expect(postResponse.status()).toBe(403);
 });
 
+test("payment status endpoint reports readiness without exposing secrets", async ({ request }) => {
+  const response = await request.get("/api/payments/status");
+  expect(response.status()).toBe(200);
+
+  const status = await response.json() as {
+    ok?: boolean;
+    salesEnabled?: boolean;
+    orderDatabaseConfigured?: boolean;
+    stripe?: {
+      mode?: string;
+      readyProductCount?: number;
+      products?: Array<{ slug?: string; stripeReady?: boolean }>;
+    };
+    stablecoin?: {
+      provider?: string;
+      checkoutEnabled?: boolean;
+      defaultRail?: string;
+      rails?: Array<{ id?: string; enabled?: boolean }>;
+      solanaPay?: { recipientConfigured?: boolean; rpcUrlEnv?: string };
+    };
+    btcpay?: {
+      configured?: boolean;
+      checkoutEnabled?: boolean;
+      btcWalletReady?: boolean;
+      healthUrl?: string;
+    };
+  };
+
+  expect(status.ok).toBe(true);
+  expect(status.stripe?.mode).toBe("payment-links");
+  expect(status.stripe?.products?.some((product) => product.slug === "cosplay-starter-pack")).toBe(true);
+  expect(status.stablecoin?.defaultRail).toBe("usdc-solana");
+  expect(status.stablecoin?.rails?.some((rail) => rail.id === "usdc-solana")).toBe(true);
+  expect(status.stablecoin?.solanaPay?.rpcUrlEnv).toBe("SOLANA_PAY_RPC_URL");
+  expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
+  expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
+});
+
 test("contact form posts to the site endpoint", async ({ request }) => {
   const response = await request.post("/api/contact", {
     maxRedirects: 0,

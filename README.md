@@ -88,11 +88,13 @@ Optional non-Stripe destinations:
 - `/api/checkout/stablecoin`
 - `/api/checkout/stablecoin/verify`
 - `/api/webhooks/shkeeper`
+- `/api/payments/status`
 - `paymentConfig.telegram.vipUrl`
 - `paymentConfig.telegram.requestBotUrl`
 
 Do not add fake wallet addresses. Use empty strings until real destinations are confirmed.
 BTCPay and stablecoin invoice creation are exposed as POST routes only, so bots and crawlers cannot create invoices by loading a URL.
+Use `GET /api/payments/status` to audit runtime readiness without exposing secrets or creating test invoices.
 
 Detailed crypto rail decisions and fee notes live in `docs/crypto-payment-strategy.md`.
 
@@ -223,6 +225,7 @@ This version is a SFW preview site. OnlyFans is marked as a future creator-chann
 - interactive elements have accessible names
 - external links use `noopener`
 - checkout configuration does not expose fake live purchase CTAs
+- payment readiness can be inspected without leaking secret keys
 - contact form uses the site endpoint instead of an insecure `mailto:` form action
 - links are never rendered with empty `href` values
 - axe accessibility violations are zero

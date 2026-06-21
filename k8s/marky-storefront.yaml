@@ -61,7 +61,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/raphcvr/markwebsite@sha256:f2f57950701fcece9303437999bf971b68bd42063495a26a6172ec7059e8cafe
+          image: ghcr.io/raphcvr/markwebsite@sha256:cf5456aaf775ed37f9154aa71b6f15c0f2fc258ad84105ec3f5a4a1c29a1b98a
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -69,6 +69,8 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+            - name: SOLANA_PAY_VERIFY_TIMEOUT_MS
+              value: "8000"
           envFrom:
             - secretRef:
                 name: marky-payments
