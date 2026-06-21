@@ -221,8 +221,8 @@ spec:
                 dnsseed=1
                 maxconnections=96
                 txindex=0
-                dbcache=1024
-                par=4
+                dbcache=4096
+                par=6
                 checkblocks=1
                 prune=55000
                 whitelist=download,noban,mempool,relay@10.0.0.0/8
@@ -258,11 +258,11 @@ spec:
             failureThreshold: 10
           resources:
             requests:
-              cpu: "1"
-              memory: 4Gi
+              cpu: "2"
+              memory: 6Gi
             limits:
-              cpu: "4"
-              memory: 8Gi
+              cpu: "6"
+              memory: 12Gi
           volumeMounts:
             - name: bitcoin-data
               mountPath: /data
