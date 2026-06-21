@@ -218,17 +218,50 @@ const res = await fetch(`${base}/api/v1/stores/${store}/invoices`, {
 const text = await res.text();
 let body;
 try { body = JSON.parse(text); } catch { body = { message: text }; }
-console.log(JSON.stringify({ status: res.status, invoiceId: body.id, checkoutLink: Boolean(body.checkoutLink), message: body.message || body.error || null }));
+let paymentMethod = null;
+if (res.ok && body.id) {
+  const methodsRes = await fetch(`${base}/api/v1/stores/${store}/invoices/${body.id}/payment-methods`, {
+    headers: { Authorization: `token ${key}` }
+  });
+  const methodsText = await methodsRes.text();
+  let methods;
+  try { methods = JSON.parse(methodsText); } catch { methods = []; }
+  const ltc = Array.isArray(methods) ? methods.find((method) => method.paymentMethodId === 'LTC-CHAIN') : null;
+  paymentMethod = {
+    status: methodsRes.status,
+    amount: ltc?.amount || null,
+    currency: ltc?.currency || null,
+    destination: Boolean(ltc?.destination),
+    paymentLink: Boolean(ltc?.paymentLink),
+    rate: ltc?.rate || null
+  };
+}
+console.log(JSON.stringify({
+  status: res.status,
+  invoiceId: body.id,
+  checkoutLink: Boolean(body.checkoutLink),
+  message: body.message || body.error || null,
+  paymentMethod
+}));
 '@
 
   try {
     $smoke = $smokeScript | kubectl -n $StorefrontNamespace exec -i deploy/marky-storefront -- node -
     $result = $smoke | ConvertFrom-Json
 
-    if ($result.status -ge 200 -and $result.status -lt 300 -and $result.checkoutLink) {
-      Add-Check "PASS" "BTCPay LTC invoice smoke" "Invoice $($result.invoiceId) returned a checkout link."
+    if (
+      $result.status -ge 200 -and
+      $result.status -lt 300 -and
+      $result.checkoutLink -and
+      $result.paymentMethod.status -eq 200 -and
+      $result.paymentMethod.currency -eq "LTC" -and
+      $result.paymentMethod.destination -and
+      $result.paymentMethod.paymentLink -and
+      $result.paymentMethod.amount
+    ) {
+      Add-Check "PASS" "BTCPay LTC invoice smoke" "Invoice $($result.invoiceId) returned an LTC payment link for $($result.paymentMethod.amount) LTC at rate $($result.paymentMethod.rate)."
     } else {
-      Add-Check "FAIL" "BTCPay LTC invoice smoke" "status=$($result.status), message=$($result.message)"
+      Add-Check "FAIL" "BTCPay LTC invoice smoke" "status=$($result.status), message=$($result.message), paymentMethod=$($result.paymentMethod | ConvertTo-Json -Compress)"
     }
   } catch {
     Add-Check "FAIL" "BTCPay LTC invoice smoke" $_.Exception.Message

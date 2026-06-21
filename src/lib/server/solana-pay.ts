@@ -276,30 +276,44 @@ export async function verifySolanaPayInvoice(invoice: SolanaPayInvoice) {
         throw new Error("Solana Pay reference not found");
       }
 
-      const found = signatures[signatures.length - 1];
+      const transferErrors: string[] = [];
 
-      await withTimeout(
-        validateTransfer(
-          rpc,
-          found.signature,
-          {
-            recipient: address(invoice.recipient),
-            amount: Number(invoice.amount),
-            splToken: address(invoice.splToken),
-            reference: address(invoice.reference),
-          },
-          { commitment: "confirmed" },
-        ),
-        timeoutMs,
-        "Solana Pay transfer validation",
+      for (const candidate of signatures) {
+        try {
+          await withTimeout(
+            validateTransfer(
+              rpc,
+              candidate.signature,
+              {
+                recipient: address(invoice.recipient),
+                amount: Number(invoice.amount),
+                splToken: address(invoice.splToken),
+                reference: address(invoice.reference),
+              },
+              { commitment: "confirmed" },
+            ),
+            timeoutMs,
+            "Solana Pay transfer validation",
+          );
+
+          return {
+            signature: String(candidate.signature),
+            slot: String(candidate.slot),
+            confirmationStatus: candidate.confirmationStatus,
+            rpcUrl,
+          };
+        } catch (error) {
+          transferErrors.push(
+            `${String(candidate.signature)}: ${
+              error instanceof Error ? error.message : "unknown error"
+            }`,
+          );
+        }
+      }
+
+      throw new Error(
+        `No valid transfer found for reference: ${transferErrors.join("; ")}`,
       );
-
-      return {
-        signature: String(found.signature),
-        slot: String(found.slot),
-        confirmationStatus: found.confirmationStatus,
-        rpcUrl,
-      };
     } catch (error) {
       errors.push(
         `${rpcUrl}: ${error instanceof Error ? error.message : "unknown error"}`,

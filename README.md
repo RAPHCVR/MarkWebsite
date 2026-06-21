@@ -203,8 +203,8 @@ BTCPay BTC production checklist before enabling BTC on the public site:
 - A small invoice creation smoke test succeeds.
 
 BTCPay LTC is already public. Keep it enabled only while
-`scripts/audit-payment-readiness.ps1 -RunBtcpaySmoke` keeps returning a usable
-checkout link.
+`scripts/audit-payment-readiness.ps1 -RunBtcpaySmoke` keeps returning an
+`LTC-CHAIN` destination, payment link, exchange rate and amount due.
 
 No Stripe secret key is required in the frontend repo for Payment Links. If Checkout Sessions are added later, the secret key must live only in Kubernetes secrets or a server-side env store. Rotate any live secret key that has been pasted into chat, logs or local notes.
 
@@ -226,7 +226,7 @@ Payment readiness audit:
 .\scripts\audit-payment-readiness.ps1 -RunBtcpaySmoke
 ```
 
-`-RunStablecoinSmoke` creates a live unpaid USDC Solana Pay invoice, verifies the public QR/link page, confirms unpaid verification returns a pending state, then removes the smoke order from PostgreSQL. `-RunBtcpaySmoke` should only be used after the BTCPay store has a backed-up BTC/LTC wallet.
+`-RunStablecoinSmoke` creates a live unpaid USDC Solana Pay invoice, verifies the public QR/link page, confirms unpaid verification returns a pending state, then removes the smoke order from PostgreSQL. `-RunBtcpaySmoke` creates a live unpaid BTCPay invoice and verifies that BTCPay returns an `LTC-CHAIN` payment method with a destination, payment link, exchange rate and amount due.
 
 BTCPay storage policy:
 
