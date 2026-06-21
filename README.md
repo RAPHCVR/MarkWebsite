@@ -180,7 +180,7 @@ Stablecoin production checklist before enabling public buttons:
 - `SOLANA_PAY_RECIPIENT` is the real receiving wallet and is backed up outside Git/chat.
 - `SOLANA_PAY_RPC_URLS` has at least two read-only RPC endpoints, so a single public RPC timeout does not block verification.
 - `SOLANA_PAY_VERIFY_TIMEOUT_MS` is low enough to return a clean pending state before the public edge times out.
-- `STABLECOIN_EUR_TO_USD_RATE_SOURCE=frankfurter` is set for free ECB-derived EUR to USD pricing; `STABLECOIN_EUR_TO_USD_RATE` stays configured as the fallback.
+- `STABLECOIN_EUR_TO_USD_RATE_SOURCE=frankfurter` is set for free ECB-derived EUR to USD pricing; `STABLECOIN_EUR_TO_USD_RATE` is optional and only acts as a fallback.
 - `POST /api/checkout/stablecoin` creates a Solana Pay order in `creator_orders`.
 - The created order stores the exact USDC amount, exchange rate and rate source used for that invoice.
 - `/checkout/stablecoin` shows a QR/link containing a unique reference.
@@ -208,6 +208,16 @@ Remove-Item Env:\STRIPE_SECRET_KEY
 ```
 
 The script creates a Stripe webhook endpoint for `https://markshnaknaks.com/api/webhooks/stripe`, stores only the returned `STRIPE_WEBHOOK_SECRET` in the `marky-payments` Kubernetes Secret, disables stale enabled endpoints for the same URL when `-ForceNew` is used, and rolls the storefront deployment. It does not write the Stripe secret key to Git.
+
+Payment readiness audit:
+
+```powershell
+.\scripts\audit-payment-readiness.ps1
+.\scripts\audit-payment-readiness.ps1 -RunStablecoinSmoke
+.\scripts\audit-payment-readiness.ps1 -RunBtcpaySmoke
+```
+
+`-RunStablecoinSmoke` creates a live unpaid USDC Solana Pay invoice, verifies the public QR/link page, confirms unpaid verification returns a pending state, then removes the smoke order from PostgreSQL. `-RunBtcpaySmoke` should only be used after the BTCPay store has a backed-up BTC/LTC wallet.
 
 BTCPay storage policy:
 

@@ -11,9 +11,9 @@ export const SOLANA_MAINNET_USDC_MINT =
 
 export type SolanaPayInvoice = {
   amount: string;
-  exchangeRate: string;
+  exchangeRate?: string;
   exchangeRateAsOf?: string;
-  exchangeRateSource: string;
+  exchangeRateSource?: string;
   memo: string;
   recipient: string;
   reference: string;

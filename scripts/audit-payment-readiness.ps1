@@ -3,6 +3,7 @@ param(
   [string]$BtcpayUrl = "https://pay.markshnaknaks.com",
   [string]$StorefrontNamespace = "marky",
   [string]$BtcpayNamespace = "btcpay",
+  [switch]$RunStablecoinSmoke,
   [switch]$RunBtcpaySmoke
 )
 
@@ -52,6 +53,69 @@ function Get-NodeBlockchainInfo {
   }
 
   $raw | ConvertFrom-Json -ErrorAction Stop
+}
+
+function Invoke-PostFormNoRedirect {
+  param(
+    [string]$Uri,
+    [hashtable]$Form
+  )
+
+  $data = ($Form.GetEnumerator() | ForEach-Object {
+      "{0}={1}" -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value)
+    }) -join "&"
+
+  $headers = & curl.exe -sS -D - -o NUL `
+    -X POST `
+    -H "Content-Type: application/x-www-form-urlencoded" `
+    --data $data `
+    $Uri
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "curl failed while posting to $Uri"
+  }
+
+  $statusLine = @($headers | Where-Object { $_ -match '^HTTP/' } | Select-Object -Last 1)[0]
+  $locationLine = @($headers | Where-Object { $_ -match '^location:' } | Select-Object -First 1)[0]
+
+  [pscustomobject]@{
+    Status = if ($statusLine -match 'HTTP/\S+\s+(\d+)') { [int]$Matches[1] } else { 0 }
+    Location = if ($locationLine) { ($locationLine -replace '^location:\s*', '').Trim() } else { $null }
+    Headers = $headers
+  }
+}
+
+function Remove-SmokeOrder {
+  param([string]$OrderId)
+
+  if (-not $OrderId) {
+    return
+  }
+
+  $cleanupScript = @'
+const { Pool } = require("pg");
+
+const orderId = process.argv[process.argv.length - 1];
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+
+(async () => {
+  try {
+    const result = await pool.query("DELETE FROM creator_orders WHERE order_id = $1 RETURNING order_id", [orderId]);
+    console.log(JSON.stringify({ deleted: result.rowCount }));
+  } finally {
+    await pool.end();
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+'@
+
+  $cleanup = $cleanupScript | kubectl -n $StorefrontNamespace exec -i deploy/marky-storefront -- node - $OrderId 2>&1
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "Smoke order cleanup failed for ${OrderId}: $($cleanup -join ' ')"
+  }
 }
 
 try {
@@ -171,6 +235,64 @@ console.log(JSON.stringify({ status: res.status, invoiceId: body.id, checkoutLin
   }
 } else {
   Add-Check "WARN" "BTCPay LTC invoice smoke" "Skipped. Re-run with -RunBtcpaySmoke after wallet setup."
+}
+
+if ($RunStablecoinSmoke) {
+  $smokeOrderId = $null
+
+  try {
+    $checkout = Invoke-PostFormNoRedirect `
+      -Uri "$PublicUrl/api/checkout/stablecoin" `
+      -Form @{
+        product = "cosplay-starter-pack"
+        rail = "usdc-solana"
+      }
+
+    if ($checkout.Status -ne 303 -or -not $checkout.Location) {
+      throw "Stablecoin invoice creation returned status=$($checkout.Status), location=$($checkout.Location)"
+    }
+
+    $orderIdMatch = [regex]::Match($checkout.Location, 'orderId=([^&]+)')
+
+    if (-not $orderIdMatch.Success) {
+      throw "Checkout redirect did not include orderId: $($checkout.Location)"
+    }
+
+    $smokeOrderId = [uri]::UnescapeDataString($orderIdMatch.Groups[1].Value)
+    $checkoutPage = Invoke-WebRequest -Uri $checkout.Location -TimeoutSec 20
+    $checkoutHtml = $checkoutPage.Content
+
+    if (
+      $checkoutPage.StatusCode -ne 200 -or
+      $checkoutHtml -notmatch "Pay with USDC on Solana" -or
+      $checkoutHtml -notmatch "solana:" -or
+      $checkoutHtml -notmatch [regex]::Escape($smokeOrderId)
+    ) {
+      throw "Stablecoin checkout page did not render the expected QR/order content."
+    }
+
+    $verify = Invoke-PostFormNoRedirect `
+      -Uri "$PublicUrl/api/checkout/stablecoin/verify" `
+      -Form @{ orderId = $smokeOrderId }
+
+    if ($verify.Status -ne 303 -or $verify.Location -notmatch "pending=1") {
+      throw "Unpaid verification should redirect to pending=1, got status=$($verify.Status), location=$($verify.Location)"
+    }
+
+    Add-Check "PASS" "USDC Solana Pay smoke" "Created invoice, rendered QR/link and unpaid verification returned pending for order $smokeOrderId."
+  } catch {
+    Add-Check "FAIL" "USDC Solana Pay smoke" $_.Exception.Message
+  } finally {
+    if ($smokeOrderId) {
+      try {
+        Remove-SmokeOrder -OrderId $smokeOrderId
+      } catch {
+        Add-Check "WARN" "USDC Solana Pay smoke cleanup" $_.Exception.Message
+      }
+    }
+  }
+} else {
+  Add-Check "WARN" "USDC Solana Pay smoke" "Skipped. Re-run with -RunStablecoinSmoke to create and clean up a live unpaid invoice."
 }
 
 $checks | Format-Table -AutoSize -Wrap

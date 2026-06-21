@@ -101,10 +101,18 @@ const stablecoinProcessorUrl =
   process.env.STABLECOIN_CHECKOUT_URL ||
   "";
 
+const stablecoinRateSource =
+  process.env.STABLECOIN_EUR_TO_USD_RATE_SOURCE || "frankfurter";
+
+const stablecoinRateConfigured =
+  Boolean(process.env.STABLECOIN_EUR_TO_USD_RATE) ||
+  stablecoinRateSource === "frankfurter" ||
+  stablecoinRateSource === "auto";
+
 const stablecoinCheckoutConfigured = Boolean(
   stablecoinProvider === "solana-pay"
     ? process.env.SOLANA_PAY_RECIPIENT &&
-        process.env.STABLECOIN_EUR_TO_USD_RATE
+        stablecoinRateConfigured
     : stablecoinProvider !== "none" &&
         stablecoinProcessorUrl &&
         (process.env.SHKEEPER_API_KEY || process.env.STABLECOIN_API_KEY) &&
@@ -122,7 +130,7 @@ const solanaPayReady =
   process.env.SOLANA_PAY_ENABLED === "true" &&
   process.env.NEXT_PUBLIC_SOLANA_PAY_ENABLED === "true" &&
   Boolean(process.env.SOLANA_PAY_RECIPIENT) &&
-  Boolean(process.env.STABLECOIN_EUR_TO_USD_RATE) &&
+  stablecoinRateConfigured &&
   stablecoinRailReady;
 
 export const stablecoinRails = [
