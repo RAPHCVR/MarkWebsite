@@ -211,7 +211,7 @@ export const cryptoRails = [
     buyerCost: "Very low network fees and familiar wallet support.",
     operations: btcpayLtcEnabled
       ? "Litecoin checkout is enabled by feature flag."
-      : "Litecoin node is syncing; explorer and wallet wiring must pass before public checkout.",
+      : "Litecoin node is installed; explorer, wallet setup and invoice smoke test must pass before public checkout.",
   },
   {
     id: "usdc-solana",
@@ -327,7 +327,7 @@ export const paymentConfig = {
       ltcEnabledEnv: "BTCPAY_LTC_ENABLED",
       publicCheckoutHost: "pay.markshnaknaks.com",
       supportedMethods: [
-        btcpayLtcEnabled ? "LTC on-chain" : "LTC after node/explorer sync",
+        btcpayLtcEnabled ? "LTC on-chain" : "LTC after wallet setup and invoice smoke test",
         btcpayBtcWalletReady
           ? "BTC on-chain"
           : "BTC on-chain after node sync and wallet setup",

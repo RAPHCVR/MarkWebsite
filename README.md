@@ -115,7 +115,7 @@ Recommended launch path:
 - Move to Stripe Checkout Sessions later if the site needs a cart, automatic delivery, coupons tied to accounts, or richer order metadata than Payment Links provide.
 - Use Solana Pay as the first free/self-hosted stablecoin rail: the site creates a USDC payment request, stores the order in PostgreSQL, displays a QR/link, and verifies the reference on-chain before marking the order paid.
 - Use BTCPay Server as the best self-hosted BTC/LTC option if low card fees and custody control matter. The route `src/app/api/checkout/btcpay/route.ts` is ready for BTCPay Greenfield invoice creation once env vars are set, the node is synced, and the store has an on-chain wallet/payment method configured.
-- Use Litecoin as the first cheap UTXO crypto rail once the LTC node, NBXplorer indexing and wallet smoke test are complete.
+- Use Litecoin as the first cheap UTXO crypto rail once the LTC node, NBXplorer indexing, BTCPay wallet setup and invoice smoke test are complete.
 - Keep SHKeeper/Bitcart as later processors if you need generated wallet addresses, callbacks or multi-chain rails such as Polygon/Tron. Do not deploy them just to accept USDC on Solana.
 - Keep TRON/USDT and TON as later rails. TRON is popular for stablecoins but resource/energy fees can be surprisingly high without a managed energy strategy; TON only makes sense if Telegram becomes the primary paid flow.
 - Use Telegram for channel updates, VIP invites, support, custom requests and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
@@ -168,7 +168,7 @@ NEXT_PUBLIC_CRYPTO_CHECKOUT_ENABLED=false
 Crypto rail policy:
 
 - Launch default: Stripe for cards and Solana Pay for USDC if crypto is desired immediately.
-- Next UTXO rail: LTC after node/explorer sync and wallet setup.
+- Next UTXO rail: LTC after node/explorer sync, wallet setup and a payable invoice smoke test.
 - Provider split: BTCPay for BTC/LTC-style rails; Solana Pay for USDC Solana; SHKeeper/Bitcart only if multi-chain stablecoins become necessary.
 - No manual wallets on the public site unless there is a reconciliation backend; otherwise order matching and delivery are too fragile.
 - Runtime flags are conservative: `BTCPAY_BTC_WALLET_READY=true` means node sync, wallet setup and invoice smoke test have already passed.
@@ -195,6 +195,16 @@ BTCPay production checklist before enabling crypto on the public site:
 - A small invoice creation smoke test succeeds.
 
 No Stripe secret key is required in the frontend repo for Payment Links. If Checkout Sessions are added later, the secret key must live only in Kubernetes secrets or a server-side env store. Rotate any live secret key that has been pasted into chat, logs or local notes.
+
+Stripe webhook setup:
+
+```powershell
+$env:STRIPE_SECRET_KEY = "<your Stripe live secret key>"
+.\scripts\setup-stripe-webhook.ps1
+Remove-Item Env:\STRIPE_SECRET_KEY
+```
+
+The script creates a Stripe webhook endpoint for `https://markshnaknaks.com/api/webhooks/stripe`, stores only the returned `STRIPE_WEBHOOK_SECRET` in the `marky-payments` Kubernetes Secret, and rolls the storefront deployment. It does not write the Stripe secret key to Git.
 
 BTCPay storage policy:
 
