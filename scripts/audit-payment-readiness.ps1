@@ -259,13 +259,14 @@ if ($RunStablecoinSmoke) {
     }
 
     $smokeOrderId = [uri]::UnescapeDataString($orderIdMatch.Groups[1].Value)
-    $checkoutPage = Invoke-WebRequest -Uri $checkout.Location -TimeoutSec 20
+    $checkoutPage = Invoke-WebRequest -UseBasicParsing -Uri $checkout.Location -TimeoutSec 20
     $checkoutHtml = $checkoutPage.Content
 
     if (
       $checkoutPage.StatusCode -ne 200 -or
       $checkoutHtml -notmatch "Pay with USDC on Solana" -or
       $checkoutHtml -notmatch "solana:" -or
+      $checkoutHtml -notmatch "Expires" -or
       $checkoutHtml -notmatch [regex]::Escape($smokeOrderId)
     ) {
       throw "Stablecoin checkout page did not render the expected QR/order content."

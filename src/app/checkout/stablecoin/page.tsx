@@ -5,7 +5,10 @@ import QRCode from "qrcode";
 
 import { siteConfig } from "@/data/site";
 import { getOrderById, isOrdersDatabaseConfigured } from "@/lib/server/orders";
-import type { SolanaPayInvoice } from "@/lib/server/solana-pay";
+import {
+  isSolanaPayInvoiceExpired,
+  type SolanaPayInvoice,
+} from "@/lib/server/solana-pay";
 
 function getInvoiceMetadata(metadata: Record<string, unknown>) {
   const invoice = metadata.shkeeperInvoice;
@@ -47,14 +50,23 @@ function getSolanaPayInvoice(metadata: Record<string, unknown>) {
 export default async function StablecoinCheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orderId?: string; pending?: string; verified?: string }>;
+  searchParams: Promise<{
+    expired?: string;
+    orderId?: string;
+    pending?: string;
+    verified?: string;
+  }>;
 }) {
-  const { orderId, pending, verified } = await searchParams;
+  const { expired, orderId, pending, verified } = await searchParams;
   const order =
     orderId && isOrdersDatabaseConfigured() ? await getOrderById(orderId) : null;
   const invoice = order ? getInvoiceMetadata(order.metadata) : {};
   const solanaPayInvoice = order ? getSolanaPayInvoice(order.metadata) : null;
-  const qrCode = solanaPayInvoice
+  const isExpired =
+    Boolean(solanaPayInvoice) &&
+    order?.status !== "PAID" &&
+    isSolanaPayInvoiceExpired(solanaPayInvoice as SolanaPayInvoice);
+  const qrCode = solanaPayInvoice && !isExpired
     ? await QRCode.toDataURL(solanaPayInvoice.solanaUrl, {
         margin: 1,
         scale: 8,
@@ -108,8 +120,13 @@ export default async function StablecoinCheckoutPage({
               Payment not found yet. Wait a few seconds after signing, then verify again.
             </div>
           ) : null}
+          {expired || isExpired ? (
+            <div className="mt-6 rounded-3xl border border-rose-100 bg-rose-50 p-4 text-center text-sm font-black text-rose-700">
+              This checkout link has expired. Create a fresh link from the pack card before paying.
+            </div>
+          ) : null}
 
-          {order && solanaPayInvoice ? (
+          {order && solanaPayInvoice && !isExpired ? (
             <div className="mt-6 space-y-4">
               <div className="rounded-3xl border border-pink-100 bg-pink-50/70 p-4">
                 <p className="text-sm font-black text-pink-700">{railLabel}</p>
@@ -185,6 +202,21 @@ export default async function StablecoinCheckoutPage({
                 )}
               </div>
 
+              <div className="rounded-3xl border border-pink-100 bg-white p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
+                  Expires
+                </p>
+                <p className="mt-1 text-sm font-black text-rose-950">
+                  {solanaPayInvoice.expiresAt
+                    ? new Intl.DateTimeFormat("en", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "Europe/Paris",
+                      }).format(new Date(solanaPayInvoice.expiresAt))
+                    : "Use this invoice only for the current session"}
+                </p>
+              </div>
+
               <p className="break-all rounded-2xl border border-pink-100 bg-white px-4 py-3 text-xs font-bold text-rose-950/70">
                 Reference: {solanaPayInvoice.reference}
               </p>
@@ -201,6 +233,15 @@ export default async function StablecoinCheckoutPage({
                   I paid, verify
                 </button>
               </form>
+            </div>
+          ) : order && solanaPayInvoice && isExpired ? (
+            <div className="mt-6 rounded-3xl border border-pink-100 bg-pink-50/70 p-5 text-center">
+              <p className="text-sm font-black text-rose-950">
+                Checkout link expired.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-rose-950/60">
+                The USDC amount is tied to a live exchange rate. Go back to the pack and create a new link.
+              </p>
             </div>
           ) : order && invoice.wallet ? (
             <div className="mt-6 space-y-4">

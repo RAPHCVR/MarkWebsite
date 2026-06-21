@@ -133,6 +133,15 @@ const solanaPayReady =
   stablecoinRateConfigured &&
   stablecoinRailReady;
 
+const configuredSolanaPayTtlMinutes = Number(
+  process.env.SOLANA_PAY_INVOICE_TTL_MINUTES || "30",
+);
+const solanaPayInvoiceTtlMinutes = Number.isFinite(
+  configuredSolanaPayTtlMinutes,
+)
+  ? Math.min(24 * 60, Math.max(5, Math.floor(configuredSolanaPayTtlMinutes)))
+  : 30;
+
 export const stablecoinRails = [
   {
     id: "usdc-solana",
@@ -312,6 +321,7 @@ export const paymentConfig = {
       solanaPay: {
         enabled: solanaPayReady,
         recipientConfigured: Boolean(process.env.SOLANA_PAY_RECIPIENT),
+        invoiceTtlMinutes: solanaPayInvoiceTtlMinutes,
         rpcUrlEnv: "SOLANA_PAY_RPC_URL",
         rpcUrlsEnv: "SOLANA_PAY_RPC_URLS",
         recipientEnv: "SOLANA_PAY_RECIPIENT",

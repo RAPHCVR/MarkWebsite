@@ -11,6 +11,8 @@ export const SOLANA_MAINNET_USDC_MINT =
 
 export type SolanaPayInvoice = {
   amount: string;
+  createdAt: string;
+  expiresAt: string;
   exchangeRate?: string;
   exchangeRateAsOf?: string;
   exchangeRateSource?: string;
@@ -74,6 +76,16 @@ function getVerifyTimeoutMs() {
   }
 
   return timeoutMs;
+}
+
+function getInvoiceTtlMinutes() {
+  const ttlMinutes = Number(process.env.SOLANA_PAY_INVOICE_TTL_MINUTES || "30");
+
+  if (!Number.isFinite(ttlMinutes)) {
+    return 30;
+  }
+
+  return Math.min(24 * 60, Math.max(5, Math.floor(ttlMinutes)));
 }
 
 function generateReference() {
@@ -199,6 +211,10 @@ export async function createSolanaPayInvoice({
   const memo = orderId;
   const rpcUrls = getSolanaPayRpcUrls();
   const rpcUrl = rpcUrls[0];
+  const createdAt = new Date();
+  const expiresAt = new Date(
+    createdAt.getTime() + getInvoiceTtlMinutes() * 60_000,
+  );
   const solanaUrl = encodeURL({
     recipient: address(recipient),
     amount: Number(amount),
@@ -211,6 +227,8 @@ export async function createSolanaPayInvoice({
 
   return {
     amount,
+    createdAt: createdAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
     exchangeRate: rate.rate.toString(),
     exchangeRateAsOf: rate.asOf,
     exchangeRateSource: rate.source,
@@ -222,6 +240,16 @@ export async function createSolanaPayInvoice({
     solanaUrl,
     splToken,
   };
+}
+
+export function isSolanaPayInvoiceExpired(invoice: SolanaPayInvoice) {
+  const expiresAt = Date.parse(invoice.expiresAt);
+
+  if (!Number.isFinite(expiresAt)) {
+    return false;
+  }
+
+  return Date.now() > expiresAt;
 }
 
 export async function verifySolanaPayInvoice(invoice: SolanaPayInvoice) {

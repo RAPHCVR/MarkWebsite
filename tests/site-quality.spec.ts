@@ -197,6 +197,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
       defaultRail?: string;
       rails?: Array<{ id?: string; enabled?: boolean }>;
       solanaPay?: {
+        invoiceTtlMinutes?: number;
         recipientConfigured?: boolean;
         rpcUrlEnv?: string;
         rpcUrlsEnv?: string;
@@ -222,6 +223,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.stablecoin?.solanaPay?.rpcUrlEnv).toBe("SOLANA_PAY_RPC_URL");
   expect(status.stablecoin?.solanaPay?.rpcUrlsEnv).toBe("SOLANA_PAY_RPC_URLS");
   expect(status.stablecoin?.solanaPay?.rpcFallbackCount).toBeGreaterThanOrEqual(1);
+  expect(status.stablecoin?.solanaPay?.invoiceTtlMinutes).toBeGreaterThanOrEqual(5);
   expect(status.btcpay?.supportedMethods?.length).toBeGreaterThanOrEqual(1);
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);

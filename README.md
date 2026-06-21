@@ -158,6 +158,7 @@ SOLANA_PAY_ENABLED=false
 NEXT_PUBLIC_SOLANA_PAY_ENABLED=false
 SOLANA_PAY_RPC_URL=https://api.mainnet-beta.solana.com
 SOLANA_PAY_RPC_URLS=https://api.mainnet-beta.solana.com,https://solana-rpc.publicnode.com
+SOLANA_PAY_INVOICE_TTL_MINUTES=30
 SOLANA_PAY_VERIFY_TIMEOUT_MS=8000
 SOLANA_PAY_RECIPIENT=
 SOLANA_PAY_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
@@ -179,11 +180,12 @@ Stablecoin production checklist before enabling public buttons:
 
 - `SOLANA_PAY_RECIPIENT` is the real receiving wallet and is backed up outside Git/chat.
 - `SOLANA_PAY_RPC_URLS` has at least two read-only RPC endpoints, so a single public RPC timeout does not block verification.
+- `SOLANA_PAY_INVOICE_TTL_MINUTES=30` is set so EUR to USDC quotes do not stay payable indefinitely.
 - `SOLANA_PAY_VERIFY_TIMEOUT_MS` is low enough to return a clean pending state before the public edge times out.
 - `STABLECOIN_EUR_TO_USD_RATE_SOURCE=frankfurter` is set for free ECB-derived EUR to USD pricing; `STABLECOIN_EUR_TO_USD_RATE` is optional and only acts as a fallback.
 - `POST /api/checkout/stablecoin` creates a Solana Pay order in `creator_orders`.
 - The created order stores the exact USDC amount, exchange rate and rate source used for that invoice.
-- `/checkout/stablecoin` shows a QR/link containing a unique reference.
+- `/checkout/stablecoin` shows a QR/link containing a unique reference and hides the QR once the invoice TTL has elapsed.
 - `POST /api/checkout/stablecoin/verify` verifies the transfer and marks the order `PAID`.
 - `creator_rate_limits` is present so checkout creation and verification cannot be spammed freely.
 - Only then set `STABLECOIN_PROVIDER=solana-pay`, `SOLANA_PAY_ENABLED=true`, `NEXT_PUBLIC_SOLANA_PAY_ENABLED=true`, `STABLECOIN_RAIL_READY=true`, `NEXT_PUBLIC_STABLECOIN_RAIL_READY=true`, and `STABLECOIN_USDC_SOLANA_ENABLED=true`.

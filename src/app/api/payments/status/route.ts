@@ -50,6 +50,8 @@ export function GET() {
         enabled: paymentConfig.crypto.stablecoin.solanaPay.enabled,
         recipientConfigured:
           paymentConfig.crypto.stablecoin.solanaPay.recipientConfigured,
+        invoiceTtlMinutes:
+          paymentConfig.crypto.stablecoin.solanaPay.invoiceTtlMinutes,
         rpcUrlEnv: paymentConfig.crypto.stablecoin.solanaPay.rpcUrlEnv,
         rpcUrlsEnv: paymentConfig.crypto.stablecoin.solanaPay.rpcUrlsEnv,
         rpcFallbackCount: solanaPayRpcUrls.length,

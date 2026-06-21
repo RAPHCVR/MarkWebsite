@@ -61,7 +61,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/raphcvr/markwebsite@sha256:0ac21b4625fd6118afa21ee7ef7ab224e5488a52120a6910ad1b92d197ed9573
+          image: ghcr.io/raphcvr/markwebsite@sha256:fb3a3916da6dc3513ffe85acbbbaf0b66eeac492554647932b658516ee453d0e
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -71,6 +71,8 @@ spec:
               value: production
             - name: SOLANA_PAY_VERIFY_TIMEOUT_MS
               value: "8000"
+            - name: SOLANA_PAY_INVOICE_TTL_MINUTES
+              value: "30"
             - name: STABLECOIN_EUR_TO_USD_RATE_SOURCE
               value: frankfurter
             - name: STABLECOIN_RATE_FETCH_TIMEOUT_MS

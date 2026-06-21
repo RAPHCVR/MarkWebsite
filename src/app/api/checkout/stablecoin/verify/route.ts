@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOrderById, recordSolanaPayVerification } from "@/lib/server/orders";
 import { enforceRateLimit } from "@/lib/server/request-guard";
 import {
+  isSolanaPayInvoiceExpired,
   type SolanaPayInvoice,
   verifySolanaPayInvoice,
 } from "@/lib/server/solana-pay";
@@ -94,6 +95,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const expired = isSolanaPayInvoiceExpired(invoice);
+
   try {
     const result = await verifySolanaPayInvoice(invoice);
 
@@ -113,7 +116,9 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.redirect(
       getPublicUrl(
-        `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}&pending=1`,
+        `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}&${
+          expired ? "expired" : "pending"
+        }=1`,
       ),
       303,
     );
