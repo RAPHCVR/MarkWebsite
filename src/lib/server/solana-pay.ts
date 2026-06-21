@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 
-import { createMerchantClient, encodeURL } from "@solana/pay";
-import { address } from "@solana/kit";
+import { encodeURL, validateTransfer } from "@solana/pay";
+import { address, createSolanaRpc } from "@solana/kit";
 import bs58 from "bs58";
 
 import type { Product } from "@/data/products";
@@ -45,8 +45,34 @@ function getUsdcMint() {
   );
 }
 
+function getVerifyTimeoutMs() {
+  const timeoutMs = Number(process.env.SOLANA_PAY_VERIFY_TIMEOUT_MS || "8000");
+
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
+    return 8000;
+  }
+
+  return timeoutMs;
+}
+
 function generateReference() {
   return bs58.encode(randomBytes(32));
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
 }
 
 export function getSolanaPayAmount(product: Product) {
@@ -98,21 +124,36 @@ export function createSolanaPayInvoice({
 }
 
 export async function verifySolanaPayInvoice(invoice: SolanaPayInvoice) {
-  const merchant = createMerchantClient({ rpcUrl: invoice.rpcUrl });
-  const found = await merchant.pay.findReference(address(invoice.reference), {
-    commitment: "confirmed",
-    limit: 20,
-  });
+  const rpc = createSolanaRpc(invoice.rpcUrl);
+  const timeoutMs = getVerifyTimeoutMs();
+  const abortSignal = AbortSignal.timeout(timeoutMs);
+  const signatures = await rpc
+    .getSignaturesForAddress(address(invoice.reference), {
+      commitment: "confirmed",
+      limit: 20,
+    })
+    .send({ abortSignal });
 
-  await merchant.pay.validateTransfer(
-    found.signature,
-    {
-      recipient: address(invoice.recipient),
-      amount: Number(invoice.amount),
-      splToken: address(invoice.splToken),
-      reference: address(invoice.reference),
-    },
-    { commitment: "confirmed" },
+  if (!signatures.length) {
+    throw new Error("Solana Pay reference not found");
+  }
+
+  const found = signatures[signatures.length - 1];
+
+  await withTimeout(
+    validateTransfer(
+      rpc,
+      found.signature,
+      {
+        recipient: address(invoice.recipient),
+        amount: Number(invoice.amount),
+        splToken: address(invoice.splToken),
+        reference: address(invoice.reference),
+      },
+      { commitment: "confirmed" },
+    ),
+    timeoutMs,
+    "Solana Pay transfer validation",
   );
 
   return {

@@ -143,6 +143,7 @@ SHKEEPER_USDT_TRON_CRYPTO_NAME=USDT
 SOLANA_PAY_ENABLED=false
 NEXT_PUBLIC_SOLANA_PAY_ENABLED=false
 SOLANA_PAY_RPC_URL=https://api.mainnet-beta.solana.com
+SOLANA_PAY_VERIFY_TIMEOUT_MS=8000
 SOLANA_PAY_RECIPIENT=
 SOLANA_PAY_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 SALES_ENABLED=true
@@ -162,6 +163,7 @@ Crypto rail policy:
 Stablecoin production checklist before enabling public buttons:
 
 - `SOLANA_PAY_RECIPIENT` is the real receiving wallet and is backed up outside Git/chat.
+- `SOLANA_PAY_VERIFY_TIMEOUT_MS` is low enough to return a clean pending state before the public edge times out.
 - `STABLECOIN_EUR_TO_USD_RATE` is set, reviewed before public sales, or products are priced directly for stablecoin.
 - `POST /api/checkout/stablecoin` creates a Solana Pay order in `creator_orders`.
 - `/checkout/stablecoin` shows a QR/link containing a unique reference.

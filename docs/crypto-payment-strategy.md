@@ -8,8 +8,8 @@ Last verified: 2026-06-21.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core runs on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/bitcoin`, `checkblocks=1`, `dbcache=1024`, `par=4`, DNS peer discovery, no forced `connect`/manual `addnode` list, standard internal P2P port `8333`, a `4Gi` memory request, and an `8Gi` memory limit to avoid OOM during IBD.
-- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 showed the node advancing around block `794421` with `progress=0.630559` and about `35.5 GiB` on disk. During IBD, BTCPay returns `{"synchronized":false}` and BTC checkout must remain disabled.
-- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live checks on 2026-06-21 showed the node advancing around block `2856362` with `progress=0.781069` and about `19.6 GiB` on disk. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
+- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 04:21 Paris time showed the node advancing around block `804730` with `progress=0.654303` and about `3.2 GiB` on disk after pruning. During IBD, BTCPay returns `{"synchronized":false}` and BTC checkout must remain disabled.
+- Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live checks on 2026-06-21 04:21 Paris time showed the node advancing around block `2875711` with `progress=0.796749` and about `20.2 GiB` on disk. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
 - On 2026-06-20, blockchain data was moved off Longhorn/`valence-worker-02` after repeated kubelet and virtual volume I/O timeouts. BTC/LTC chainstate is intentionally treated as disposable cache and can be rebuilt from the networks.
 - A live check on 2026-06-20 showed `valence-worker-02` recovered after Longhorn iSCSI volume errors (`EXT4` remounted read-only, then the volume reattached). Active Longhorn volumes were healthy after the move, and the former 90 GiB blockchain Longhorn volume was no longer active.
 - BTCPay Server loads `Supported chains: LTC,BTC`. NBXplorer now runs with cookie authentication, and BTCPay mounts the NBXplorer PVC read-only at `/root/.nbxplorer` so `BTC` and `LTC` both use `/root/.nbxplorer/Main/.cookie`. The previous `--noauth` plus `explorercookiefile=0` setup was removed because BTCPay 2.2.1 still tried cookie auth and produced NBXplorer 500s. Live logs after the fix show BTC and LTC handshakes, RPC connection success, and `CoreSynching`.
@@ -17,6 +17,7 @@ Last verified: 2026-06-21.
 - The storefront production secret contains Stripe Payment Links, Solana Pay settings and BTCPay env vars. Public selling is controlled by `SALES_ENABLED`, not by secrets simply existing.
 - The storefront has stablecoin checkout live for USDC on Solana: `POST /api/checkout/stablecoin`, the internal page `/checkout/stablecoin`, `POST /api/checkout/stablecoin/verify`, optional `POST /api/webhooks/shkeeper`, and shared PostgreSQL reconciliation through `creator_orders`.
 - A production smoke test on 2026-06-21 created a Solana Pay invoice for `cosplay-starter-pack`, rendered the public QR/link page, persisted the order in central PostgreSQL as `UNPAID`, and correctly returned `pending=1` when verification was attempted without an on-chain payment.
+- A follow-up production smoke test on 2026-06-21 04:18 Paris time verified the stablecoin pending path after the RPC timeout patch: public order creation returned `303`, the checkout page rendered a QR, and verification returned `303` to `pending=1` in `0.33s` instead of timing out at the public edge.
 - BTC/LTC checkout must stay disabled until BTCPay returns `synchronized:true` and the relevant store wallet/payment method exists.
 
 ## Kubernetes Storage Policy
@@ -76,7 +77,7 @@ Telegram should stay the VIP/support/delivery layer, not the main checkout syste
 
 This is a snapshot, not a hardcoded rule.
 
-- BTC: mempool.space returned `1 sat/vB` hour/economy and `3 sat/vB` fastest. With a typical 140 vB receive transaction, that is roughly `140-420 sats`, about `0.08-0.23 EUR` at `54,477 EUR/BTC`.
+- BTC: mempool.space returned `1 sat/vB` hour/economy and `4 sat/vB` fastest. With a typical 140 vB receive transaction, that is roughly `140-560 sats`; actual EUR cost depends on BTC/EUR at the payment moment.
 - LTC: litecoinspace returned `1 litoshi/vB`. In practice the network fee is normally far below one euro cent, but running LTC still adds node/explorer operations.
 - Solana: Solana base fee is `5,000 lamports` per signature. At `59.49 EUR/SOL`, base fee is roughly `0.0003 EUR`; token account creation/rent can add more in edge cases.
 - TRON/TRC20: TRON uses Bandwidth and Energy. Public fee estimates vary, but TRC20 stablecoin transfers are often several TRX without Energy. With `0.28062 EUR/TRX`, `6.5-13 TRX` is roughly `1.82-3.65 EUR`, and fresh-wallet transfers can be higher.
@@ -128,7 +129,7 @@ Current decision:
 
 1. Use Solana Pay first for USDC because it is free, non-custodial and already fits the site-owned order table: each order gets a unique reference, a QR/link and server-side on-chain verification.
 2. Keep the stablecoin route separate from `/api/checkout/btcpay`: `POST /api/checkout/stablecoin`.
-3. Use `POST /api/checkout/stablecoin/verify` for Solana Pay reconciliation into the same `creator_orders` table.
+3. Use `POST /api/checkout/stablecoin/verify` for Solana Pay reconciliation into the same `creator_orders` table. Verification must use a short RPC timeout (`SOLANA_PAY_VERIFY_TIMEOUT_MS`, default `8000`) so unpaid orders return a clean pending state before Cloudflare or ingress timeouts.
 4. Keep `POST /api/webhooks/shkeeper` available for a later generated-address processor.
 5. Keep `STABLECOIN_RAIL_READY=true` only while invoice creation, QR rendering, verification and PostgreSQL status updates continue to work against production runtime env.
 
