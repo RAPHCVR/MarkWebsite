@@ -22,6 +22,8 @@ The site is a single long landing page with:
 - Simple Icons brand glyphs for official social and crypto logos
 - Playwright + axe for browser and accessibility QA
 - Docker + Kubernetes manifests for local-first deployment
+- PostgreSQL central for orders, entitlements, contacts and rate limits
+- Cloudflare R2 private bucket for paid pack files
 
 ## Commands
 
@@ -76,6 +78,13 @@ also requires explicit readiness flags and constrains Greenfield invoices with
 `checkout.paymentMethods`, so the UI exposes only rails that passed live smoke
 tests.
 
+Private delivery is active in production through Cloudflare R2. The bucket
+`marky-private-packs` is private, public `r2.dev` access is disabled, and
+downloads are served only after token validation through short-lived signed
+URLs. Telegram bot/webhook support is configured for `@markshnaknaksbot`; admin
+delivery notifications remain disabled until `TELEGRAM_ADMIN_CHAT_ID` points to
+a trusted private chat or channel.
+
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
 requests are stored in `creator_contact_requests`; otherwise the form redirects
 cleanly without storing data. The direct email CTA remains available for urgent briefs.
@@ -123,6 +132,18 @@ Recommended launch path:
 - Use Telegram for channel updates, VIP invites, support, custom requests and delivery follow-up. Telegram Stars can stay inside Telegram flows, but it should not replace the website checkout unless a bot or mini-app is built intentionally.
 - Keep Stripe products clearly non-explicit: cosplay sets, outfit previews, soft creator photos, and clean paid packs. If the offer changes, review payment-provider rules before launch.
 
+## Private Delivery
+
+Private pack delivery is site-owned and backed by Cloudflare R2:
+
+- Private media objects live in the private R2 bucket `marky-private-packs`.
+- R2 public `r2.dev` access stays disabled; do not attach a public custom domain to private pack storage.
+- Paid orders grant an entitlement in PostgreSQL, generate a bearer delivery token, and expose a page at `/orders/<token>`.
+- File downloads use `/api/delivery/assets/<assetId>?token=...`, which validates the token and redirects to a short-lived signed R2 URL.
+- Telegram is support and optional admin notification, not the source of truth for delivery access.
+- Use `scripts/upsert-r2-delivery-asset.ps1` to upload a real pack file and register it in `creator_assets` without manual SQL.
+- `scripts/audit-payment-readiness.ps1 -RunDeliverySmoke` creates and cleans up a smoke entitlement against the real bucket and confirms signed URL delivery.
+
 Required BTCPay env vars when enabling crypto checkout:
 
 ```text
@@ -164,6 +185,17 @@ SOLANA_PAY_INVOICE_TTL_MINUTES=30
 SOLANA_PAY_VERIFY_TIMEOUT_MS=8000
 SOLANA_PAY_RECIPIENT=
 SOLANA_PAY_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+R2_ACCOUNT_ID=
+R2_ENDPOINT=
+R2_BUCKET_PRIVATE=marky-private-packs
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_SIGNED_URL_TTL_SECONDS=300
+DELIVERY_TOKEN_TTL_DAYS=7
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=markshnaknaksbot
+TELEGRAM_WEBHOOK_SECRET=
+TELEGRAM_ADMIN_CHAT_ID=
 SALES_ENABLED=true
 NEXT_PUBLIC_SALES_ENABLED=true
 CRYPTO_CHECKOUT_ENABLED=false

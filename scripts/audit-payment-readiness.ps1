@@ -4,7 +4,8 @@ param(
   [string]$StorefrontNamespace = "marky",
   [string]$BtcpayNamespace = "btcpay",
   [switch]$RunStablecoinSmoke,
-  [switch]$RunBtcpaySmoke
+  [switch]$RunBtcpaySmoke,
+  [switch]$RunDeliverySmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -85,6 +86,25 @@ function Invoke-PostFormNoRedirect {
   }
 }
 
+function Invoke-GetNoRedirect {
+  param([string]$Uri)
+
+  $headers = & curl.exe -sS -D - -o NUL $Uri
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "curl failed while requesting $Uri"
+  }
+
+  $statusLine = @($headers | Where-Object { $_ -match '^HTTP/' } | Select-Object -Last 1)[0]
+  $locationLine = @($headers | Where-Object { $_ -match '^location:' } | Select-Object -First 1)[0]
+
+  [pscustomobject]@{
+    Status = if ($statusLine -match 'HTTP/\S+\s+(\d+)') { [int]$Matches[1] } else { 0 }
+    Location = if ($locationLine) { ($locationLine -replace '^location:\s*', '').Trim() } else { $null }
+    Headers = $headers
+  }
+}
+
 function Remove-SmokeOrder {
   param([string]$OrderId)
 
@@ -115,6 +135,50 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 
   if ($LASTEXITCODE -ne 0) {
     throw "Smoke order cleanup failed for ${OrderId}: $($cleanup -join ' ')"
+  }
+}
+
+function Remove-SmokeDelivery {
+  param(
+    [string]$OrderId,
+    [string]$AssetId
+  )
+
+  if (-not $OrderId -and -not $AssetId) {
+    return
+  }
+
+  $cleanupScript = @'
+const { Pool } = require("pg");
+
+const orderId = process.argv[process.argv.length - 2];
+const assetId = process.argv[process.argv.length - 1];
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+
+(async () => {
+  try {
+    if (assetId && assetId !== "-") {
+      await pool.query("DELETE FROM creator_assets WHERE asset_id = $1", [assetId]);
+    }
+    if (orderId && orderId !== "-") {
+      await pool.query("DELETE FROM creator_orders WHERE order_id = $1", [orderId]);
+    }
+    console.log(JSON.stringify({ ok: true }));
+  } finally {
+    await pool.end();
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+'@
+
+  $safeOrderId = if ($OrderId) { $OrderId } else { "-" }
+  $safeAssetId = if ($AssetId) { $AssetId } else { "-" }
+  $cleanup = $cleanupScript | kubectl -n $StorefrontNamespace exec -i deploy/marky-storefront -- node - $safeOrderId $safeAssetId 2>&1
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "Smoke delivery cleanup failed: $($cleanup -join ' ')"
   }
 }
 
@@ -150,6 +214,18 @@ try {
     Add-Check "PASS" "BTCPay public checkout flag" "BTCPay checkout is enabled."
   } else {
     Add-Check "WARN" "BTCPay public checkout flag" "Disabled: $($status.btcpay.supportedMethods -join '; ')."
+  }
+
+  if ($status.delivery.configured) {
+    Add-Check "PASS" "R2 private delivery config" "Private bucket configured; signed URL TTL=$($status.delivery.signedUrlTtlSeconds)s, token TTL=$($status.delivery.tokenTtlDays)d."
+  } else {
+    Add-Check "FAIL" "R2 private delivery config" "R2 delivery env vars are missing from runtime."
+  }
+
+  if ($status.telegram.botConfigured) {
+    Add-Check "PASS" "Telegram bot config" "Bot token is configured; webhookConfigured=$($status.telegram.webhookConfigured), adminNotificationsConfigured=$($status.telegram.adminNotificationsConfigured)."
+  } else {
+    Add-Check "WARN" "Telegram bot config" "Bot token is not configured; Telegram support links still work, but bot commands/notifications are disabled."
   }
 } catch {
   Add-Check "FAIL" "Storefront payment status" $_.Exception.Message
@@ -327,6 +403,150 @@ if ($RunStablecoinSmoke) {
   }
 } else {
   Add-Check "WARN" "USDC Solana Pay smoke" "Skipped. Re-run with -RunStablecoinSmoke to create and clean up a live unpaid invoice."
+}
+
+if ($RunDeliverySmoke) {
+  $smokeOrderId = $null
+  $smokeAssetId = $null
+
+  try {
+    $createScript = @'
+const { createHash, randomBytes, randomUUID } = require("node:crypto");
+const { Pool } = require("pg");
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+
+function hashToken(token) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+(async () => {
+  const token = randomBytes(32).toString("base64url");
+  const orderId = `r2-smoke-${randomUUID()}`;
+  const productSlug = "r2-delivery-smoke";
+  const productTitle = "R2 Delivery Smoke";
+  const entitlementId = `entitlement-${orderId}-${productSlug}`;
+  const tokenId = `delivery-${randomUUID()}`;
+  const assetId = `asset-${randomUUID()}`;
+  const bucket = process.env.R2_BUCKET_PRIVATE;
+
+  if (!bucket) {
+    throw new Error("R2_BUCKET_PRIVATE is missing");
+  }
+
+  await pool.query("BEGIN");
+  await pool.query(
+    `INSERT INTO creator_orders (
+      order_id, provider, provider_invoice_id, product_slug, product_title,
+      amount_cents, currency, status, checkout_link, last_event_type, metadata
+    )
+    VALUES ($1, 'smoke', $2, $3, $4, 100, 'EUR', 'PAID', $5, 'delivery.smoke', $6::jsonb)`,
+    [
+      orderId,
+      `r2-smoke-${randomUUID()}`,
+      productSlug,
+      productTitle,
+      "/",
+      JSON.stringify({ source: "audit-delivery-smoke" }),
+    ],
+  );
+  await pool.query(
+    `INSERT INTO creator_entitlements (
+      entitlement_id, order_id, product_slug, product_title, status, metadata
+    )
+    VALUES ($1, $2, $3, $4, 'active', $5::jsonb)`,
+    [
+      entitlementId,
+      orderId,
+      productSlug,
+      productTitle,
+      JSON.stringify({ source: "audit-delivery-smoke" }),
+    ],
+  );
+  await pool.query(
+    `INSERT INTO creator_assets (
+      asset_id, product_slug, title, description, bucket, object_key,
+      download_name, content_type, size_bytes, sort_order, status
+    )
+    VALUES ($1, $2, 'Smoke download', 'Private R2 delivery probe', $3, $4, $5, 'text/plain; charset=utf-8', 70, 0, 'active')`,
+    [
+      assetId,
+      productSlug,
+      bucket,
+      "system/smoke-delivery.txt",
+      "marky-r2-smoke.txt",
+    ],
+  );
+  await pool.query(
+    `INSERT INTO creator_delivery_tokens (
+      token_id, token_hash, entitlement_id, order_id, expires_at,
+      max_redemptions, metadata
+    )
+    VALUES ($1, $2, $3, $4, now() + interval '1 day', 3, $5::jsonb)`,
+    [
+      tokenId,
+      hashToken(token),
+      entitlementId,
+      orderId,
+      JSON.stringify({ source: "audit-delivery-smoke" }),
+    ],
+  );
+  await pool.query("COMMIT");
+
+  console.log(JSON.stringify({ orderId, assetId, token }));
+})().catch(async (error) => {
+  try {
+    await pool.query("ROLLBACK");
+  } catch {}
+  console.error(error);
+  process.exit(1);
+}).finally(async () => {
+  await pool.end();
+});
+'@
+
+    $created = $createScript | kubectl -n $StorefrontNamespace exec -i deploy/marky-storefront -- node - 2>&1
+
+    if ($LASTEXITCODE -ne 0) {
+      throw "Smoke delivery setup failed: $($created -join ' ')"
+    }
+
+    $payload = $created | ConvertFrom-Json
+    $smokeOrderId = $payload.orderId
+    $smokeAssetId = $payload.assetId
+    $token = $payload.token
+
+    $page = Invoke-WebRequest -UseBasicParsing -Uri "$PublicUrl/orders/$token" -TimeoutSec 20
+
+    if ($page.StatusCode -ne 200 -or $page.Content -notmatch "R2 Delivery Smoke") {
+      throw "Delivery page did not render the smoke entitlement."
+    }
+
+    $download = Invoke-GetNoRedirect "$PublicUrl/api/delivery/assets/$smokeAssetId`?token=$token"
+
+    if (
+      $download.Status -ne 303 -or
+      -not $download.Location -or
+      $download.Location -notmatch "r2\.cloudflarestorage\.com" -or
+      $download.Location -notmatch "X-Amz-Signature"
+    ) {
+      throw "Delivery asset did not redirect to a signed R2 URL. status=$($download.Status), location=$($download.Location)"
+    }
+
+    Add-Check "PASS" "R2 private delivery smoke" "Private page rendered and asset redirected to a short-lived signed R2 URL."
+  } catch {
+    Add-Check "FAIL" "R2 private delivery smoke" $_.Exception.Message
+  } finally {
+    if ($smokeOrderId -or $smokeAssetId) {
+      try {
+        Remove-SmokeDelivery -OrderId $smokeOrderId -AssetId $smokeAssetId
+      } catch {
+        Add-Check "WARN" "R2 private delivery smoke cleanup" $_.Exception.Message
+      }
+    }
+  }
+} else {
+  Add-Check "WARN" "R2 private delivery smoke" "Skipped. Re-run with -RunDeliverySmoke after R2 secrets are configured."
 }
 
 $checks | Format-Table -AutoSize -Wrap

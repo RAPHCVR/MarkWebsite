@@ -1,6 +1,6 @@
 # Crypto Payment Strategy
 
-Last verified: 2026-06-21 16:39 Europe/Paris.
+Last verified: 2026-06-21 18:42 Europe/Paris.
 
 ## Current Production State
 
@@ -8,7 +8,7 @@ Last verified: 2026-06-21 16:39 Europe/Paris.
 - `pay.markshnaknaks.com` reaches BTCPay Server in the `btcpay` namespace.
 - BTCPay has one `Marky` store, one API key and one webhook.
 - Bitcoin Core runs on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/bitcoin`, `checkblocks=1`, `dbcache=4096`, `par=6`, DNS peer discovery, no forced `connect`/manual `addnode` list, standard internal P2P port `8333`, a `2 CPU` / `6Gi` request, and a `6 CPU` / `12Gi` limit to speed IBD while keeping OOM headroom.
-- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 16:39 Paris time showed the node advancing around block `909756` of `954709`, `verificationprogress=0.907586`, `initialblockdownload=true`, and `pruned=true` with a `55 GiB` prune target on a `90 GiB` local PV. During IBD, BTCPay returns `{"synchronized":false}` and BTC checkout must remain disabled.
+- Bitcoin Core is in Initial Block Download on a fresh pruned volume. Live checks on 2026-06-21 18:42 Paris time showed the node advancing around block `946014` of `954724`, `verificationprogress=0.982088`, `initialblockdownload=true`, and `pruned=true` with a `55 GiB` prune target on a `90 GiB` local PV. During IBD, BTCPay can still return `{"synchronized":false}` and BTC checkout must remain disabled.
 - Litecoin Core is deployed separately as `btcpay-litecoind` on `talos-h9q-3tl` with rebuildable local PV storage at `/var/mnt/longhorn/blockchain-local/litecoin`, `dbcache=512`, a `1Gi` memory request and a `4Gi` memory limit. Live checks on 2026-06-21 13:58 Paris time showed Litecoin at `blocks=3128925`, `headers=3128925`, `initialblockdownload=false`, and `pruned=true` with a `20 GiB` prune target on a `40 GiB` local PV. The previous `1536Mi` limit was too tight during IBD and caused OOMKills.
 - On 2026-06-20, blockchain data was moved off Longhorn/`valence-worker-02` after repeated kubelet and virtual volume I/O timeouts. BTC/LTC chainstate is intentionally treated as disposable cache and can be rebuilt from the networks.
 - A live check on 2026-06-20 showed `valence-worker-02` recovered after Longhorn iSCSI volume errors (`EXT4` remounted read-only, then the volume reattached). Active Longhorn volumes were healthy after the move, and the former 90 GiB blockchain Longhorn volume was no longer active.
@@ -18,6 +18,9 @@ Last verified: 2026-06-21 16:39 Europe/Paris.
 - The storefront has a signed Stripe webhook route at `POST /api/webhooks/stripe` for Payment Link reconciliation into `creator_orders`. On 2026-06-21 09:18 Paris time, one enabled Stripe webhook endpoint existed for `https://markshnaknaks.com/api/webhooks/stripe`, one stale endpoint for the same URL was disabled, `STRIPE_WEBHOOK_SECRET` was patched into the `marky-payments` Kubernetes Secret, and a signed production smoke event returned `202` then wrote and deleted a `stripe` row in central PostgreSQL.
 - The Marky PostgreSQL app password, BTCPay BTC/LTC internal RPC passwords, BTCPay site API key, BTCPay webhook secret and BTCPay admin bootstrap password were rotated on 2026-06-21 after runtime audit checks. The active BTCPay site key has only `cancreateinvoice` and `canviewinvoices` on the Marky store, and there is one active Marky webhook. Current secrets live only in Kubernetes secrets and local ignored env material; do not print full `printenv` output from payment pods.
 - The storefront has stablecoin checkout live for USDC on Solana: `POST /api/checkout/stablecoin`, the internal page `/checkout/stablecoin`, `POST /api/checkout/stablecoin/verify`, optional `POST /api/webhooks/shkeeper`, and shared PostgreSQL reconciliation through `creator_orders`. Solana Pay verification supports `SOLANA_PAY_RPC_URLS` as a comma-separated read-only RPC fallback list. USDC invoice pricing uses the free Frankfurter/ECB EUR to USD rate first and falls back to `STABLECOIN_EUR_TO_USD_RATE` only when that optional env value is configured. New Solana Pay invoices expire through `SOLANA_PAY_INVOICE_TTL_MINUTES` so EUR/USD quotes are not left payable indefinitely.
+- Cloudflare R2 private delivery is configured for the bucket `marky-private-packs`. Managed `r2.dev` public access is disabled, no custom bucket domain is attached, and production runtime has `R2_ACCOUNT_ID`, `R2_ENDPOINT`, `R2_BUCKET_PRIVATE`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_SIGNED_URL_TTL_SECONDS=300`, and `DELIVERY_TOKEN_TTL_DAYS=7` in the `marky-payments` Secret.
+- A private delivery smoke object exists at `system/smoke-delivery.txt` in R2. A production smoke test on 2026-06-21 18:34 Paris time created a temporary paid order, entitlement, asset and delivery token in central PostgreSQL, rendered `/orders/<token>`, redirected the asset request to a signed R2 URL, and cleaned the smoke database rows.
+- Telegram bot integration is configured for `@markshnaknaksbot` through `POST /api/webhooks/telegram` with Telegram's secret-token header. Telegram `setWebhook` returned `Webhook was set`, and `getWebhookInfo` reported the production webhook URL with `pending_update_count=0` and no last error. `TELEGRAM_ADMIN_CHAT_ID` is intentionally not set yet, so admin delivery-link notifications are skipped until a private trusted chat/channel id is chosen.
 - Public write paths are protected by a small PostgreSQL-backed rate limit table, `creator_rate_limits`, keyed by hashed client fingerprints. This protects checkout creation, stablecoin verification and contact writes without adding a Redis dependency.
 - A production smoke test on 2026-06-21 10:22 Paris time created a Solana Pay invoice for `cosplay-starter-pack`, returned `303`, rendered the public QR/link page with USDC, QR content and the EUR to USD rate, persisted the order in central PostgreSQL as `UNPAID` with `exchangeRateSource=frankfurter-ecb`, correctly returned `pending=1` when verification was attempted without an on-chain payment, and then deleted the smoke order row.
 - A production smoke test on 2026-06-21 16:39 Paris time via `scripts/audit-payment-readiness.ps1 -RunBtcpaySmoke -RunStablecoinSmoke` returned `PASS` after the Bitcoin Core IBD tuning: Stripe readiness, USDC Solana Pay readiness, BTCPay config, public BTCPay checkout, Litecoin sync, BTCPay LTC payment method generation, and USDC unpaid pending verification. It created BTCPay invoice `2GBUKzdEW7DosEnGyjSiNH`, confirmed an `LTC-CHAIN` payment link for `0.02535497 LTC` at rate `39.44`, and cleaned the Solana Pay smoke order row.
@@ -70,6 +73,28 @@ Use five payment layers, in this order:
 5. SHKeeper/Bitcart only for generated-address multi-chain stablecoins such as Polygon/Tron if buyer demand justifies the extra service.
 
 Telegram should stay the VIP/support/delivery layer, not the main checkout system. Telegram Stars can continue inside Telegram-native flows, but website orders should still be reconciled by the site backend.
+
+## Private Media Delivery
+
+Use Cloudflare R2 as the private media store for paid packs.
+
+Current decision:
+
+1. Store pack files in the private bucket `marky-private-packs`.
+2. Keep managed `r2.dev` public access disabled and do not attach a public bucket domain for private packs.
+3. Keep access state in central PostgreSQL: `creator_orders`, `creator_entitlements`, `creator_delivery_tokens`, `creator_assets` and `creator_delivery_events`.
+4. Generate short-lived R2 signed download URLs server-side only after validating the delivery token.
+5. Use Telegram for support/admin notifications and optional follow-up; do not make Telegram the only delivery backend for website orders.
+
+This keeps the cluster responsible for auth/order state and Cloudflare R2 responsible for private object storage. It avoids putting large private media on Longhorn/local PVs and avoids permanent public object URLs.
+
+Operational rules:
+
+- Upload real pack files under product-scoped prefixes such as `packs/<product-slug>/...`.
+- Insert matching rows in `creator_assets` only after the object exists in R2.
+- Treat `/orders/<token>` links as bearer secrets; keep token TTL short and regenerate through support if a customer loses a link.
+- Run `scripts/audit-payment-readiness.ps1 -RunDeliverySmoke` after changing R2 credentials or delivery code.
+- Keep `R2_SIGNED_URL_TTL_SECONDS` short enough that leaked object URLs expire quickly.
 
 ## Rail Matrix
 

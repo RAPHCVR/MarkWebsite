@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
+import { isR2DeliveryConfigured } from "@/lib/server/orders";
 import { getSolanaPayRpcUrls } from "@/lib/server/solana-pay";
+import { isTelegramBotConfigured } from "@/lib/server/telegram";
 
 export const runtime = "nodejs";
 
@@ -70,6 +72,16 @@ export function GET() {
       deliveryRole: paymentConfig.telegram.deliveryRole,
       channelConfigured: Boolean(paymentConfig.telegram.channelUrl),
       chatConfigured: Boolean(paymentConfig.telegram.chatUrl),
+      botConfigured: isTelegramBotConfigured(),
+      webhookConfigured: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
+      adminNotificationsConfigured: Boolean(process.env.TELEGRAM_ADMIN_CHAT_ID),
+    },
+    delivery: {
+      configured: isR2DeliveryConfigured(),
+      privateBucketConfigured: Boolean(process.env.R2_BUCKET_PRIVATE),
+      signedUrlTtlSeconds: Number(process.env.R2_SIGNED_URL_TTL_SECONDS || "300"),
+      tokenTtlDays: Number(process.env.DELIVERY_TOKEN_TTL_DAYS || "7"),
+      route: "/orders/[token]",
     },
   });
 }

@@ -100,16 +100,18 @@ export async function POST(request: NextRequest) {
   try {
     const result = await verifySolanaPayInvoice(invoice);
 
-    await recordSolanaPayVerification({
+    const delivery = await recordSolanaPayVerification({
       orderId,
       signature: result.signature,
       slot: result.slot,
       confirmationStatus: result.confirmationStatus,
     });
+    const deliveryUrl = delivery?.deliveryToken?.url;
 
     return NextResponse.redirect(
       getPublicUrl(
-        `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}&verified=1`,
+        deliveryUrl ||
+          `/checkout/stablecoin?orderId=${encodeURIComponent(orderId)}&verified=1`,
       ),
       303,
     );
