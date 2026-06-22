@@ -1,14 +1,25 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { Send, WalletCards } from "lucide-react";
 import QRCode from "qrcode";
 
 import { siteConfig } from "@/data/site";
+import { localePath } from "@/i18n/config";
+import { getRequestDictionary } from "@/i18n/server";
 import { getOrderById, isOrdersDatabaseConfigured } from "@/lib/server/orders";
 import {
   isSolanaPayInvoiceExpired,
   type SolanaPayInvoice,
 } from "@/lib/server/solana-pay";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { dictionary } = await getRequestDictionary();
+
+  return {
+    title: dictionary.checkout.stablecoin.metadataTitle,
+  };
+}
 
 function getInvoiceMetadata(metadata: Record<string, unknown>) {
   const invoice = metadata.shkeeperInvoice;
@@ -57,6 +68,8 @@ export default async function StablecoinCheckoutPage({
     verified?: string;
   }>;
 }) {
+  const { locale, dictionary } = await getRequestDictionary();
+  const labels = dictionary.checkout.stablecoin;
   const { expired, orderId, pending, verified } = await searchParams;
   const order =
     orderId && isOrdersDatabaseConfigured() ? await getOrderById(orderId) : null;
@@ -99,30 +112,30 @@ export default async function StablecoinCheckoutPage({
             <WalletCards className="size-7" aria-hidden="true" />
           </div>
           <p className="mt-5 text-center text-sm font-black uppercase text-pink-600">
-            Stablecoin checkout
+            {labels.eyebrow}
           </p>
           <h1 className="mt-2 text-center text-3xl font-black">
-            {solanaPayInvoice ? "Pay with USDC on Solana" : "Send exactly the invoice amount"}
+            {solanaPayInvoice ? labels.solanaTitle : labels.invoiceTitle}
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-center text-sm leading-6 text-rose-950/65">
             {solanaPayInvoice
-              ? "Scan the Solana Pay QR or open your wallet. The order reference is validated on-chain before delivery."
-              : "This address is generated for one order only. After confirmation, support can match the payment using the order reference."}
+              ? labels.solanaDescription
+              : labels.invoiceDescription}
           </p>
 
           {verified ? (
             <div className="mt-6 rounded-3xl border border-emerald-100 bg-emerald-50 p-4 text-center text-sm font-black text-emerald-700">
-              Payment verified. Delivery can now be matched to this order.
+              {labels.verified}
             </div>
           ) : null}
           {pending ? (
             <div className="mt-6 rounded-3xl border border-amber-100 bg-amber-50 p-4 text-center text-sm font-black text-amber-700">
-              Payment not found yet. Wait a few seconds after signing, then verify again.
+              {labels.pending}
             </div>
           ) : null}
           {expired || isExpired ? (
             <div className="mt-6 rounded-3xl border border-rose-100 bg-rose-50 p-4 text-center text-sm font-black text-rose-700">
-              This checkout link has expired. Create a fresh link from the access pass card before paying.
+              {labels.expired}
             </div>
           ) : null}
 
@@ -138,7 +151,7 @@ export default async function StablecoinCheckoutPage({
               {qrCode ? (
                 <div className="rounded-[2rem] border border-pink-100 bg-white p-4 shadow-inner">
                   <Image
-                    alt={`Solana Pay QR code for order ${order.orderId}`}
+                    alt={`${labels.qrAlt} ${order.orderId}`}
                     height={256}
                     src={qrCode}
                     unoptimized
@@ -152,12 +165,12 @@ export default async function StablecoinCheckoutPage({
                 href={solanaPayInvoice.solanaUrl}
                 className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-pink-600 px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
               >
-                Open wallet
+                {labels.openWallet}
               </a>
 
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                  Solana Pay URL
+                  {labels.solanaPayUrl}
                 </span>
                 <textarea
                   className="mt-2 min-h-24 w-full resize-none rounded-3xl border border-pink-100 bg-white p-4 text-xs font-bold leading-5 text-rose-950 shadow-inner outline-none"
@@ -169,7 +182,7 @@ export default async function StablecoinCheckoutPage({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-3xl border border-pink-100 bg-white p-4">
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                    Amount
+                    {labels.amount}
                   </p>
                   <p className="mt-1 text-2xl font-black text-rose-950">
                     {solanaPayInvoice.amount} USDC
@@ -178,13 +191,13 @@ export default async function StablecoinCheckoutPage({
                 {solanaPayInvoice.exchangeRate ? (
                   <div className="rounded-3xl border border-pink-100 bg-white p-4">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                      Rate
+                      {labels.rate}
                     </p>
                     <p className="mt-1 text-lg font-black text-rose-950">
                       1 EUR = {solanaPayInvoice.exchangeRate} USD
                     </p>
                     <p className="mt-1 text-xs font-bold text-rose-950/55">
-                      {solanaPayInvoice.exchangeRateSource || "Invoice rate"}
+                      {solanaPayInvoice.exchangeRateSource || labels.invoiceRate}
                       {solanaPayInvoice.exchangeRateAsOf
                         ? ` · ${solanaPayInvoice.exchangeRateAsOf}`
                         : ""}
@@ -193,10 +206,10 @@ export default async function StablecoinCheckoutPage({
                 ) : (
                   <div className="rounded-3xl border border-pink-100 bg-white p-4">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                      Status
+                      {labels.status}
                     </p>
                     <p className="mt-1 text-2xl font-black text-rose-950">
-                      {order.status === "PAID" ? "Paid" : "Waiting"}
+                      {order.status === "PAID" ? labels.paid : labels.waiting}
                     </p>
                   </div>
                 )}
@@ -204,24 +217,24 @@ export default async function StablecoinCheckoutPage({
 
               <div className="rounded-3xl border border-pink-100 bg-white p-4">
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                  Expires
+                  {labels.expires}
                 </p>
                 <p className="mt-1 text-sm font-black text-rose-950">
                   {solanaPayInvoice.expiresAt
-                    ? new Intl.DateTimeFormat("en", {
+                    ? new Intl.DateTimeFormat(locale, {
                         dateStyle: "medium",
                         timeStyle: "short",
                         timeZone: "Europe/Paris",
                       }).format(new Date(solanaPayInvoice.expiresAt))
-                    : "Use this invoice only for the current session"}
+                    : labels.expiresFallback}
                 </p>
               </div>
 
               <p className="break-all rounded-2xl border border-pink-100 bg-white px-4 py-3 text-xs font-bold text-rose-950/70">
-                Reference: {solanaPayInvoice.reference}
+                {labels.reference}: {solanaPayInvoice.reference}
               </p>
               <p className="rounded-2xl border border-pink-100 bg-white px-4 py-3 text-xs font-bold text-rose-950/70">
-                Order: {order.orderId}
+                {labels.order}: {order.orderId}
               </p>
 
               <form method="post" action="/api/checkout/stablecoin/verify">
@@ -230,17 +243,17 @@ export default async function StablecoinCheckoutPage({
                   type="submit"
                   className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-emerald-200 bg-white px-5 text-sm font-black text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
                 >
-                  I paid, verify
+                  {labels.verify}
                 </button>
               </form>
             </div>
           ) : order && solanaPayInvoice && isExpired ? (
             <div className="mt-6 rounded-3xl border border-pink-100 bg-pink-50/70 p-5 text-center">
               <p className="text-sm font-black text-rose-950">
-                Checkout link expired.
+                {labels.expiredTitle}
               </p>
               <p className="mt-2 text-sm leading-6 text-rose-950/60">
-                The USDC amount is tied to a live exchange rate. Go back to the access pass and create a new link.
+                {labels.expiredBody}
               </p>
             </div>
           ) : order && invoice.wallet ? (
@@ -248,14 +261,14 @@ export default async function StablecoinCheckoutPage({
               <div className="rounded-3xl border border-pink-100 bg-pink-50/70 p-4">
                 <p className="text-sm font-black text-pink-700">{railLabel}</p>
                 <p className="mt-1 text-xs font-bold text-rose-950/58">
-                  {cryptoName ? `${cryptoName} rail` : "Stablecoin rail"}
+                  {cryptoName ? `${cryptoName} ${labels.stablecoinRail}` : labels.stablecoinRail}
                   {fiatAmount && fiat ? ` · ${fiatAmount} ${fiat}` : ""}
                 </p>
               </div>
 
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                  Wallet address
+                  {labels.walletAddress}
                 </span>
                 <textarea
                   className="mt-2 min-h-24 w-full resize-none rounded-3xl border border-pink-100 bg-white p-4 text-sm font-bold leading-6 text-rose-950 shadow-inner outline-none"
@@ -267,7 +280,7 @@ export default async function StablecoinCheckoutPage({
               {invoice.amount ? (
                 <div className="rounded-3xl border border-pink-100 bg-white p-4">
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-pink-600">
-                    Amount
+                    {labels.amount}
                   </p>
                   <p className="mt-1 text-2xl font-black text-rose-950">
                     {invoice.amount}
@@ -281,26 +294,26 @@ export default async function StablecoinCheckoutPage({
               ) : null}
 
               <p className="rounded-2xl border border-pink-100 bg-white px-4 py-3 text-xs font-bold text-rose-950/70">
-                Order: {order.orderId}
+                {labels.order}: {order.orderId}
               </p>
             </div>
           ) : (
             <div className="mt-6 rounded-3xl border border-pink-100 bg-pink-50/70 p-5 text-center">
               <p className="text-sm font-black text-rose-950">
-                No active stablecoin invoice found.
+                {labels.noInvoiceTitle}
               </p>
               <p className="mt-2 text-sm leading-6 text-rose-950/60">
-                Start from an access pass card to create a fresh checkout link.
+                {labels.noInvoiceBody}
               </p>
             </div>
           )}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Link
-              href="/#access-passes"
+              href={localePath(locale, "/#access-passes")}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
             >
-              Back to passes
+              {labels.backToPasses}
             </Link>
             <a
               href={siteConfig.telegramChatUrl}
@@ -309,7 +322,7 @@ export default async function StablecoinCheckoutPage({
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-sm font-black text-pink-700 transition hover:border-pink-300 hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-100"
             >
               <Send className="size-4" aria-hidden="true" />
-              Support
+              {labels.support}
             </a>
           </div>
         </div>

@@ -26,7 +26,7 @@ Public pages are localized in English, French and Russian:
 Routing priority is:
 
 1. explicit URL locale, for example `/fr`;
-2. `marky_locale` functional language cookie after a manual choice;
+2. `marky_locale` functional language cookie from a previous localized visit;
 3. browser `Accept-Language`;
 4. Cloudflare `CF-IPCountry` only as a first-visit fallback when no language signal exists;
 5. English default.

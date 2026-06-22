@@ -44,11 +44,14 @@ export function localeUrl(locale: Locale, pathname = "/") {
 }
 
 export function alternateLanguageUrls(pathname = "/") {
+  const xDefaultPath =
+    pathname === "/" ? "/" : localePath(authoritativeLegalLocale, pathname);
+
   return {
     en: localeUrl("en", pathname),
     fr: localeUrl("fr", pathname),
     ru: localeUrl("ru", pathname),
-    "x-default": new URL("/", siteConfig.publicUrl).toString(),
+    "x-default": new URL(xDefaultPath, siteConfig.publicUrl).toString(),
   };
 }
 
@@ -60,14 +63,18 @@ export function detectLocaleFromAcceptLanguage(header: string | null | undefined
   const weighted = header
     .split(",")
     .map((part) => {
-      const [rawTag, rawQuality] = part.trim().split(";q=");
+      const [rawTag, ...params] = part.trim().split(";");
       const tag = rawTag.toLowerCase();
-      const quality = rawQuality ? Number(rawQuality) : 1;
+      const qualityParam = params
+        .map((param) => param.trim())
+        .find((param) => param.toLowerCase().startsWith("q="));
+      const quality = qualityParam ? Number(qualityParam.split("=")[1]) : 1;
       return {
         tag,
         quality: Number.isFinite(quality) ? quality : 0,
       };
     })
+    .filter(({ quality }) => quality > 0)
     .sort((a, b) => b.quality - a.quality);
 
   for (const { tag } of weighted) {
@@ -104,8 +111,6 @@ export function shouldSkipLocaleRouting(pathname: string) {
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/checkout") ||
-    pathname.startsWith("/orders") ||
     pathname.startsWith("/images/") ||
     pathname === "/favicon.png" ||
     pathname === "/apple-touch-icon.png" ||

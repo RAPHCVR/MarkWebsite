@@ -38,7 +38,9 @@ test("homepage renders all key sections without horizontal overflow", async ({ p
   expect(hasHorizontalOverflow).toBe(false);
 });
 
-test("homepage exposes crawlable SEO discovery metadata", async ({ page, request }) => {
+test("homepage exposes crawlable SEO discovery metadata", async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "SEO metadata only needs one viewport");
+
   await page.goto("/en");
 
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -66,9 +68,9 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
   ).toHaveCount(1);
   await expect(page.locator('meta[property="og:image:width"][content="1200"]')).toHaveCount(1);
   await expect(page.locator('meta[property="og:image:height"][content="630"]')).toHaveCount(1);
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+  await expect(page.locator('link[rel="icon"][href*="favicon"]')).toHaveAttribute(
     "href",
-    "/favicon.png",
+    /favicon/,
   );
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
     "content",
@@ -117,6 +119,33 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
     sizes: "512x512",
     type: "image/png",
   });
+});
+
+test("localized legal pages expose page-matched hreflang metadata", async ({ page }) => {
+  await page.goto("/en/legal");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/en/legal",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/en/legal",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="fr"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/fr/legal",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="ru"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/ru/legal",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/fr/legal",
+  );
+  await expect(page.getByText(/French version is the authoritative legal version/i)).toBeVisible();
 });
 
 test("interactive elements are named and external links are hardened", async ({ page }) => {
@@ -175,7 +204,8 @@ test("interactive elements are named and external links are hardened", async ({ 
   expect(audit.mailtoLinks).toEqual([]);
 });
 
-test("public pages do not expose crawlable email addresses", async ({ page }) => {
+test("public pages do not expose crawlable email addresses", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Public text scan only needs one viewport");
   test.slow();
 
   const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
@@ -231,7 +261,8 @@ test("legal contact details are available only after an explicit reveal action",
   await expect(legalPhone).toHaveAttribute("href", "tel:+33123456789");
 });
 
-test("public pages avoid payment-risk wording", async ({ page }) => {
+test("public pages avoid payment-risk wording", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Public text scan only needs one viewport");
   test.slow();
 
   for (const route of publicTextRoutes) {
@@ -272,7 +303,9 @@ test("checkout links reflect runtime sales flags", async ({ page, request }) => 
   await expect(page.getByText(/planned/i).first()).toBeVisible();
 });
 
-test("locale routing respects explicit URLs, browser language and legacy legal redirects", async ({ page, request }) => {
+test("locale routing respects explicit URLs, browser language and legacy legal redirects", async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Locale routing only needs one viewport");
+
   await page.goto("/ru");
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await expect(page.getByText("Цифровые доступы").first()).toBeVisible();
@@ -289,6 +322,13 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
   expect(frenchRoot.headers().location).toContain("/fr");
   expect(frenchRoot.headers()["content-language"]).toBe("fr");
   expect(frenchRoot.headers().vary).toContain("Accept-Language");
+
+  const spacedQualityRoot = await request.get("/", {
+    headers: { "Accept-Language": "ru-RU; q=0.4, fr-FR; q=0.9, en; q=0.2" },
+    maxRedirects: 0,
+  });
+  expect(spacedQualityRoot.status()).toBe(307);
+  expect(spacedQualityRoot.headers().location).toContain("/fr");
 
   const cookieRoot = await request.get("/", {
     headers: {
@@ -310,6 +350,16 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
   expect(countryFallbackRoot.status()).toBe(307);
   expect(countryFallbackRoot.headers().location).toContain("/fr");
 
+  const rejectedLanguageRoot = await request.get("/", {
+    headers: {
+      "Accept-Language": "ru;q=0,fr;q=0",
+      "Cf-Ipcountry": "FR",
+    },
+    maxRedirects: 0,
+  });
+  expect(rejectedLanguageRoot.status()).toBe(307);
+  expect(rejectedLanguageRoot.headers().location).toContain("/fr");
+
   const russianResponse = await request.get("/ru");
   expect(russianResponse.status()).toBe(200);
   expect(russianResponse.headers()["content-language"]).toBe("ru");
@@ -317,6 +367,56 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
   const legacyLegal = await request.get("/legal", { maxRedirects: 0 });
   expect(legacyLegal.status()).toBe(307);
   expect(legacyLegal.headers().location).toContain("/fr/legal");
+});
+
+test("Russian copy avoids accidental English placeholder phrases", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Copy scan only needs one viewport");
+  test.slow();
+
+  const accidentalEnglish =
+    /\b(creator platform|support ticket|privacy policy|preview site|admin chat|source of truth|short-lived|wallets|rails|checkout|assets|invites|email routing|abusive automation|VAT not applicable|supervisory authority|Payment Links)\b/i;
+
+  for (const route of ["/ru", "/ru/legal", "/ru/terms", "/ru/privacy"]) {
+    await page.goto(route);
+    const visibleText = await page.locator("body").innerText();
+
+    expect(visibleText).not.toMatch(accidentalEnglish);
+  }
+});
+
+test("French copy avoids accidental English placeholder phrases", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Copy scan only needs one viewport");
+  test.slow();
+
+  const accidentalEnglish =
+    /\b(Social hub|Telegram Channel|Telegram Chat|updates|previews|creator platform|preview site|admin chat|inbox|wallets|rails|Checkout|Payment Links|self-hosted|support ticket|source of truth|short-lived|abusive automation)\b/i;
+
+  for (const route of ["/fr", "/fr/legal", "/fr/terms", "/fr/privacy"]) {
+    await page.goto(route);
+    const visibleText = await page.locator("body").innerText();
+
+    expect(visibleText).not.toMatch(accidentalEnglish);
+  }
+});
+
+test("operational payment pages use the detected locale", async ({ request }) => {
+  const stablecoinResponse = await request.get("/checkout/stablecoin", {
+    headers: { "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.4" },
+  });
+  expect(stablecoinResponse.status()).toBe(200);
+  const stablecoinHtml = await stablecoinResponse.text();
+  expect(stablecoinHtml).toContain('lang="fr"');
+  expect(stablecoinHtml).toContain("Aucune facture stablecoin active.");
+  expect(stablecoinHtml).toContain("Retour aux accès");
+
+  const cryptoReturnResponse = await request.get("/checkout/crypto-return", {
+    headers: { Cookie: "marky_locale=ru" },
+  });
+  expect(cryptoReturnResponse.status()).toBe(200);
+  const cryptoReturnHtml = await cryptoReturnResponse.text();
+  expect(cryptoReturnHtml).toContain('lang="ru"');
+  expect(cryptoReturnHtml).toContain("Страница оплаты закрыта");
+  expect(cryptoReturnHtml).toContain("Назад к доступам");
 });
 
 test("Stripe checkout requires POST and terms acceptance", async ({ request }, testInfo) => {

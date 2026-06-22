@@ -13,7 +13,7 @@ import {
 } from "@/i18n/config";
 
 const legacyPublicPaths = new Set(["/legal", "/terms", "/privacy", "/refund-policy"]);
-const localeVaryHeader = "Accept-Language, Cookie, Cf-Ipcountry";
+const localeVaryHeader = "Accept-Language, Cookie, CF-IPCountry";
 
 function resolvePreferredLocale(request: NextRequest): Locale {
   const cookieLocale = request.cookies.get(localeCookieName)?.value;
@@ -82,7 +82,7 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
-  return withLocaleHeader(request, defaultLocale);
+  return withLocaleHeader(request, resolvePreferredLocale(request));
 }
 
 export const config = {

@@ -18,6 +18,30 @@ type LegalDocumentProps = {
   }>;
 };
 
+const localizedLegalValues: Record<
+  Locale,
+  {
+    vatStatus: string;
+    hosting: string;
+  }
+> = {
+  en: {
+    vatStatus: "VAT not applicable, article 293 B of the French General Tax Code",
+    hosting:
+      "Application self-hosted on the publisher's Kubernetes infrastructure; Cloudflare provides DNS, proxy/security and private R2 object storage.",
+  },
+  fr: {
+    vatStatus: legalConfig.vatStatus,
+    hosting:
+      "Application auto-hébergée sur l'infrastructure Kubernetes de l'éditeur; Cloudflare fournit DNS, proxy/sécurité et stockage objet privé R2.",
+  },
+  ru: {
+    vatStatus: "НДС не применяется, статья 293 B Налогового кодекса Франции",
+    hosting:
+      "Приложение размещено на Kubernetes-инфраструктуре издателя; Cloudflare предоставляет DNS, прокси, защиту и приватное объектное хранилище R2.",
+  },
+};
+
 export function LegalDocument({
   eyebrow,
   title,
@@ -27,6 +51,7 @@ export function LegalDocument({
   dictionary,
   sections,
 }: LegalDocumentProps) {
+  const legalValues = localizedLegalValues[locale];
   const legalLinks = [
     { label: dictionary.legalNav.legal, href: localePath(locale, "/legal") },
     { label: dictionary.legalNav.terms, href: localePath(locale, "/terms") },
@@ -88,9 +113,9 @@ export function LegalDocument({
               [dictionary.legal.fields.siren, legalConfig.siren],
               [dictionary.legal.fields.siret, legalConfig.siret],
               [dictionary.legal.fields.ape, legalConfig.apeCode],
-              [dictionary.legal.fields.vat, legalConfig.vatStatus],
+              [dictionary.legal.fields.vat, legalValues.vatStatus],
               [dictionary.legal.fields.address, legalConfig.registeredAddress],
-              [dictionary.legal.fields.hosting, legalConfig.hosting],
+              [dictionary.legal.fields.hosting, legalValues.hosting],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-white/72 p-3">
                 <dt className="text-xs font-black uppercase tracking-[0.16em] text-pink-500">
