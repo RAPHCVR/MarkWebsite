@@ -149,7 +149,10 @@ export function TurnstileWidget({
       <input ref={inputRef} type="hidden" name={inputName} />
       <div
         ref={containerRef}
-        className={cn("max-w-full overflow-hidden", className)}
+        className={cn(
+          "max-w-full overflow-hidden [&>iframe]:!w-full [&>iframe]:max-w-full",
+          className,
+        )}
       />
     </>
   );

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Mail, Phone } from "lucide-react";
+import { LoaderCircle, Mail, Phone } from "lucide-react";
 
 import { TurnstileWidget } from "@/components/site/TurnstileWidget";
 import { cn } from "@/lib/utils";
@@ -100,6 +100,7 @@ export function LegalContactReveal({
   const [status, setStatus] = useState<"idle" | "loading" | "verify" | "error">("idle");
   const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
   const [isVerificationVisible, setIsVerificationVisible] = useState(!deferChallenge);
+  const [useCompactChallenge, setUseCompactChallenge] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -112,6 +113,16 @@ export function LegalContactReveal({
 
     return () => window.clearTimeout(timer);
   }, [deferChallenge]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 520px)");
+    const syncChallengeSize = () => setUseCompactChallenge(media.matches);
+
+    syncChallengeSize();
+    media.addEventListener("change", syncChallengeSize);
+
+    return () => media.removeEventListener("change", syncChallengeSize);
+  }, []);
 
   const submitReveal = useCallback(async (form: HTMLFormElement, token?: string) => {
     setStatus("loading");
@@ -219,15 +230,31 @@ export function LegalContactReveal({
         </button>
       ) : null}
       {turnstileSiteKey && isVerificationVisible ? (
-        <div className="mx-auto w-full max-w-[18rem] rounded-[1.25rem] border border-pink-100 bg-white/72 p-2 shadow-[0_12px_28px_rgba(236,72,153,0.12)]">
+        <div
+          className={cn(
+            "rounded-2xl border border-pink-100 bg-white/74 shadow-[0_12px_26px_rgba(236,72,153,0.10)]",
+            useCompactChallenge
+              ? "mx-auto w-fit max-w-full p-2"
+              : "relative min-h-16 w-full max-w-[20rem] overflow-hidden p-3",
+          )}
+        >
+          {!useCompactChallenge ? (
+            <div className="flex min-h-10 items-center gap-3 text-xs font-black text-rose-950/68">
+              <LoaderCircle className="size-4 animate-spin text-pink-500" aria-hidden="true" />
+              <span>{labels.revealLoading}</span>
+            </div>
+          ) : null}
           <TurnstileWidget
             siteKey={turnstileSiteKey}
             action="legal-contact"
-            size="compact"
+            appearance={useCompactChallenge ? "always" : "interaction-only"}
+            size={useCompactChallenge ? "compact" : "flexible"}
             onVerify={handleVerify}
             resetSignal={turnstileResetSignal}
             className={cn(
-              "mx-auto flex min-h-[140px] w-[150px] max-w-full items-center justify-center",
+              useCompactChallenge
+                ? "mx-auto flex min-h-[140px] w-[150px] max-w-full items-center justify-center"
+                : "absolute inset-0 z-10 h-full min-h-full w-full max-w-none",
               widgetClassName,
             )}
           />

@@ -50,7 +50,7 @@ export function LegalContactDetails({
               labels={labels}
               turnstileSiteKey={turnstileSiteKey}
               deferChallenge
-              formClassName="max-w-[18rem]"
+              formClassName="max-w-[20rem]"
               buttonClassName="w-full justify-center"
               linkClassName="w-full justify-center"
               widgetClassName="mx-auto"
