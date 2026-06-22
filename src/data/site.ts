@@ -1,8 +1,6 @@
-import { legalConfig } from "@/data/legal";
-
 export const siteConfig = {
   brandName: "Marky",
-  legalDisplayName: legalConfig.creatorName,
+  legalDisplayName: "Marky",
   handle: "@markshnaknaks",
   domain: "markshnaknaks.com",
   publicUrl: "https://markshnaknaks.com",
@@ -17,7 +15,7 @@ export const siteConfig = {
   manifestIconImage: "/images/marky-icon-512.png",
   logoImage: "/images/marky-logo.png",
   portraitImage: "/images/mark-portrait-sketch.png",
-  collabContactUrl: legalConfig.contactPath,
+  collabContactUrl: "/#contact",
   instagramUrl: "https://instagram.com/markshnaknaks",
   tiktokUrl: "https://tiktok.com/@markshnaknaks",
   telegramChannelUrl: "https://t.me/markreyvakh",

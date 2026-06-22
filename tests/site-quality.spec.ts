@@ -179,6 +179,7 @@ test("public pages do not expose crawlable email addresses", async ({ page }) =>
   test.slow();
 
   const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  const rawPhonePattern = /(01\s?23\s?45\s?67\s?89|0123456789|\+33123456789)/;
 
   for (const route of publicTextRoutes) {
     await page.goto(route);
@@ -188,29 +189,46 @@ test("public pages do not expose crawlable email addresses", async ({ page }) =>
 
     expect(html).not.toMatch(emailPattern);
     expect(html).not.toContain("mailto:");
+    expect(html).not.toContain("tel:");
+    expect(html).not.toMatch(rawPhonePattern);
     expect(visibleText).not.toMatch(emailPattern);
+    expect(visibleText).not.toMatch(rawPhonePattern);
   }
 });
 
-test("legal email is available only after an explicit reveal action", async ({ page }) => {
+test("legal contact details are available only after an explicit reveal action", async ({ page }) => {
+  await page.route("**/api/legal-contact", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        email: "support@markshnaknaks.com",
+        phoneLabel: "01 23 45 67 89",
+        phoneHref: "+33123456789",
+      }),
+    });
+  });
+
   await page.goto("/fr/legal");
 
-  await expect(page.getByRole("link", { name: "07 68 90 78 65" })).toHaveAttribute(
-    "href",
-    "tel:+33768907865",
-  );
   await expect(page.locator("body")).not.toContainText(
     /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
   );
+  await expect(page.locator("body")).not.toContainText("01 23 45 67 89");
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+  await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Révéler l'email" }).click();
+  await page.getByRole("button", { name: "Révéler le contact légal" }).click();
 
   const legalEmail = page.getByRole("link", {
     name: /support@markshnaknaks\.com/i,
   });
   await expect(legalEmail).toBeVisible();
   await expect(legalEmail).toHaveAttribute("href", "mailto:support@markshnaknaks.com");
+
+  const legalPhone = page.getByRole("link", { name: "01 23 45 67 89" });
+  await expect(legalPhone).toBeVisible();
+  await expect(legalPhone).toHaveAttribute("href", "tel:+33123456789");
 });
 
 test("public pages avoid payment-risk wording", async ({ page }) => {

@@ -96,6 +96,7 @@ export function GET() {
       botConfigured: isTelegramBotConfigured(),
       webhookConfigured: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
       adminNotificationsConfigured: Boolean(process.env.TELEGRAM_ADMIN_CHAT_ID),
+      adminUserAllowListConfigured: Boolean(process.env.TELEGRAM_ADMIN_USER_IDS),
       vipInviteConfigured: Boolean(process.env.TELEGRAM_VIP_CHAT_ID),
     },
     delivery: {

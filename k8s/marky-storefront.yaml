@@ -61,7 +61,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/raphcvr/markwebsite@sha256:7f11bb370b05df7bb8e596b87e6610d75f89da2f8d95f0e5fe1c1ccf2ed3ef31
+          image: ghcr.io/raphcvr/markwebsite@sha256:f9ad4ef4ccc41936a3bb015bfc2d19ffd70bf8a4f584ec29dcf8d4a4931c8d1b
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -77,8 +77,6 @@ spec:
               value: frankfurter
             - name: STABLECOIN_RATE_FETCH_TIMEOUT_MS
               value: "3000"
-            - name: LEGAL_CONTACT_PHONE
-              value: "07 68 90 78 65"
           envFrom:
             - secretRef:
                 name: marky-payments

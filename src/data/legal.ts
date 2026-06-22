@@ -10,8 +10,7 @@ const consumerMediatorConfigured = Boolean(
   consumerMediator.name && consumerMediator.website,
 );
 
-const contactPhoneLabel =
-  process.env.LEGAL_CONTACT_PHONE?.trim() || "07 68 90 78 65";
+const contactPhoneLabel = process.env.LEGAL_CONTACT_PHONE?.trim() || "";
 
 function phoneHrefFromLabel(label: string) {
   const compact = label.replace(/[^\d+]/g, "");

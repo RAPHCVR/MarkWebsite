@@ -98,8 +98,24 @@ export function getTelegramBotUrl(startPayload?: string) {
   return url.toString();
 }
 
+function getAllowedAdminUserIds() {
+  return (process.env.TELEGRAM_ADMIN_USER_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function isTelegramAdminUserAllowed(userId?: number) {
+  const allowedAdminUserIds = getAllowedAdminUserIds();
+
+  return (
+    !allowedAdminUserIds.length ||
+    (userId !== undefined && allowedAdminUserIds.includes(String(userId)))
+  );
+}
+
 function getDeliveryTokenFromStartPayload(text: string) {
-  const match = text.match(/^\/start\s+delivery_([A-Za-z0-9_-]{20,})$/);
+  const match = text.match(/^\/start(?:@\w+)?\s+delivery_([A-Za-z0-9_-]{20,})$/);
 
   return match?.[1] || null;
 }
@@ -347,13 +363,18 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     const callbackQueryId = callbackQuery.id;
     const callbackChatId = callbackQuery.message?.chat?.id;
     const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    const adminUserId = callbackQuery.from?.id;
     const replyToken = callbackQuery.data.replace("reply_private_request:", "");
 
     if (!callbackQueryId) {
       return { ok: true, ignored: true };
     }
 
-    if (!adminChatId || String(callbackChatId) !== adminChatId) {
+    if (
+      !adminChatId ||
+      String(callbackChatId) !== adminChatId ||
+      !isTelegramAdminUserAllowed(adminUserId)
+    ) {
       return answerCallbackQuery(callbackQueryId, "Admin chat only.");
     }
 
@@ -398,6 +419,13 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     process.env.TELEGRAM_ADMIN_CHAT_ID &&
     String(chatId) === process.env.TELEGRAM_ADMIN_CHAT_ID
   ) {
+    if (!isTelegramAdminUserAllowed(from?.id)) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: "This Telegram account is not allowed to answer customer tickets.",
+      });
+    }
+
     const reply = await recordPrivateRequestAdminReplyFromTelegram({
       replyToken: adminReplyToken,
       message: text,

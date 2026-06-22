@@ -33,9 +33,9 @@ export default function AdminPage() {
             Marky back-office
           </h1>
           <p className="mt-4 text-base leading-7 text-rose-950/68">
-            Token-protected view for accounting exports, recent orders and
-            VIP Infrastructure Access tickets. The token is only sent as a bearer
-            header to admin API routes.
+            Cloudflare Access protected view for accounting exports, recent
+            orders and VIP Infrastructure Access tickets. A bearer token can
+            still be used for scripts or local maintenance.
           </p>
         </div>
         <AdminDashboard />

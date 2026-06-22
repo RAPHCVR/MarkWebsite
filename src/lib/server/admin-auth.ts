@@ -145,13 +145,24 @@ async function getCloudflareAccessStatus(request: NextRequest): Promise<AdminAut
 export async function getAdminAuthStatus(
   request: NextRequest,
 ): Promise<AdminAuthStatus> {
+  const accessConfigured = isCloudflareAccessConfigured();
   const accessStatus = await getCloudflareAccessStatus(request);
 
-  if (accessStatus !== "ok") {
+  if (accessConfigured && accessStatus === "ok") {
+    return "ok";
+  }
+
+  if (accessConfigured && accessStatus !== "access-missing") {
     return accessStatus;
   }
 
-  return getAdminTokenStatus(request);
+  const tokenStatus = getAdminTokenStatus(request);
+
+  if (tokenStatus === "ok") {
+    return "ok";
+  }
+
+  return accessConfigured ? accessStatus : tokenStatus;
 }
 
 export async function enforceAdminAccess(request: NextRequest) {

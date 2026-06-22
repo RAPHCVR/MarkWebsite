@@ -103,13 +103,10 @@ export function LegalDocument({
         </div>
 
         <LegalContactDetails
-          emailLocalPart={legalConfig.supportEmailLocalPart}
-          emailDomain={legalConfig.supportEmailDomain}
           labels={dictionary.legal.contactCard}
           formHref={localePath(locale, "/#contact")}
-          phoneLabel={legalConfig.contactPhoneLabel}
-          phoneHref={legalConfig.contactPhoneHref}
           routingLabel={dictionary.legal.contactRouting}
+          turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
         />
 
         <div className="mt-8 space-y-7">

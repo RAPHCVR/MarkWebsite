@@ -34,7 +34,7 @@ export function SiteHeader({ locale, dictionary }: SiteHeaderProps) {
               priority
             />
           </span>
-          <span className="min-w-0 max-[359px]:hidden">
+          <span className="min-w-0 max-[430px]:hidden">
             <span className="block truncate font-logo text-2xl leading-none text-pink-500 sm:text-3xl">
               {siteConfig.brandName}
             </span>

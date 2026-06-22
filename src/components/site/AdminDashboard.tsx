@@ -95,12 +95,18 @@ function getStatusClass(status: string) {
   return "border-pink-200 bg-pink-50 text-pink-700";
 }
 
+function getAdminHeaders(token: string) {
+  return token.trim()
+    ? {
+        Authorization: `Bearer ${token.trim()}`,
+      }
+    : undefined;
+}
+
 async function fetchJson<T>(path: string, token: string): Promise<T> {
   const response = await fetch(path, {
     cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAdminHeaders(token),
   });
 
   if (!response.ok) {
@@ -114,9 +120,7 @@ async function fetchJson<T>(path: string, token: string): Promise<T> {
 async function downloadCsv(path: string, token: string, filename: string) {
   const response = await fetch(path, {
     cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAdminHeaders(token),
   });
 
   if (!response.ok) {
@@ -160,15 +164,6 @@ export function AdminDashboard() {
 
   async function refresh(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-
-    if (!token.trim()) {
-      setState((current) => ({
-        ...current,
-        status: "error",
-        error: "Enter the admin token first.",
-      }));
-      return;
-    }
 
     setState((current) => ({ ...current, status: "loading", error: undefined }));
 
@@ -218,7 +213,7 @@ export function AdminDashboard() {
     <section className="rounded-[2rem] border border-pink-100 bg-white/84 p-5 shadow-[0_24px_80px_rgba(236,72,153,0.12)] backdrop-blur sm:p-7">
       <form onSubmit={refresh} className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
         <label className="space-y-2">
-          <span className="text-sm font-black text-rose-950">Admin token</span>
+          <span className="text-sm font-black text-rose-950">Admin token optional</span>
           <span className="relative block">
             <KeyRound
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-pink-500"
@@ -229,7 +224,7 @@ export function AdminDashboard() {
               value={token}
               onChange={(event) => setToken(event.target.value)}
               autoComplete="off"
-              placeholder="Bearer token"
+              placeholder="Only needed outside Cloudflare Access"
               className="min-h-12 rounded-2xl border-pink-200 bg-white/80 pl-10"
             />
           </span>
@@ -251,7 +246,6 @@ export function AdminDashboard() {
           variant="outline"
           onClick={() => exportCsv("orders")}
           className="self-end rounded-full border-pink-200 bg-white/80 font-black text-pink-700 hover:bg-pink-50"
-          disabled={!token.trim()}
         >
           <Download className="size-4" aria-hidden="true" />
           CSV
@@ -287,7 +281,6 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => exportCsv("orders")}
-              disabled={!token.trim()}
               className="text-sm font-black text-pink-700 underline decoration-pink-300 underline-offset-4 disabled:opacity-40"
             >
               Export accounting CSV
@@ -356,7 +349,6 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => exportCsv("requests")}
-              disabled={!token.trim()}
               className="text-sm font-black text-pink-700 underline decoration-pink-300 underline-offset-4 disabled:opacity-40"
             >
               Export tickets

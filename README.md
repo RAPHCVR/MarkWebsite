@@ -108,17 +108,17 @@ downloads are served only after token validation through short-lived signed
 URLs. Telegram bot/webhook support is configured for `@markshnaknaksbot`;
 admin delivery/contact/private-request notifications are enabled in production
 through `TELEGRAM_ADMIN_CHAT_ID`, which must stay only in Kubernetes secrets.
+For private request replies, `TELEGRAM_ADMIN_USER_IDS` can restrict who inside
+that private admin chat may answer customers.
 
-Admin/accounting is token-protected. Configure `ADMIN_API_TOKEN`, then open
-`/admin` and enter the token locally in the browser to inspect recent orders,
-download accounting CSVs and review VIP Infrastructure Access tickets. The same
-token protects `GET /api/admin/orders/export` and
-`GET /api/admin/private-requests/export` through
-`Authorization: Bearer <token>`. Do not paste this token in Telegram groups or
-public issue threads. In production, also protect `https://markshnaknaks.com/admin*`
-with Cloudflare Access and set `CLOUDFLARE_ACCESS_AUD` plus either
-`CLOUDFLARE_ACCESS_TEAM_DOMAIN` or `CLOUDFLARE_ACCESS_JWKS_URL`; the origin will
-then validate the Access JWT before accepting the bearer token. Public admin API
+Admin/accounting is Cloudflare Access protected in production. The Access app
+covers `https://markshnaknaks.com/admin*` and
+`https://markshnaknaks.com/api/admin*`, and the origin validates the Access JWT
+with `CLOUDFLARE_ACCESS_AUD` plus `CLOUDFLARE_ACCESS_TEAM_DOMAIN` or
+`CLOUDFLARE_ACCESS_JWKS_URL`. `ADMIN_API_TOKEN` remains available for local
+maintenance or scripts through `Authorization: Bearer <token>`, but browser use
+does not require pasting a token after a valid Cloudflare Access session. Do not
+paste the token in Telegram groups or public issue threads. Public admin API
 requests are rate-limited through `creator_rate_limits`.
 
 Cloudflare Email Routing is enabled for `markshnaknaks.com` and the active
@@ -178,7 +178,8 @@ and Merchant of Record for Marky digital access services:
 - TVA: franchise en base, article 293 B CGI
 - Legal electronic contact: secure contact form and the revealed domain support
   email on the legal notice.
-- Legal phone contact: `LEGAL_CONTACT_PHONE`, defaulting to `07 68 90 78 65`.
+- Legal phone contact: `LEGAL_CONTACT_PHONE` from production secrets, revealed
+  only after the legal contact verification flow.
 
 Public wording should stay accurate and aligned with the actual service:
 Digital Access Pass, Premium Platform Membership, Content Delivery Token,
@@ -287,6 +288,7 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_BOT_USERNAME=markshnaknaksbot
 TELEGRAM_WEBHOOK_SECRET=
 TELEGRAM_ADMIN_CHAT_ID=
+TELEGRAM_ADMIN_USER_IDS=
 TELEGRAM_VIP_CHAT_ID=
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
