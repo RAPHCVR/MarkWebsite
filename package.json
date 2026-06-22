@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "pretest:ui": "next build",
+    "start:test:standalone": "node scripts/start-standalone-test-server.mjs",
     "test:ui": "playwright test"
   },
   "dependencies": {

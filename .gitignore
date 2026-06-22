@@ -41,6 +41,9 @@ test-results
 # local private wallet/key material
 .secrets/
 
+# local Codex/tooling cache
+.codex/
+
 # vercel
 .vercel
 

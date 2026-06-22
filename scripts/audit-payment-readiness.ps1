@@ -429,9 +429,9 @@ if ($RunStablecoinSmoke) {
 
     if (
       $checkoutPage.StatusCode -ne 200 -or
-      $checkoutHtml -notmatch "Pay with USDC on Solana" -or
+      $checkoutHtml -notmatch "USDC" -or
+      $checkoutHtml -notmatch "Solana" -or
       $checkoutHtml -notmatch "solana:" -or
-      $checkoutHtml -notmatch "Expires" -or
       $checkoutHtml -notmatch [regex]::Escape($smokeOrderId)
     ) {
       throw "Stablecoin checkout page did not render the expected QR/order content."

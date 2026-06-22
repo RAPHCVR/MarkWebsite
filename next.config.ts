@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const securityHeaders: Array<{ key: string; value: string }> = [
   {
     key: "Content-Security-Policy",
@@ -12,7 +14,13 @@ const securityHeaders: Array<{ key: string; value: string }> = [
       "img-src 'self' data: blob:",
       "font-src 'self'",
       "style-src 'self' 'unsafe-inline'",
-      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com https://telegram.org",
+      [
+        "script-src 'self' 'unsafe-inline'",
+        isProduction ? "" : "'unsafe-eval'",
+        "https://static.cloudflareinsights.com https://challenges.cloudflare.com https://telegram.org",
+      ]
+        .filter(Boolean)
+        .join(" "),
       "connect-src 'self' https://cloudflareinsights.com https://challenges.cloudflare.com",
       "frame-src https://challenges.cloudflare.com",
       "manifest-src 'self'",
@@ -48,6 +56,12 @@ const securityHeaders: Array<{ key: string; value: string }> = [
 const nextConfig: NextConfig = {
   devIndicators: false,
   output: "standalone",
+  outputFileTracingIncludes: {
+    "/*": [
+      "./node_modules/sharp/**/*",
+      "./node_modules/@img/sharp-*/**/*",
+    ],
+  },
   poweredByHeader: false,
   async headers() {
     return [

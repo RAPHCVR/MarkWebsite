@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Mail, Phone } from "lucide-react";
 import Script from "next/script";
@@ -34,8 +34,17 @@ export function LegalContactDetails({
   routingLabel,
   turnstileSiteKey,
 }: LegalContactDetailsProps) {
+  const [isHydrated, setIsHydrated] = useState(false);
   const [contact, setContact] = useState<RevealedContact | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "verify" | "error">("idle");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setIsHydrated(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function revealContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -129,7 +138,7 @@ export function LegalContactDetails({
                 ) : null}
                 <button
                   type="submit"
-                  disabled={status === "loading"}
+                  disabled={!isHydrated || status === "loading"}
                   className="inline-flex min-h-10 items-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 disabled:cursor-wait disabled:opacity-70"
                 >
                   <Mail className="size-4" aria-hidden="true" />
