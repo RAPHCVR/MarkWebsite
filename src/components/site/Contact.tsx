@@ -29,19 +29,19 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
       className="pb-20"
     >
       <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="rounded-[2rem] border border-pink-100 bg-white/76 p-6 shadow-sm backdrop-blur">
-          <div className="flex size-14 items-center justify-center rounded-3xl bg-pink-100 text-pink-600">
+        <div className="rounded-2xl border border-rose-950/10 bg-white/85 p-6 shadow-sm backdrop-blur">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-mark-50 text-mark-cta">
             <Mail className="size-6" aria-hidden="true" />
           </div>
           <h3 className="mt-6 text-2xl font-black text-rose-950">
             {dictionary.contact.cardTitle}
           </h3>
-          <p className="mt-3 leading-7 text-rose-950/68">
+          <p className="mt-3 leading-7 text-rose-950/72">
             {dictionary.contact.cardBody}
           </p>
           <a
             href="#contact-form"
-            className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-pink-600 px-5 text-sm font-black text-white shadow-[0_16px_34px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300"
+            className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-mark-cta px-5 text-sm font-bold text-white shadow-[0_14px_30px_rgba(200,13,91,0.28)] transition hover:bg-[#a80a4c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mark-cta/30"
           >
             <Mail className="size-4" aria-hidden="true" />
             {dictionary.contact.cardCta}
@@ -50,7 +50,7 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
 
         <form
           id="contact-form"
-          className="rounded-[2rem] border border-pink-100 bg-white/78 p-5 shadow-[0_24px_60px_rgba(236,72,153,0.12)] backdrop-blur sm:p-6"
+          className="rounded-2xl border border-rose-950/10 bg-white/88 p-5 shadow-[0_20px_50px_rgba(63,10,30,0.1)] backdrop-blur sm:p-6"
           action="/api/contact"
           method="post"
           aria-label={dictionary.contact.aria}
@@ -58,7 +58,7 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
           <input type="hidden" name="locale" value={locale} />
           {statusMessage ? (
             <p
-              className="mb-5 rounded-2xl border border-pink-100 bg-pink-50/80 px-4 py-3 text-sm font-bold leading-6 text-rose-950/72"
+              className="mb-5 rounded-xl border border-mark-cta/20 bg-mark-50 px-4 py-3 text-sm font-bold leading-6 text-rose-950/80"
               role="status"
             >
               {statusMessage}

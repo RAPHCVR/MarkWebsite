@@ -58,8 +58,8 @@
 }
 
 :root {
-    --background: #FFECEE;
-    --foreground: #4E0B24;
+    --background: #FBF4ED;
+    --foreground: #3F0A1E;
     --card: oklch(1 0 0 / 88%);
     --card-foreground: oklch(0.19 0.045 355);
     --popover: oklch(1 0 0);
@@ -133,19 +133,45 @@
   body {
     @apply bg-background text-foreground;
     background:
-      linear-gradient(180deg, rgba(255, 236, 238, 0.96), rgba(255, 224, 230, 0.78) 44%, rgba(255, 236, 238, 1)),
-      radial-gradient(circle at 10% 10%, rgba(254, 177, 198, 0.32), transparent 30%),
-      radial-gradient(circle at 88% 8%, rgba(255, 201, 214, 0.42), transparent 28%);
+      linear-gradient(180deg, #FCF6EF 0%, #FBF3EB 52%, #FAEFE6 100%),
+      radial-gradient(120% 60% at 50% -10%, rgba(200, 13, 91, 0.06), transparent 60%);
+    background-attachment: fixed;
     min-height: 100vh;
     }
   html {
     @apply scroll-smooth font-sans;
     }
   ::selection {
-    background: rgba(254, 177, 198, 0.42);
-    color: #4E0B24;
+    background: rgba(200, 13, 91, 0.16);
+    color: #3F0A1E;
   }
   button, a, input, textarea {
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes mark-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility mark-rise {
+  animation: mark-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

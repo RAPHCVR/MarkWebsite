@@ -150,7 +150,7 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
           <Badge
             key={item}
             variant="outline"
-            className="h-9 rounded-full border-pink-200 bg-white/70 px-4 font-bold text-pink-700 shadow-sm"
+            className="h-9 rounded-full border-rose-950/12 bg-white/80 px-4 font-bold text-mark-cta shadow-sm"
           >
             <Check className="size-3.5" aria-hidden="true" />
             {item}
@@ -160,13 +160,13 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
 
       <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_18rem]">
         <div>
-          <div className="mb-4 grid gap-3 rounded-3xl border border-pink-100 bg-white/72 p-3 shadow-sm backdrop-blur sm:grid-cols-3">
+          <div className="mb-4 grid gap-3 rounded-2xl border border-rose-950/10 bg-white/80 p-3 shadow-sm backdrop-blur sm:grid-cols-3">
             {[
               ...dictionary.products.stats,
             ].map(([value, label]) => (
-              <div key={value} className="rounded-2xl bg-pink-50/70 px-4 py-3">
-                <p className="text-sm font-black text-pink-700">{value}</p>
-                <p className="mt-1 text-xs font-bold text-rose-950/55">{label}</p>
+              <div key={value} className="rounded-xl bg-mark-50/80 px-4 py-3">
+                <p className="text-sm font-black text-mark-cta">{value}</p>
+                <p className="mt-1 text-xs font-bold text-rose-950/65">{label}</p>
               </div>
             ))}
           </div>
@@ -188,52 +188,53 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
           return (
             <article
               key={product.slug}
-              className="group overflow-hidden rounded-3xl border border-pink-100 bg-white/76 shadow-sm backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-pink-300 hover:shadow-[0_24px_60px_rgba(236,72,153,0.16)]"
+              className="group overflow-hidden rounded-2xl border border-rose-950/10 bg-white/85 shadow-sm backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-mark-cta/30 hover:shadow-[0_22px_50px_rgba(200,13,91,0.14)]"
             >
-              <div className={`relative h-52 overflow-hidden bg-gradient-to-br ${accentClass[product.accent]}`}>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.95),rgba(255,255,255,0)_24%),radial-gradient(circle_at_72%_36%,rgba(255,255,255,0.7),rgba(255,255,255,0)_18%)]" />
-                <div className="absolute left-4 top-4 flex size-10 items-center justify-center rounded-2xl bg-rose-950/76 text-white shadow-lg backdrop-blur">
-                  <Lock className="size-4" aria-hidden="true" />
+              <div className={`relative overflow-hidden border-b border-dashed border-rose-950/15 bg-gradient-to-br ${accentClass[product.accent]} p-5`}>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-rose-950/80 text-white shadow-sm">
+                    <Lock className="size-4" aria-hidden="true" />
+                  </span>
+                  <Badge className="rounded-full bg-white/90 px-3 font-bold text-mark-cta shadow-sm backdrop-blur">
+                    {product.badge}
+                  </Badge>
                 </div>
-                <Badge className="absolute right-4 top-4 rounded-full bg-white/86 px-3 font-bold text-pink-700 shadow-sm backdrop-blur">
-                  {product.badge}
-                </Badge>
-                <div className="absolute bottom-5 left-5 right-5">
-                  <div className="mb-3 flex items-center gap-2 text-pink-500">
-                    {providerLogo ? (
-                      <span
-                        className="flex size-7 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm"
-                        style={brandIconStyle(providerLogo)}
-                      >
-                        <BrandIcon name={providerLogo} className="size-4" />
-                      </span>
-                    ) : (
-                      <Gem className="size-5" aria-hidden="true" />
-                    )}
-                    <span className="text-sm font-black uppercase tracking-[0.18em]">
-                      {dictionary.products.providerLabels[product.checkoutProvider]}
+                <div className="mt-5 flex items-center gap-2 text-mark-cta">
+                  {providerLogo ? (
+                    <span
+                      className="flex size-7 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm"
+                      style={brandIconStyle(providerLogo)}
+                    >
+                      <BrandIcon name={providerLogo} className="size-4" />
                     </span>
-                  </div>
-                  <div className="h-16 rounded-3xl border border-white/70 bg-white/42 shadow-inner backdrop-blur-sm" />
+                  ) : (
+                    <Gem className="size-5" aria-hidden="true" />
+                  )}
+                  <span className="text-xs font-black uppercase tracking-[0.18em]">
+                    {dictionary.products.providerLabels[product.checkoutProvider]}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-end justify-between gap-3 rounded-2xl border border-white/70 bg-white/82 px-4 py-3 backdrop-blur">
+                  <span className="min-w-0 truncate font-mono text-sm font-bold tracking-tight text-rose-950">
+                    {product.slug.toUpperCase()}
+                  </span>
+                  <span className="shrink-0 text-2xl font-black leading-none text-rose-950">
+                    {product.price}
+                  </span>
                 </div>
               </div>
 
               <div className="p-5">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <h3 className="text-xl font-black leading-tight text-rose-950">
-                    {product.title}
-                  </h3>
-                  <span className="rounded-full bg-pink-50 px-3 py-1 text-sm font-black text-pink-700">
-                    {product.price}
-                  </span>
-                </div>
-                <p className="min-h-16 text-sm leading-6 text-rose-950/65">
+                <h3 className="text-xl font-black leading-tight text-rose-950">
+                  {product.title}
+                </h3>
+                <p className="mt-3 min-h-16 text-sm leading-6 text-rose-950/68">
                   {product.description}
                 </p>
-                <ul className="mt-4 space-y-2">
+                <ul className="mt-4 space-y-2 border-t border-rose-950/8 pt-4">
                   {product.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm font-semibold text-rose-950/72">
-                      <Check className="size-4 text-pink-500" aria-hidden="true" />
+                    <li key={feature} className="flex items-center gap-2 text-sm font-semibold text-rose-950/75">
+                      <Check className="size-4 shrink-0 text-mark-cta" aria-hidden="true" />
                       {feature}
                     </li>
                   ))}
@@ -331,26 +332,26 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
           </div>
         </div>
 
-        <div className="rounded-3xl border border-pink-100 bg-white/76 p-5 shadow-sm backdrop-blur">
-          <h3 className="flex items-center gap-2 text-xl font-black text-pink-700">
+        <div className="rounded-2xl border border-rose-950/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+          <h3 className="flex items-center gap-2 text-xl font-black text-mark-cta">
             <CreditCard className="size-5" aria-hidden="true" />
             {dictionary.products.accessPanel.title}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-rose-950/65">
+          <p className="mt-2 text-sm leading-6 text-rose-950/68">
             {dictionary.products.accessPanel.body}
           </p>
           <div className="mt-4 space-y-3">
             {dictionary.products.accessPanel.rows.map(([title, text]) => (
-              <div key={title} className="rounded-2xl border border-pink-100 bg-white/76 p-3">
+              <div key={title} className="rounded-xl border border-rose-950/10 bg-white/80 p-3">
                 <p className="text-sm font-black text-rose-950">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-rose-950/58">{text}</p>
+                <p className="mt-1 text-xs leading-5 text-rose-950/65">{text}</p>
               </div>
             ))}
           </div>
           <a
             href={paymentConfig.telegram.requestBotUrl || "#contact"}
             {...getExternalLinkProps(paymentConfig.telegram.requestBotUrl || "#contact")}
-            className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 text-sm font-black text-pink-700 transition hover:border-pink-300 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-mark-cta/25 bg-mark-50 px-4 text-sm font-black text-mark-cta transition hover:border-mark-cta/40 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mark-cta/25"
           >
             <Send className="size-4" aria-hidden="true" />
             {dictionary.products.cta.requestPrivatePass}
@@ -359,7 +360,7 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
+        <div className="rounded-2xl border border-rose-950/10 bg-white/85 p-5 shadow-sm backdrop-blur">
           <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("stripe")}>
             <BrandIcon name="stripe" className="size-5" />
           </span>
@@ -369,11 +370,11 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
               ? dictionary.products.cards.stripe.live
               : dictionary.products.cards.stripe.ready}
           </p>
-          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-mark-cta">
             {dictionary.products.cards.stripe.note}
           </p>
         </div>
-        <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
+        <div className="rounded-2xl border border-rose-950/10 bg-white/85 p-5 shadow-sm backdrop-blur">
           <div className="flex flex-wrap gap-2">
             {paymentConfig.crypto.rails.slice(0, 5).map((rail) => (
               <span
@@ -408,7 +409,7 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
             ))}
           </div>
         </div>
-        <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
+        <div className="rounded-2xl border border-rose-950/10 bg-white/85 p-5 shadow-sm backdrop-blur">
           <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("telegram")}>
             <BrandIcon name="telegram" className="size-5" />
           </span>
@@ -416,7 +417,7 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
             {dictionary.products.cards.telegram.body}
           </p>
-          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-mark-cta">
             {dictionary.products.cards.telegram.note}
           </p>
         </div>
