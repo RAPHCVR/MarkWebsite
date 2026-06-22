@@ -1,6 +1,7 @@
 import Image from "next/image";
 import {
   ArrowRight,
+  Check,
   ExternalLink,
   Globe2,
   Heart,
@@ -236,19 +237,34 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
                   />
                   <span className="hidden truncate min-[360px]:inline">Marky</span>
                 </a>
-                <div className="flex shrink-0 gap-1 rounded-full border border-pink-100 bg-white/72 p-1 shadow-sm" aria-label={dictionary.nav.language}>
-                  {locales.map((targetLocale) => (
-                    <a
-                      key={targetLocale}
-                      href={localePath(targetLocale, "/links")}
-                      hrefLang={targetLocale}
-                      aria-current={targetLocale === locale ? "page" : undefined}
-                      className="flex size-8 items-center justify-center rounded-full text-[11px] font-black text-rose-950/54 transition hover:bg-pink-50 hover:text-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 aria-current:bg-pink-600 aria-current:text-white"
-                      title={localeLabels[targetLocale].native}
-                    >
-                      {localeLabels[targetLocale].short}
-                    </a>
-                  ))}
+                <div
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-pink-100 bg-white/78 p-1 shadow-sm"
+                  aria-label={dictionary.nav.language}
+                >
+                  <Globe2 className="ml-1 hidden size-3.5 text-pink-500 min-[380px]:block" aria-hidden="true" />
+                  {locales.map((targetLocale) => {
+                    const isActive = targetLocale === locale;
+
+                    return (
+                      <a
+                        key={targetLocale}
+                        href={localePath(targetLocale, "/links")}
+                        hrefLang={targetLocale}
+                        lang={targetLocale}
+                        aria-current={isActive ? "page" : undefined}
+                        aria-label={`${dictionary.nav.language}: ${localeLabels[targetLocale].native}`}
+                        className={
+                          isActive
+                            ? "inline-flex min-h-8 min-w-12 items-center justify-center gap-1 rounded-full bg-pink-600 px-2.5 text-[11px] font-black text-white shadow-[0_8px_18px_rgba(219,39,119,0.24)] ring-1 ring-pink-300 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                            : "inline-flex size-8 items-center justify-center rounded-full text-[11px] font-black text-rose-950/54 transition hover:bg-pink-50 hover:text-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                        }
+                        title={localeLabels[targetLocale].native}
+                      >
+                        {isActive ? <Check className="size-3" aria-hidden="true" /> : null}
+                        <span>{localeLabels[targetLocale].short}</span>
+                      </a>
+                    );
+                  })}
                 </div>
               </nav>
 
