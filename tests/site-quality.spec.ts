@@ -307,6 +307,34 @@ test("revealed legal contact survives navigation between legal pages", async ({ 
   await expect(page.getByRole("button", { name: "Révéler le contact légal" })).toHaveCount(0);
 });
 
+test("homepage direct contact is revealed only after an explicit reveal action", async ({ page }) => {
+  await page.route("**/api/legal-contact", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        email: "support@markshnaknaks.com",
+        phoneLabel: "01 23 45 67 89",
+        phoneHref: "+33123456789",
+      }),
+    });
+  });
+
+  await page.goto("/fr");
+
+  await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+  await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
+  );
+
+  const revealButton = page.getByRole("button", { name: "Révéler le contact légal" });
+
+  await revealButton.click();
+  await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: "01 23 45 67 89" })).toBeVisible();
+});
+
 test("public pages avoid payment-risk wording", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-desktop", "Public text scan only needs one viewport");
   test.slow();
@@ -662,7 +690,7 @@ test("social links use recognizable brand icons", async ({ page }) => {
     "tiktok",
     "telegram",
     "x",
-    "gmail",
+    "mail",
     "bitcoin",
     "litecoin",
     "circle",

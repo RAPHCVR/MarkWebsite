@@ -1,6 +1,5 @@
 import {
   siBitcoin,
-  siGmail,
   siInstagram,
   siLitecoin,
   siCircle,
@@ -20,7 +19,6 @@ export const brandIcons = {
   tiktok: siTiktok,
   telegram: siTelegram,
   x: siX,
-  gmail: siGmail,
   stripe: siStripe,
   bitcoin: siBitcoin,
   litecoin: siLitecoin,
@@ -31,4 +29,4 @@ export const brandIcons = {
   ton: siTon,
 } as const satisfies Record<string, SimpleIcon>;
 
-export type BrandIconKey = keyof typeof brandIcons;
+export type BrandIconKey = keyof typeof brandIcons | "mail";

@@ -68,11 +68,11 @@ export const socials: SocialLink[] = [
   {
     id: "collabs",
     label: "Collabs",
-    handle: "business inbox",
+    handle: "secure form",
     href: siteConfig.collabContactUrl,
     description: "Campaigns, shoots, promos and business requests.",
     cta: "Open form",
-    icon: "gmail",
+    icon: "mail",
   },
   {
     id: "privateChannel",

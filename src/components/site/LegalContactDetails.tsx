@@ -1,10 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { Mail, Phone } from "lucide-react";
-
-import { TurnstileWidget } from "@/components/site/TurnstileWidget";
+import { LegalContactReveal } from "@/components/site/LegalContactReveal";
 
 type LegalContactDetailsProps = {
   labels: {
@@ -23,120 +17,12 @@ type LegalContactDetailsProps = {
   turnstileSiteKey?: string;
 };
 
-type RevealedContact = {
-  email: string;
-  phoneLabel?: string | null;
-  phoneHref?: string | null;
-};
-
-const legalContactStorageKey = "marky_legal_contact_v1";
-const legalContactTtlMs = 30 * 60 * 1000;
-
-type StoredLegalContact = RevealedContact & {
-  expiresAt: number;
-};
-
-function readStoredContact() {
-  try {
-    const raw = window.sessionStorage.getItem(legalContactStorageKey);
-
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<StoredLegalContact>;
-
-    if (
-      typeof parsed.email !== "string" ||
-      typeof parsed.expiresAt !== "number" ||
-      parsed.expiresAt < Date.now()
-    ) {
-      window.sessionStorage.removeItem(legalContactStorageKey);
-      return null;
-    }
-
-    const phoneLabel = typeof parsed.phoneLabel === "string" ? parsed.phoneLabel : null;
-    const phoneHref = typeof parsed.phoneHref === "string" ? parsed.phoneHref : null;
-
-    return {
-      email: parsed.email,
-      phoneLabel,
-      phoneHref,
-    };
-  } catch {
-    window.sessionStorage.removeItem(legalContactStorageKey);
-    return null;
-  }
-}
-
-function storeContact(contact: RevealedContact) {
-  try {
-    window.sessionStorage.setItem(
-      legalContactStorageKey,
-      JSON.stringify({
-        ...contact,
-        expiresAt: Date.now() + legalContactTtlMs,
-      } satisfies StoredLegalContact),
-    );
-  } catch {
-    // Contact reveal still works even when browser storage is unavailable.
-  }
-}
-
 export function LegalContactDetails({
   labels,
   formHref,
   routingLabel,
   turnstileSiteKey,
 }: LegalContactDetailsProps) {
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [contact, setContact] = useState<RevealedContact | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "verify" | "error">("idle");
-  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setContact(readStoredContact());
-      setIsHydrated(true);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  async function revealContact(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setStatus("loading");
-
-    const form = event.currentTarget;
-    const payload = new FormData(form);
-
-    try {
-      const response = await fetch("/api/legal-contact", {
-        method: "POST",
-        body: payload,
-      });
-
-      if (response.status === 403) {
-        setStatus("verify");
-        setTurnstileResetSignal((signal) => signal + 1);
-        return;
-      }
-
-      if (!response.ok) {
-        setStatus("error");
-        return;
-      }
-
-      const data = (await response.json()) as RevealedContact;
-
-      setContact(data);
-      storeContact(data);
-      setStatus("idle");
-    } catch {
-      setStatus("error");
-    }
-  }
-
   return (
     <div className="mt-8 rounded-3xl border border-pink-100 bg-white/72 p-5">
       <p className="text-sm font-black text-rose-950">{labels.title}</p>
@@ -160,58 +46,10 @@ export function LegalContactDetails({
             {labels.email} / {labels.phone}
           </dt>
           <dd className="mt-2">
-            {contact ? (
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href={`mailto:${contact.email}`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
-                >
-                  <Mail className="size-4" aria-hidden="true" />
-                  {contact.email}
-                </a>
-                {contact.phoneLabel && contact.phoneHref ? (
-                  <a
-                    href={`tel:${contact.phoneHref}`}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
-                  >
-                    <Phone className="size-4" aria-hidden="true" />
-                    {contact.phoneLabel}
-                  </a>
-                ) : null}
-              </div>
-            ) : (
-              <form className="space-y-3" onSubmit={revealContact}>
-                {turnstileSiteKey ? (
-                  <div className="max-w-full overflow-hidden rounded-xl">
-                    <TurnstileWidget
-                      siteKey={turnstileSiteKey}
-                      action="legal-contact"
-                      size="compact"
-                      resetSignal={turnstileResetSignal}
-                      className="min-h-[120px]"
-                    />
-                  </div>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={!isHydrated || status === "loading"}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 disabled:cursor-wait disabled:opacity-70"
-                >
-                  <Mail className="size-4" aria-hidden="true" />
-                  {status === "loading" ? labels.revealLoading : labels.revealEmail}
-                </button>
-                {status === "verify" ? (
-                  <p className="text-xs font-bold leading-5 text-rose-950/64">
-                    {labels.revealVerify}
-                  </p>
-                ) : null}
-                {status === "error" ? (
-                  <p className="text-xs font-bold leading-5 text-rose-950/64">
-                    {labels.revealError}
-                  </p>
-                ) : null}
-              </form>
-            )}
+            <LegalContactReveal
+              labels={labels}
+              turnstileSiteKey={turnstileSiteKey}
+            />
           </dd>
         </div>
 

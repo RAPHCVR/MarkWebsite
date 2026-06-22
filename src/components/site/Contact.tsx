@@ -3,6 +3,7 @@ import { Mail, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LegalContactReveal } from "@/components/site/LegalContactReveal";
 import { SectionShell } from "@/components/site/SectionShell";
 import { TurnstileWidget } from "@/components/site/TurnstileWidget";
 import type { Locale } from "@/i18n/config";
@@ -46,6 +47,24 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
             <Mail className="size-4" aria-hidden="true" />
             {dictionary.contact.cardCta}
           </a>
+          <div className="mt-5 rounded-3xl border border-pink-100 bg-pink-50/72 p-4">
+            <p className="text-sm font-black text-rose-950">
+              {dictionary.contact.directTitle}
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-rose-950/62">
+              {dictionary.contact.directBody}
+            </p>
+            <LegalContactReveal
+              labels={dictionary.legal.contactCard}
+              turnstileSiteKey={turnstileSiteKey}
+              deferChallenge
+              formClassName="mt-3"
+              buttonClassName="w-full justify-center"
+              linkClassName="w-full justify-center"
+              statusClassName="text-center"
+              widgetClassName="mx-auto"
+            />
+          </div>
         </div>
 
         <form
