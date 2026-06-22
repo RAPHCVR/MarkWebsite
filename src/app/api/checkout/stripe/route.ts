@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { legalConfig } from "@/data/legal";
 import { paymentConfig } from "@/data/payments";
 import { products } from "@/data/products";
+import { assertLocale } from "@/i18n/config";
 import {
   ensureOrdersDatabaseReady,
   isOrdersDatabaseConfigured,
@@ -12,13 +13,21 @@ import { enforceRateLimit } from "@/lib/server/request-guard";
 
 export const runtime = "nodejs";
 
+const stripeLocaleBySiteLocale = {
+  en: "en",
+  fr: "fr",
+  ru: "ru",
+} as const;
+
 async function readForm(request: NextRequest) {
   const form = await request.formData();
   const product = form.get("product");
+  const locale = form.get("locale");
   const termsAccepted = form.get("termsAccepted");
 
   return {
     product: typeof product === "string" ? product : undefined,
+    locale: typeof locale === "string" ? assertLocale(locale) : null,
     termsAccepted:
       termsAccepted === "true" ||
       termsAccepted === "on" ||
@@ -77,6 +86,12 @@ export async function POST(request: NextRequest) {
   const checkoutUrl = new URL(product.stripePaymentLink);
 
   checkoutUrl.searchParams.set("client_reference_id", orderId);
+  if (payload.locale) {
+    checkoutUrl.searchParams.set(
+      "locale",
+      stripeLocaleBySiteLocale[payload.locale],
+    );
+  }
 
   if (isOrdersDatabaseConfigured()) {
     await ensureOrdersDatabaseReady();
@@ -93,6 +108,7 @@ export async function POST(request: NextRequest) {
         provider: "stripe",
         checkoutMode: "payment-link",
         paymentLinkId: product.stripePaymentLinkId,
+        locale: payload.locale,
         legal: {
           termsVersion: legalConfig.termsVersion,
           immediateDigitalDeliveryAccepted: true,

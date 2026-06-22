@@ -51,12 +51,7 @@ export function GET() {
       privacyPolicyRoute: "/privacy",
       legalNoticeRoute: "/legal",
       commercialVocabulary: legalConfig.commercialVocabulary,
-      consumerMediatorConfigured: legalConfig.consumerMediatorConfigured,
-      consumerMediatorName: legalConfig.consumerMediatorConfigured
-        ? legalConfig.consumerMediator.name
-        : null,
       b2cSalesAllowed: paymentConfig.legal.b2cSalesAllowed,
-      mediatorGateEnforced: paymentConfig.legal.mediatorGateEnforced,
       salesBlockedByLegalGate: paymentConfig.legal.salesBlockedByLegalGate,
       checkoutConsentCaptured: true,
       cryptoFiatAccountingField: "creator_orders.fiat_value_eur_at_transaction",

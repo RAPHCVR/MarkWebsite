@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 
 const sectionIds = ["top", "socials", "access-passes", "lookbook", "contact"];
 const localizedRoutes = ["/en", "/fr", "/ru"];
+const localizedLinkRoutes = ["/en/links", "/fr/links", "/ru/links"];
 const localizedLegalRoutes = [
   "/en/legal",
   "/en/terms",
@@ -17,7 +18,7 @@ const localizedLegalRoutes = [
   "/ru/refund-policy",
   "/ru/privacy",
 ];
-const publicTextRoutes = [...localizedRoutes, ...localizedLegalRoutes];
+const publicTextRoutes = [...localizedRoutes, ...localizedLinkRoutes, ...localizedLegalRoutes];
 const restrictedCommercialWording =
   /\b(photo\s*pack|pack\s+photo|video\s*pack|pack\s+vid[eé]o|adult\s+content|contenu\s+adulte|18\+|onlyfans|vente\s+de\s+photos?)\b/i;
 
@@ -29,6 +30,27 @@ test("homepage renders all key sections without horizontal overflow", async ({ p
   for (const id of sectionIds) {
     await expect(page.locator(`#${id}`)).toHaveCount(1);
   }
+
+  const hasHorizontalOverflow = await page.evaluate(() => {
+    const doc = document.documentElement;
+    return doc.scrollWidth > doc.clientWidth + 1;
+  });
+
+  expect(hasHorizontalOverflow).toBe(false);
+});
+
+test("link hub is mobile-first, actionable and overflow-safe", async ({ page }) => {
+  await page.goto("/en/links");
+
+  await expect(page.getByRole("heading", { name: "Marky", level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Instagram/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /TikTok/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Telegram Channel/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Access/i }).first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Official accounts only" }).last(),
+  ).toBeVisible();
+  await expect(page.getByText("Need help?")).toBeVisible();
 
   const hasHorizontalOverflow = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -277,10 +299,14 @@ test("public pages avoid payment-risk wording", async ({ page }, testInfo) => {
 test("commerce wording stays aligned with access-platform positioning", async ({ page }) => {
   await page.goto("/en");
 
-  await expect(page.getByText("Digital Access Pass").first()).toBeVisible();
-  await expect(page.getByText("Premium Platform Membership").first()).toBeVisible();
-  await expect(page.getByText("Content Delivery Token").first()).toBeVisible();
-  await expect(page.getByText("VIP Infrastructure Access").first()).toBeVisible();
+  for (const label of [
+    "Digital Access Pass",
+    "Premium Platform Membership",
+    "Content Delivery Token",
+    "VIP Infrastructure Access",
+  ]) {
+    await expect(page.getByText(label).filter({ visible: true }).first()).toBeVisible();
+  }
 });
 
 test("checkout links reflect runtime sales flags", async ({ page, request }) => {
@@ -501,8 +527,6 @@ test("payment status endpoint reports readiness without exposing secrets", async
     };
     legal?: {
       b2cSalesAllowed?: boolean;
-      consumerMediatorConfigured?: boolean;
-      mediatorGateEnforced?: boolean;
       salesBlockedByLegalGate?: boolean;
       cryptoFiatAccountingField?: string;
       commercialVocabulary?: string[];
@@ -528,9 +552,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
   expect(status.legal?.cryptoFiatAccountingField).toBe("creator_orders.fiat_value_eur_at_transaction");
   expect(status.legal?.commercialVocabulary).toContain("Digital Access Pass");
-  expect(typeof status.legal?.consumerMediatorConfigured).toBe("boolean");
   expect(typeof status.legal?.b2cSalesAllowed).toBe("boolean");
-  expect(status.legal?.mediatorGateEnforced).toBe(false);
   expect(status.legal?.salesBlockedByLegalGate).toBe(false);
   expect(status.admin?.accountingExportRoute).toBe("/api/admin/orders/export");
   expect(status.admin?.privateRequestsExportRoute).toBe("/api/admin/private-requests/export");

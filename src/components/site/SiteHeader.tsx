@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Crown, ShoppingBag } from "lucide-react";
+import { Crown, Link2 } from "lucide-react";
 
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import { paymentConfig } from "@/data/payments";
@@ -96,14 +96,19 @@ export function SiteHeader({ locale, dictionary }: SiteHeaderProps) {
             <BrandIcon name="telegram" className="size-4" />
           </a>
           <a
+            href={localePath(locale, "/links")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 sm:hidden"
+          >
+            <Link2 className="size-4" aria-hidden="true" />
+            {dictionary.nav.links}
+          </a>
+          <a
             href={paymentConfig.telegram.vipUrl}
             {...getExternalLinkProps(paymentConfig.telegram.vipUrl)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300"
+            className="hidden min-h-11 items-center justify-center gap-2 rounded-full bg-pink-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(219,39,119,0.28)] transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300 sm:inline-flex"
           >
-            <ShoppingBag className="size-4 sm:hidden" aria-hidden="true" />
-            <Crown className="hidden size-4 sm:block" aria-hidden="true" />
-            <span className="hidden sm:inline">{dictionary.nav.joinVip}</span>
-            <span className="sm:hidden">{dictionary.nav.vipShort}</span>
+            <Crown className="size-4" aria-hidden="true" />
+            {dictionary.nav.joinVip}
           </a>
         </div>
       </div>

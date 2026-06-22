@@ -16,6 +16,7 @@ export const dictionaries = {
       socials: "Socials",
       lookbook: "Lookbook",
       collab: "Collab",
+      links: "Links",
       joinVip: "Join VIP",
       vipShort: "VIP",
       language: "Language",
@@ -416,7 +417,6 @@ export const dictionaries = {
               title: "Amicable resolution",
               body: [
                 "Any complaint must first be sent to support with the order reference and relevant details.",
-                "The consumer mediator is not configured at this stage. Official list: https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references.",
               ],
             },
           ],
@@ -475,12 +475,6 @@ export const dictionaries = {
               body: [
                 "Main support: secure contact form on the site or the legal email revealed on the legal notice. Telegram may be used for assistance, private invites and delivery follow-up.",
                 "Support may request an order reference, payment email or reasonable proof of delivery-link possession before acting on an access right.",
-              ],
-            },
-            {
-              title: "Consumer mediation",
-              body: [
-                "No consumer mediator is configured at this stage. Official referenced mediators list: https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references.",
               ],
             },
             {
@@ -604,6 +598,7 @@ export const dictionaries = {
       socials: "Réseaux",
       lookbook: "Lookbook",
       collab: "Collab",
+      links: "Liens",
       joinVip: "Rejoindre VIP",
       vipShort: "VIP",
       language: "Langue",
@@ -882,7 +877,6 @@ export const dictionaries = {
               title: "Règlement amiable",
               body: [
                 "Toute réclamation doit d'abord être adressée au support avec la référence de commande et les éléments utiles à l'analyse.",
-                "Médiateur de la consommation non renseigné à ce stade. Liste officielle: https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references.",
               ],
             },
           ],
@@ -900,7 +894,6 @@ export const dictionaries = {
             { title: "Exécution immédiate et renonciation au droit de rétractation", body: ["Avant de lancer le paiement, le client accepte expressément les CGV, demande l'exécution immédiate du service numérique et reconnaît perdre son droit de rétractation une fois l'accès numérique ou le lien de livraison privé émis."] },
             { title: "VIP Infrastructure Access", body: ["Les requêtes privées sont gérées sous forme de tickets via Marky Concierge. Elles ne donnent pas accès au compte personnel du créateur.", "Le quota, la durée et le statut du ticket sont suivis par la plateforme. Une demande abusive, illégale, hors périmètre ou incompatible avec les règles de support peut être refusée."] },
             { title: "Support", body: ["Support principal: formulaire de contact sécurisé du site ou email légal révélé dans les mentions légales. Telegram peut être utilisé pour l'assistance, les invitations privées et le suivi de livraison.", "Le support peut demander une référence de commande, un email de paiement ou une preuve raisonnable de possession du lien de livraison avant toute action sur un accès."] },
-            { title: "Médiation de la consommation", body: ["Aucun médiateur de la consommation n'est renseigné à ce stade. Liste officielle des médiateurs référencés: https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references."] },
             { title: "Droit applicable", body: ["Les présentes CGV sont régies par le droit français, sans priver le consommateur des protections impératives éventuellement prévues par la loi de son pays de résidence."] },
           ],
         },
@@ -949,6 +942,7 @@ export const dictionaries = {
       socials: "Соцсети",
       lookbook: "Лукбук",
       collab: "Коллаб",
+      links: "Ссылки",
       joinVip: "Вступить в VIP",
       vipShort: "VIP",
       language: "Язык",
@@ -1197,7 +1191,7 @@ export const dictionaries = {
             { title: "Роль платформы", body: ["Raphael Tech Solutions предоставляет программную инфраструктуру, платежный модуль, управление правами доступа, приватную доставку и техническую поддержку.", "Marky является создателем, представленным в публичном интерфейсе. Веб-платежи обрабатываются платформой как Merchant of Record."] },
             { title: "Контакт", body: ["Поддержка, юридические запросы, возвраты и деловые запросы: защищенная форма связи на сайте или юридический email, раскрываемый на этой странице.", "Запросы по заказам должны включать ссылку доставки или номер заказа без передачи чувствительных данных в публичной группе."] },
             { title: "Хостинг и хранение", body: ["Приложение размещено на Kubernetes-инфраструктуре издателя; Cloudflare предоставляет DNS, прокси, защиту и приватное объектное хранилище R2.", "Приватные активы хранятся в приватном bucket Cloudflare R2 и выдаются через временные подписанные URL после проверки доступа.", "Telegram используется как канал поддержки и консьерж-сервис. Он не является основным хранилищем активов и не заменяет платежный модуль сайта."] },
-            { title: "Досудебное урегулирование", body: ["Любая жалоба сначала направляется в поддержку с номером заказа и релевантными деталями.", "Потребительский медиатор на данном этапе не настроен. Официальный список: https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references."] },
+            { title: "Досудебное урегулирование", body: ["Любая жалоба сначала направляется в поддержку с номером заказа и релевантными деталями."] },
           ],
         },
         terms: {
@@ -1213,7 +1207,6 @@ export const dictionaries = {
             { title: "Немедленное исполнение и отказ от права отказа", body: ["Перед оплатой клиент явно принимает условия, запрашивает немедленное цифровое исполнение и признает потерю права отказа после выдачи доступа или приватной ссылки доставки."] },
             { title: "VIP Infrastructure Access", body: ["Приватные запросы обрабатываются как тикеты через Marky Concierge. Они не дают доступ к личному аккаунту создателя.", "Квота, срок действия и статус тикета отслеживаются платформой. Злоупотребляющие, незаконные или выходящие за рамки сервиса запросы могут быть отклонены."] },
             { title: "Поддержка", body: ["Основная поддержка: защищенная форма связи на сайте или юридический email в разделе юридической информации. Telegram может использоваться для помощи, приватных приглашений и сопровождения доставки.", "Поддержка может запросить номер заказа, email платежа или разумное доказательство владения ссылкой доставки перед изменением права доступа."] },
-            { title: "Потребительская медиация", body: ["Потребительский медиатор на данном этапе не настроен. Официальный список медиаторов: https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references."] },
             { title: "Применимое право", body: ["Эти условия регулируются французским правом, не лишая потребителя обязательных защит, которые могут предоставляться законом страны его проживания."] },
           ],
         },

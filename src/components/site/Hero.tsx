@@ -14,6 +14,7 @@ import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import type { Product } from "@/data/products";
 import { siteConfig } from "@/data/site";
 import type { SocialLink } from "@/data/socials";
+import { localePath, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { getExternalLinkProps } from "@/lib/links";
 
@@ -25,12 +26,13 @@ const compactHeroLabel: Record<string, string> = {
 };
 
 type HeroProps = {
+  locale: Locale;
   dictionary: Dictionary;
   socials: SocialLink[];
   products: Product[];
 };
 
-export function Hero({ dictionary, socials, products }: HeroProps) {
+export function Hero({ locale, dictionary, socials, products }: HeroProps) {
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-10 px-4 pb-10 pt-5 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:pb-12 lg:pt-8">
       <div className="flex flex-col justify-center">
@@ -81,11 +83,12 @@ export function Hero({ dictionary, socials, products }: HeroProps) {
             <ArrowRight className="size-5" aria-hidden="true" />
           </a>
           <a
-            href="#socials"
+            href={localePath(locale, "/links")}
             className="inline-flex min-h-13 items-center justify-center gap-3 rounded-full border border-pink-300 bg-white/75 px-6 text-base font-black text-pink-700 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-pink-400 hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
           >
             <Heart className="size-5" aria-hidden="true" />
-            {dictionary.hero.follow}
+            <span className="sm:hidden">{dictionary.nav.links}</span>
+            <span className="hidden sm:inline">{dictionary.hero.follow}</span>
             <ArrowRight className="size-5" aria-hidden="true" />
           </a>
         </div>
@@ -168,7 +171,7 @@ export function Hero({ dictionary, socials, products }: HeroProps) {
         </div>
       </div>
 
-      <div className="lg:col-span-2">
+      <div className="hidden sm:block lg:col-span-2">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {products.map((product) => (
             <a

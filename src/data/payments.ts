@@ -1,4 +1,3 @@
-import { legalConfig } from "@/data/legal";
 import { siteConfig } from "@/data/site";
 import type { BrandIconKey } from "@/lib/brand-icons";
 
@@ -290,8 +289,6 @@ export const paymentConfig = {
   requestedSalesEnabled,
   legal: {
     b2cSalesAllowed: true,
-    consumerMediatorConfigured: legalConfig.consumerMediatorConfigured,
-    mediatorGateEnforced: false,
     salesBlockedByLegalGate: false,
   },
   publicDomain: siteConfig.domain,

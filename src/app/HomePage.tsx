@@ -2,6 +2,7 @@ import { Contact } from "@/components/site/Contact";
 import { Footer } from "@/components/site/Footer";
 import { Hero } from "@/components/site/Hero";
 import { Lookbook } from "@/components/site/Lookbook";
+import { MobileActionBar } from "@/components/site/MobileActionBar";
 import { ProductCards } from "@/components/site/ProductCards";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SocialHub } from "@/components/site/SocialHub";
@@ -41,12 +42,13 @@ export function HomePage({
       />
       <SoftShapes />
       <SiteHeader locale={locale} dictionary={dictionary} />
-      <Hero dictionary={dictionary} socials={socials} products={products} />
+      <Hero locale={locale} dictionary={dictionary} socials={socials} products={products} />
       <SocialHub dictionary={dictionary} socials={socials} />
       <ProductCards locale={locale} dictionary={dictionary} products={products} />
       <Lookbook dictionary={dictionary} galleryItems={galleryItems} />
       <Contact locale={locale} dictionary={dictionary} status={contactStatus} />
       <Footer locale={locale} dictionary={dictionary} socials={socials} />
+      <MobileActionBar locale={locale} dictionary={dictionary} />
     </main>
   );
 }

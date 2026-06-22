@@ -256,6 +256,7 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
                   ) : (
                     <form method="post" className="grid gap-2">
                       <input type="hidden" name="product" value={product.slug} />
+                      <input type="hidden" name="locale" value={locale} />
                       <label className="flex items-start gap-2 rounded-2xl border border-pink-100 bg-pink-50/65 p-3 text-xs font-bold leading-5 text-rose-950/68">
                         <input
                           required

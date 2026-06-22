@@ -186,12 +186,6 @@ try {
   $status = Get-Json "$PublicUrl/api/payments/status?audit=1"
   Add-Check "PASS" "Storefront payment status" "Endpoint returned ok=$($status.ok), salesEnabled=$($status.salesEnabled)."
 
-  if ($status.legal.consumerMediatorConfigured) {
-    Add-Check "PASS" "B2C legal mediator" "Consumer mediator is configured."
-  } else {
-    Add-Check "PASS" "B2C legal mediator" "No consumer mediator configured; public sales are not blocked by owner decision."
-  }
-
   if ($status.stripe.readyProductCount -gt 0) {
     Add-Check "PASS" "Stripe Payment Links" "$($status.stripe.readyProductCount) products have Stripe links."
   } else {

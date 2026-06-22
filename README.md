@@ -199,10 +199,6 @@ Legal pages are part of the app:
 Checkout buttons require explicit CGV/immediate digital delivery acceptance
 before reaching Stripe, BTCPay or Solana Pay. The order table stores the terms
 version, waiver timestamp and `fiat_value_eur_at_transaction` for accounting.
-`CONSUMER_MEDIATOR_NAME` and `CONSUMER_MEDIATOR_WEBSITE` are optional disclosure
-fields. The owner accepts the business risk of launching without a configured
-consumer mediator, so `SALES_ENABLED=true` enables public checkout without a
-mediator gate.
 
 ## Payment Direction
 

@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date("2026-06-22");
   const paths = [
     { path: "/", priority: 1 },
+    { path: "/links", priority: 0.95 },
     { path: "/legal", priority: 0.7 },
     { path: "/terms", priority: 0.7 },
     { path: "/refund-policy", priority: 0.7 },

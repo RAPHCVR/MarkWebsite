@@ -1,15 +1,3 @@
-const consumerMediator = {
-  name: process.env.CONSUMER_MEDIATOR_NAME?.trim() || "",
-  address: process.env.CONSUMER_MEDIATOR_ADDRESS?.trim() || "",
-  website: process.env.CONSUMER_MEDIATOR_WEBSITE?.trim() || "",
-  referenceListUrl:
-    "https://www.economie.gouv.fr/mediation-conso/liste-mediateurs-references",
-};
-
-const consumerMediatorConfigured = Boolean(
-  consumerMediator.name && consumerMediator.website,
-);
-
 const contactPhoneLabel = process.env.LEGAL_CONTACT_PHONE?.trim() || "";
 
 function phoneHrefFromLabel(label: string) {
@@ -50,8 +38,8 @@ export const legalConfig = {
   contactPhoneLabel,
   contactPhoneHref: phoneHrefFromLabel(contactPhoneLabel),
   contactPath: "/#contact",
-  termsVersion: "2026-06-21",
-  privacyVersion: "2026-06-21",
+  termsVersion: "2026-06-22",
+  privacyVersion: "2026-06-22",
   merchantRole:
     "Raphael Tech Solutions acts as the technical platform operator and Merchant of Record for Marky digital access services.",
   creatorName: "Marky",
@@ -64,8 +52,6 @@ export const legalConfig = {
     "Content Delivery Token",
     "VIP Infrastructure Access",
   ],
-  consumerMediator,
-  consumerMediatorConfigured,
   b2cSalesAllowed: true,
 } as const;
 
