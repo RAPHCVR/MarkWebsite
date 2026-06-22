@@ -223,6 +223,13 @@ export const dictionaries = {
       messagePlaceholder: "Tell me about your campaign, partnership or platform idea...",
       submit: "Send request",
       note: "Stored in the site inbox and relayed to the private admin chat when configured. Turnstile filters automated spam when enabled.",
+      privacyNote: "Used only to reply to this request and keep a support record. See the privacy policy for details.",
+      status: {
+        sent: "Request sent. The team will reply through the email you provided.",
+        missing: "Add a valid reply email and message, then send again.",
+        verify: "Security verification failed. Complete the Turnstile check and send again.",
+        limited: "Too many attempts from this connection. Wait a minute, then try again.",
+      },
       aria: "Collaboration contact form",
     },
     footer: {
@@ -600,6 +607,13 @@ export const dictionaries = {
       messagePlaceholder: "Présente ta campagne, ton partenariat ou ton idée plateforme...",
       submit: "Envoyer la demande",
       note: "Stocké dans l'inbox du site et relayé au chat admin privé quand il est configuré. Turnstile filtre le spam automatisé quand il est actif.",
+      privacyNote: "Utilisé uniquement pour répondre à cette demande et conserver une trace support. Détails dans la politique de confidentialité.",
+      status: {
+        sent: "Demande envoyée. L'équipe répondra via l'email indiqué.",
+        missing: "Ajoute un email de réponse valide et un message, puis renvoie la demande.",
+        verify: "La vérification de sécurité a échoué. Termine le contrôle Turnstile puis renvoie la demande.",
+        limited: "Trop de tentatives depuis cette connexion. Attends une minute, puis réessaie.",
+      },
       aria: "Formulaire de contact collaboration",
     },
     footer: {
@@ -841,6 +855,13 @@ export const dictionaries = {
       messagePlaceholder: "Расскажи о кампании, партнерстве или идее платформы...",
       submit: "Отправить запрос",
       note: "Сохраняется в inbox сайта и пересылается в приватный admin chat, если он настроен. Turnstile фильтрует автоматический спам, когда включен.",
+      privacyNote: "Используется только для ответа на запрос и хранения записи поддержки. Подробности в privacy policy.",
+      status: {
+        sent: "Запрос отправлен. Команда ответит на указанный email.",
+        missing: "Укажи корректный email для ответа и сообщение, затем отправь снова.",
+        verify: "Проверка безопасности не прошла. Заверши Turnstile и отправь снова.",
+        limited: "Слишком много попыток с этого подключения. Подожди минуту и попробуй снова.",
+      },
       aria: "Форма для деловых запросов",
     },
     footer: {

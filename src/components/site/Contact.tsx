@@ -8,13 +8,17 @@ import { SectionShell } from "@/components/site/SectionShell";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 
+export type ContactStatus = "sent" | "missing" | "verify" | "limited";
+
 type ContactProps = {
   locale: Locale;
   dictionary: Dictionary;
+  status?: ContactStatus | null;
 };
 
-export function Contact({ locale, dictionary }: ContactProps) {
+export function Contact({ locale, dictionary, status }: ContactProps) {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const statusMessage = status ? dictionary.contact.status[status] : null;
 
   return (
     <SectionShell
@@ -52,6 +56,14 @@ export function Contact({ locale, dictionary }: ContactProps) {
           aria-label={dictionary.contact.aria}
         >
           <input type="hidden" name="locale" value={locale} />
+          {statusMessage ? (
+            <p
+              className="mb-5 rounded-2xl border border-pink-100 bg-pink-50/80 px-4 py-3 text-sm font-bold leading-6 text-rose-950/72"
+              role="status"
+            >
+              {statusMessage}
+            </p>
+          ) : null}
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.18em] text-pink-500">
@@ -126,6 +138,9 @@ export function Contact({ locale, dictionary }: ContactProps) {
           </Button>
           <p id="contact-form-note" className="mt-3 text-center text-xs font-medium text-rose-950/55">
             {dictionary.contact.note}
+          </p>
+          <p className="mt-2 text-center text-xs font-medium text-rose-950/50">
+            {dictionary.contact.privacyNote}
           </p>
         </form>
       </div>

@@ -6,6 +6,7 @@ import { ProductCards } from "@/components/site/ProductCards";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SocialHub } from "@/components/site/SocialHub";
 import { SoftShapes } from "@/components/site/SoftShapes";
+import type { ContactStatus } from "@/components/site/Contact";
 import type { Product } from "@/data/products";
 import type { SocialLink } from "@/data/socials";
 import type { GalleryItem } from "@/data/gallery";
@@ -19,6 +20,7 @@ type HomePageProps = {
   products: Product[];
   socials: SocialLink[];
   galleryItems: GalleryItem[];
+  contactStatus?: ContactStatus | null;
 };
 
 export function HomePage({
@@ -27,6 +29,7 @@ export function HomePage({
   products,
   socials,
   galleryItems,
+  contactStatus,
 }: HomePageProps) {
   return (
     <main id="top" className="min-h-screen overflow-hidden">
@@ -42,7 +45,7 @@ export function HomePage({
       <SocialHub dictionary={dictionary} socials={socials} />
       <ProductCards locale={locale} dictionary={dictionary} products={products} />
       <Lookbook dictionary={dictionary} galleryItems={galleryItems} />
-      <Contact locale={locale} dictionary={dictionary} />
+      <Contact locale={locale} dictionary={dictionary} status={contactStatus} />
       <Footer locale={locale} dictionary={dictionary} socials={socials} />
     </main>
   );

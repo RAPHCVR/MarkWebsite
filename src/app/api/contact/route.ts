@@ -27,7 +27,9 @@ function clean(value: FormDataEntryValue | null, limit: number) {
   return value.trim().slice(0, limit);
 }
 
-function contactRedirect(localeValue: string, status: "sent" | "missing") {
+type ContactRedirectStatus = "sent" | "missing" | "verify" | "limited";
+
+function contactRedirect(localeValue: string, status: ContactRedirectStatus) {
   const locale = assertLocale(localeValue) || defaultLocale;
   const url = new URL(localePath(locale, "/"), siteConfig.publicUrl);
   url.searchParams.set("contact", status);
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (rateLimited) {
-    return rateLimited;
+    return NextResponse.redirect(contactRedirect(locale, "limited"), 303);
   }
 
   const turnstile = await verifyTurnstileToken({
@@ -69,10 +71,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!turnstile.ok) {
-    return NextResponse.json(
-      { error: "Contact verification failed" },
-      { status: 400 },
-    );
+    return NextResponse.redirect(contactRedirect(locale, "verify"), 303);
   }
 
   if (!message || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
