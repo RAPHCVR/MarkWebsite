@@ -1,14 +1,20 @@
 import Link from "next/link";
 
-import { legalConfig, legalLinks } from "@/data/legal";
+import { LegalContactDetails } from "@/components/site/LegalContactDetails";
+import { legalConfig } from "@/data/legal";
+import { localeLabels, localePath, stripLocale, type Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 type LegalDocumentProps = {
   eyebrow: string;
   title: string;
   description: string;
-  sections: Array<{
+  pathname: string;
+  locale: Locale;
+  dictionary: Dictionary;
+  sections: ReadonlyArray<{
     title: string;
-    body: string[];
+    body: readonly string[];
   }>;
 };
 
@@ -16,17 +22,45 @@ export function LegalDocument({
   eyebrow,
   title,
   description,
+  pathname,
+  locale,
+  dictionary,
   sections,
 }: LegalDocumentProps) {
+  const legalLinks = [
+    { label: dictionary.legalNav.legal, href: localePath(locale, "/legal") },
+    { label: dictionary.legalNav.terms, href: localePath(locale, "/terms") },
+    { label: dictionary.legalNav.refund, href: localePath(locale, "/refund-policy") },
+    { label: dictionary.legalNav.privacy, href: localePath(locale, "/privacy") },
+  ];
+
   return (
-    <main lang="fr" className="min-h-screen bg-[var(--background)] px-4 py-8 text-rose-950 sm:px-6 lg:px-8">
+    <main lang={locale} className="min-h-screen bg-[var(--background)] px-4 py-8 text-rose-950 sm:px-6 lg:px-8">
       <article className="mx-auto max-w-4xl rounded-[2rem] border border-pink-100 bg-white/84 p-6 shadow-[0_24px_80px_rgba(236,72,153,0.12)] backdrop-blur sm:p-8">
         <Link
-          href="/"
+          href={localePath(locale, "/")}
           className="inline-flex min-h-10 items-center rounded-full border border-pink-200 bg-pink-50 px-4 text-sm font-black text-pink-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
         >
-          Retour au site
+          {dictionary.legal.back}
         </Link>
+
+        <nav
+          aria-label={dictionary.nav.language}
+          className="mt-4 flex flex-wrap gap-2"
+        >
+          {(["en", "fr", "ru"] as const).map((targetLocale) => (
+            <Link
+              key={targetLocale}
+              href={localePath(targetLocale, stripLocale(pathname))}
+              hrefLang={targetLocale}
+              aria-current={targetLocale === locale ? "page" : undefined}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-pink-100 bg-white/70 px-3 text-xs font-black text-rose-950/62 transition hover:border-pink-300 hover:text-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 aria-[current=page]:border-pink-500 aria-[current=page]:bg-pink-600 aria-[current=page]:text-white"
+              title={localeLabels[targetLocale].native}
+            >
+              {localeLabels[targetLocale].short}
+            </Link>
+          ))}
+        </nav>
 
         <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-pink-500">
           {eyebrow}
@@ -37,19 +71,26 @@ export function LegalDocument({
         <p className="mt-4 max-w-3xl text-base leading-7 text-rose-950/68">
           {description}
         </p>
+        {locale !== "fr" ? (
+          <p className="mt-4 rounded-2xl border border-amber-100 bg-amber-50/80 p-4 text-sm font-bold leading-6 text-amber-800">
+            {dictionary.legal.authoritative}
+          </p>
+        ) : null}
 
         <div className="mt-8 rounded-3xl border border-pink-100 bg-pink-50/72 p-5">
           <p className="text-sm font-black text-rose-950">
-            Merchant of Record
+            {dictionary.legal.merchantTitle}
           </p>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             {[
-              ["Merchant", legalConfig.merchantName],
-              ["Entrepreneur", legalConfig.entrepreneurName],
-              ["SIREN", legalConfig.siren],
-              ["SIRET", legalConfig.siret],
-              ["APE", legalConfig.apeCode],
-              ["TVA", legalConfig.vatStatus],
+              [dictionary.legal.fields.merchant, legalConfig.merchantName],
+              [dictionary.legal.fields.entrepreneur, legalConfig.entrepreneurName],
+              [dictionary.legal.fields.siren, legalConfig.siren],
+              [dictionary.legal.fields.siret, legalConfig.siret],
+              [dictionary.legal.fields.ape, legalConfig.apeCode],
+              [dictionary.legal.fields.vat, legalConfig.vatStatus],
+              [dictionary.legal.fields.address, legalConfig.registeredAddress],
+              [dictionary.legal.fields.hosting, legalConfig.hosting],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-white/72 p-3">
                 <dt className="text-xs font-black uppercase tracking-[0.16em] text-pink-500">
@@ -60,6 +101,16 @@ export function LegalDocument({
             ))}
           </dl>
         </div>
+
+        <LegalContactDetails
+          emailLocalPart={legalConfig.supportEmailLocalPart}
+          emailDomain={legalConfig.supportEmailDomain}
+          labels={dictionary.legal.contactCard}
+          formHref={localePath(locale, "/#contact")}
+          phoneLabel={legalConfig.contactPhoneLabel}
+          phoneHref={legalConfig.contactPhoneHref}
+          routingLabel={dictionary.legal.contactRouting}
+        />
 
         <div className="mt-8 space-y-7">
           {sections.map((section) => (
@@ -77,7 +128,7 @@ export function LegalDocument({
         </div>
 
         <nav
-          aria-label="Legal navigation"
+          aria-label={dictionary.footer.legalNav}
           className="mt-10 flex flex-wrap gap-2 border-t border-pink-100 pt-6"
         >
           {legalLinks.map((link) => (

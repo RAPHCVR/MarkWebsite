@@ -3,16 +3,22 @@ import { ArrowUpRight, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import { SectionShell } from "@/components/site/SectionShell";
-import { socials } from "@/data/socials";
+import type { SocialLink } from "@/data/socials";
+import type { Dictionary } from "@/i18n/dictionaries";
 import { getExternalLinkProps } from "@/lib/links";
 
-export function SocialHub() {
+type SocialHubProps = {
+  dictionary: Dictionary;
+  socials: SocialLink[];
+};
+
+export function SocialHub({ dictionary, socials }: SocialHubProps) {
   return (
     <SectionShell
       id="socials"
-      eyebrow="Social hub"
-      title="Follow the cute chaos."
-      description="Official links for updates, chat, support and business requests."
+      eyebrow={dictionary.socials.eyebrow}
+      title={dictionary.socials.title}
+      description={dictionary.socials.description}
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {socials.map((social) => {
@@ -38,7 +44,7 @@ export function SocialHub() {
                 </span>
                 {isSoon ? (
                   <Badge className="rounded-full bg-fuchsia-50 font-bold text-fuchsia-700">
-                    Soon
+                    {dictionary.socials.soon}
                   </Badge>
                 ) : null}
               </div>

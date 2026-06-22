@@ -1,22 +1,24 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Geist, Pacifico, Playfair_Display } from "next/font/google";
+import { headers } from "next/headers";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/data/site";
+import { defaultLocale, isLocale } from "@/i18n/config";
 
 const geist = Geist({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-geist",
 });
 
 const playfair = Playfair_Display({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-playfair",
   weight: ["700", "800", "900"],
 });
 
 const pacifico = Pacifico({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-pacifico",
   weight: "400",
 });
@@ -103,14 +105,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestLocale = (await headers()).get("x-marky-locale");
+  const locale = isLocale(requestLocale) ? requestLocale : defaultLocale;
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={cn("font-sans", geist.variable, playfair.variable, pacifico.variable)}
     >
       <body>{children}</body>

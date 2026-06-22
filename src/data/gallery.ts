@@ -1,4 +1,5 @@
 export type GalleryItem = {
+  id: "signature" | "catboy" | "outfit" | "backstage" | "mirror" | "chaos";
   title: string;
   category: string;
   description: string;
@@ -8,6 +9,7 @@ export type GalleryItem = {
 
 export const galleryItems: GalleryItem[] = [
   {
+    id: "signature",
     title: "Signature look",
     category: "soft set",
     description: "Pastel details, gentle styling and clean previews.",
@@ -15,6 +17,7 @@ export const galleryItems: GalleryItem[] = [
     tone: "blush",
   },
   {
+    id: "catboy",
     title: "Catboy",
     category: "signature",
     description: "Cat ears, blush accents and playful details.",
@@ -22,6 +25,7 @@ export const galleryItems: GalleryItem[] = [
     tone: "hot",
   },
   {
+    id: "outfit",
     title: "Soft outfit",
     category: "lookbook",
     description: "Creamy textures, blush accents and clean styling.",
@@ -29,6 +33,7 @@ export const galleryItems: GalleryItem[] = [
     tone: "cream",
   },
   {
+    id: "backstage",
     title: "Backstage",
     category: "bts",
     description: "Quiet prep moments before a drop goes live.",
@@ -36,6 +41,7 @@ export const galleryItems: GalleryItem[] = [
     tone: "lilac",
   },
   {
+    id: "mirror",
     title: "Mirror shots",
     category: "daily",
     description: "Fast outfit checks with a clean preview finish.",
@@ -43,6 +49,7 @@ export const galleryItems: GalleryItem[] = [
     tone: "blush",
   },
   {
+    id: "chaos",
     title: "Cute chaos",
     category: "playful",
     description: "Tiny hearts, sparkles and expressive public ideas.",

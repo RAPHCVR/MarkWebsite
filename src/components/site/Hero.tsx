@@ -11,12 +11,11 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
-import { products } from "@/data/products";
+import type { Product } from "@/data/products";
 import { siteConfig } from "@/data/site";
-import { socials } from "@/data/socials";
+import type { SocialLink } from "@/data/socials";
+import type { Dictionary } from "@/i18n/dictionaries";
 import { getExternalLinkProps } from "@/lib/links";
-
-const heroSocials = socials;
 
 const compactHeroLabel: Record<string, string> = {
   "Telegram Channel": "Telegram",
@@ -25,7 +24,13 @@ const compactHeroLabel: Record<string, string> = {
   "Private Channel": "Channel later",
 };
 
-export function Hero() {
+type HeroProps = {
+  dictionary: Dictionary;
+  socials: SocialLink[];
+  products: Product[];
+};
+
+export function Hero({ dictionary, socials, products }: HeroProps) {
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-10 px-4 pb-10 pt-5 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:pb-12 lg:pt-8">
       <div className="flex flex-col justify-center">
@@ -38,22 +43,22 @@ export function Hero() {
           </div>
           <Badge className="h-9 rounded-full border-pink-200 bg-pink-50 px-4 font-bold text-pink-700">
             <ShieldCheck className="size-3.5" aria-hidden="true" />
-            Public preview
+            {dictionary.hero.handleBadge}
           </Badge>
           <Badge className="h-9 rounded-full border-fuchsia-200 bg-fuchsia-50 px-4 font-bold text-fuchsia-700">
             <Sparkles className="size-3.5" aria-hidden="true" />
-            Private channel planned
+            {dictionary.hero.channelBadge}
           </Badge>
         </div>
 
         <div className="relative">
           <p className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-pink-500">
-            Digital access passes
+            {dictionary.hero.eyebrow}
           </p>
           <h1 className="max-w-4xl font-serif text-5xl font-black leading-[0.95] text-rose-950 sm:text-7xl lg:text-8xl">
-            Your{" "}
+            {dictionary.hero.titlePrefix}{" "}
             <span className="relative inline-block text-pink-500">
-              Kitten Master
+              {dictionary.hero.titleHighlight}
               <span className="absolute -right-8 -top-3 text-4xl text-pink-500 sm:-right-10 sm:text-5xl">
                 ♥
               </span>
@@ -63,7 +68,7 @@ export function Hero() {
         </div>
 
         <p className="mt-5 max-w-2xl text-lg leading-8 text-rose-950/72 sm:text-2xl">
-          Soft drops, secure delivery & cute chaos.
+          {dictionary.hero.subtitle}
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -72,7 +77,7 @@ export function Hero() {
             className="inline-flex min-h-13 items-center justify-center gap-3 rounded-full bg-pink-600 px-6 text-base font-black text-white shadow-[0_18px_38px_rgba(219,39,119,0.32)] transition hover:-translate-y-0.5 hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-300"
           >
             <ShoppingBag className="size-5" aria-hidden="true" />
-            View access passes
+            {dictionary.hero.viewPasses}
             <ArrowRight className="size-5" aria-hidden="true" />
           </a>
           <a
@@ -80,13 +85,13 @@ export function Hero() {
             className="inline-flex min-h-13 items-center justify-center gap-3 rounded-full border border-pink-300 bg-white/75 px-6 text-base font-black text-pink-700 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-pink-400 hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
           >
             <Heart className="size-5" aria-hidden="true" />
-            Follow {siteConfig.brandName}
+            {dictionary.hero.follow}
             <ArrowRight className="size-5" aria-hidden="true" />
           </a>
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 xl:flex xl:flex-wrap">
-          {heroSocials.map((social) => {
+          {socials.map((social) => {
             const label = compactHeroLabel[social.label] ?? social.label;
 
             return (
@@ -112,10 +117,10 @@ export function Hero() {
 
       <div className="relative mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
         <div className="absolute -left-4 top-8 hidden rounded-full bg-white/80 px-4 py-3 text-sm font-black text-pink-500 shadow-lg ring-1 ring-pink-100 backdrop-blur sm:block">
-          public preview
+          {dictionary.hero.publicPreview}
         </div>
         <div className="absolute -right-2 top-3 z-10 rounded-full border border-pink-200 bg-white/86 px-4 py-2 text-sm font-black text-rose-950 shadow-lg backdrop-blur">
-          Access opening soon
+          {dictionary.hero.openingSoon}
         </div>
 
         <div className="relative overflow-hidden rounded-[2rem] border border-white/90 bg-white/68 p-3 shadow-[0_28px_80px_rgba(190,24,93,0.18)] backdrop-blur-xl sm:rounded-[2.5rem]">
@@ -147,18 +152,16 @@ export function Hero() {
 
             <div className="absolute bottom-5 left-5 right-5 rounded-3xl border border-white/80 bg-white/78 p-4 shadow-[0_18px_40px_rgba(190,24,93,0.16)] backdrop-blur-xl sm:left-auto sm:w-72">
               <div className="space-y-3 text-sm font-bold text-rose-950/80">
-                <p className="flex items-center gap-2">
-                  <Heart className="size-4 text-pink-500" aria-hidden="true" />
-                  Public creator previews
-                </p>
-                <p className="flex items-center gap-2">
-                  <Cat className="size-4 text-pink-500" aria-hidden="true" />
-                  Digital access passes
-                </p>
-                <p className="flex items-center gap-2">
-                  <Mail className="size-4 text-pink-500" aria-hidden="true" />
-                  Business inbox open
-                </p>
+                {dictionary.hero.profilePoints.map((point, index) => {
+                  const Icon = [Heart, Cat, Mail][index] ?? Heart;
+
+                  return (
+                    <p key={point} className="flex items-center gap-2">
+                      <Icon className="size-4 text-pink-500" aria-hidden="true" />
+                      {point}
+                    </p>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -184,7 +187,7 @@ export function Hero() {
                 {product.description}
               </p>
               <span className="relative mt-4 inline-flex items-center gap-2 text-sm font-black text-pink-700">
-                Preview access
+                {dictionary.hero.productCta}
                 <ArrowRight className="size-4" aria-hidden="true" />
               </span>
             </a>

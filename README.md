@@ -11,6 +11,31 @@ The site is a single long landing page with:
 - collab contact section
 - footer links
 
+## Languages
+
+Public pages are localized in English, French and Russian:
+
+- `/en`
+- `/fr`
+- `/ru`
+- `/en/legal`, `/fr/legal`, `/ru/legal`
+- `/en/terms`, `/fr/terms`, `/ru/terms`
+- `/en/refund-policy`, `/fr/refund-policy`, `/ru/refund-policy`
+- `/en/privacy`, `/fr/privacy`, `/ru/privacy`
+
+Routing priority is:
+
+1. explicit URL locale, for example `/fr`;
+2. `marky_locale` functional language cookie after a manual choice;
+3. browser `Accept-Language`;
+4. Cloudflare `CF-IPCountry` only as a first-visit fallback when no language signal exists;
+5. English default.
+
+The site does not use IP country for advertising profiling. The language cookie
+is a strictly functional preference cookie. French legal pages are the
+authoritative legal version; English and Russian legal pages are convenience
+translations with an explicit notice.
+
 ## Stack
 
 - Next.js App Router
@@ -96,14 +121,22 @@ with Cloudflare Access and set `CLOUDFLARE_ACCESS_AUD` plus either
 then validate the Access JWT before accepting the bearer token. Public admin API
 requests are rate-limited through `creator_rate_limits`.
 
+Cloudflare Email Routing is enabled for `markshnaknaks.com` and the active
+catch-all forwards domain emails, including `support@markshnaknaks.com`, to the
+verified Marky inbox. The legal pages reveal the support email only after a user
+action, so it remains available to humans without being present as a raw
+crawlable address in initial HTML.
+
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
-requests are stored in `creator_contact_requests`; when `TELEGRAM_ADMIN_CHAT_ID`
-is configured, the same request is also relayed to the private admin chat. The
-direct email CTA remains available for urgent briefs.
+requests are stored in `creator_contact_requests` with the visitor reply email;
+when `TELEGRAM_ADMIN_CHAT_ID` is configured, the same request is also relayed to
+the private admin chat. The direct legal email and phone remain available from
+the legal pages for formal requests without exposing the email in initial HTML.
 Turnstile can be enabled with `NEXT_PUBLIC_TURNSTILE_SITE_KEY`,
 `TURNSTILE_SECRET_KEY`, `TURNSTILE_REQUIRED=true` and
-`NEXT_PUBLIC_TURNSTILE_REQUIRED=true`. If Turnstile is not required, a missing
-token does not block legitimate contact submissions.
+`NEXT_PUBLIC_TURNSTILE_REQUIRED=true`. In production, keep Turnstile required
+once both keys are configured. If Turnstile is not required, a missing token does
+not block legitimate contact submissions.
 Public write endpoints use a small PostgreSQL-backed rate limit in
 `creator_rate_limits`, keyed by a hash of the client fingerprint. This keeps
 checkout/contact spam out of the production database without adding a separate
@@ -143,6 +176,9 @@ and Merchant of Record for Marky digital access services:
 - Legal form: Entrepreneur individuel / Micro-entreprise
 - APE: `6201Z`
 - TVA: franchise en base, article 293 B CGI
+- Legal electronic contact: secure contact form and the revealed domain support
+  email on the legal notice.
+- Legal phone contact: `LEGAL_CONTACT_PHONE`, defaulting to `07 68 90 78 65`.
 
 Public wording should stay accurate and aligned with the actual service:
 Digital Access Pass, Premium Platform Membership, Content Delivery Token,
@@ -153,10 +189,11 @@ before launch.
 
 Legal pages are part of the app:
 
-- `/legal`
-- `/terms`
-- `/refund-policy`
-- `/privacy`
+- `/legal` redirects to `/fr/legal`
+- `/terms` redirects to `/fr/terms`
+- `/refund-policy` redirects to `/fr/refund-policy`
+- `/privacy` redirects to `/fr/privacy`
+- localized versions are available under `/en`, `/fr` and `/ru`
 
 Checkout buttons require explicit CGV/immediate digital delivery acceptance
 before reaching Stripe, BTCPay or Solana Pay. The order table stores the terms

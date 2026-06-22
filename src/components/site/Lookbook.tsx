@@ -3,8 +3,9 @@ import { Sparkles } from "lucide-react";
 
 import { SectionShell } from "@/components/site/SectionShell";
 import { cn } from "@/lib/utils";
-import { galleryItems, type GalleryItem } from "@/data/gallery";
+import type { GalleryItem } from "@/data/gallery";
 import { siteConfig } from "@/data/site";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 const toneClass: Record<GalleryItem["tone"], string> = {
   blush: "from-mark-200 via-mark-100 to-white",
@@ -19,13 +20,18 @@ const sizeClass: Record<GalleryItem["size"], string> = {
   square: "min-h-[18rem]",
 };
 
-export function Lookbook() {
+type LookbookProps = {
+  dictionary: Dictionary;
+  galleryItems: GalleryItem[];
+};
+
+export function Lookbook({ dictionary, galleryItems }: LookbookProps) {
   return (
     <SectionShell
       id="lookbook"
-      eyebrow="Lookbook"
-      title="Soft cosplay universe, public preview."
-      description="Pastel cosplay, catboy details and backstage previews."
+      eyebrow={dictionary.lookbook.eyebrow}
+      title={dictionary.lookbook.title}
+      description={dictionary.lookbook.description}
     >
       <div className="grid auto-rows-[18rem] gap-4 md:grid-cols-4">
         <article className="relative overflow-hidden rounded-[2rem] border border-pink-100 bg-[linear-gradient(135deg,#fff_0%,#FFECEE_58%,#FFD4DE_100%)] p-5 shadow-sm md:col-span-2 md:row-span-2">
@@ -40,9 +46,9 @@ export function Lookbook() {
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0)_58%,rgba(255,244,249,0.9)_100%)]" />
           <div className="absolute bottom-5 left-5 right-5 rounded-3xl border border-white/80 bg-white/72 p-4 backdrop-blur-xl">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-pink-500">
-              Signature mascot
+              {dictionary.lookbook.mascotEyebrow}
             </p>
-            <h3 className="mt-2 text-2xl font-black text-rose-950">Official chibi sketch for {siteConfig.brandName}&apos;s soft mascot.</h3>
+            <h3 className="mt-2 text-2xl font-black text-rose-950">{dictionary.lookbook.mascotTitle}</h3>
           </div>
         </article>
 

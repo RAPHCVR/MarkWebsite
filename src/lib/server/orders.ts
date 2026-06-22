@@ -61,6 +61,7 @@ type SolanaPayVerificationRecord = {
 
 type ContactRequestRecord = {
   name: string;
+  email: string;
   organization: string;
   message: string;
   source?: string;
@@ -256,12 +257,16 @@ async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS creator_contact_requests (
       request_id text PRIMARY KEY,
       name text,
+      email text,
       organization text,
       message text NOT NULL,
       source text,
       user_agent text,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+
+    ALTER TABLE creator_contact_requests
+      ADD COLUMN IF NOT EXISTS email text;
 
     CREATE INDEX IF NOT EXISTS creator_contact_requests_created_at_idx
       ON creator_contact_requests(created_at DESC);
@@ -1886,6 +1891,7 @@ export async function getDeliveryAsset({
 
 export async function recordContactRequest({
   name,
+  email,
   organization,
   message,
   source = "markshnaknaks.com/contact",
@@ -1898,17 +1904,19 @@ export async function recordContactRequest({
       INSERT INTO creator_contact_requests (
         request_id,
         name,
+        email,
         organization,
         message,
         source,
         user_agent
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING request_id
     `,
     [
       `contact-${randomUUID()}`,
       name || null,
+      email || null,
       organization || null,
       message,
       source,

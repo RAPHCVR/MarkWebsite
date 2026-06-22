@@ -4,9 +4,18 @@ import { Crown, ShoppingBag } from "lucide-react";
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import { paymentConfig } from "@/data/payments";
 import { siteConfig } from "@/data/site";
+import { localeLabels, localePath, stripLocale, type Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
 import { getExternalLinkProps } from "@/lib/links";
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  locale: Locale;
+  dictionary: Dictionary;
+};
+
+export function SiteHeader({ locale, dictionary }: SiteHeaderProps) {
+  const currentPath = "/";
+
   return (
     <header className="sticky top-3 z-30 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
       <div className="flex min-h-16 items-center justify-between gap-4 rounded-[1.75rem] border border-white/80 bg-white/78 px-4 shadow-[0_18px_50px_rgba(190,24,93,0.12)] backdrop-blur-xl sm:px-5">
@@ -25,23 +34,23 @@ export function SiteHeader() {
               priority
             />
           </span>
-          <span className="min-w-0">
+          <span className="min-w-0 max-[359px]:hidden">
             <span className="block truncate font-logo text-2xl leading-none text-pink-500 sm:text-3xl">
               {siteConfig.brandName}
             </span>
             <span className="hidden truncate text-xs font-bold text-rose-950/58 min-[360px]:block">
-              Your Kitten Master
+              {dictionary.footer.slogan}
             </span>
           </span>
         </a>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
           {[
-            ["Home", "#top"],
-            ["Passes", "#access-passes"],
-            ["Socials", "#socials"],
-            ["Lookbook", "#lookbook"],
-            ["Collab", "#contact"],
+            [dictionary.nav.home, "#top"],
+            [dictionary.nav.passes, "#access-passes"],
+            [dictionary.nav.socials, "#socials"],
+            [dictionary.nav.lookbook, "#lookbook"],
+            [dictionary.nav.collab, "#contact"],
           ].map(([label, href]) => (
             <a
               key={label}
@@ -54,6 +63,20 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full border border-pink-100 bg-white/70 p-1" aria-label={dictionary.nav.language}>
+            {(["en", "fr", "ru"] as const).map((targetLocale) => (
+              <a
+                key={targetLocale}
+                href={localePath(targetLocale, stripLocale(currentPath))}
+                hrefLang={targetLocale}
+                aria-current={targetLocale === locale ? "page" : undefined}
+                className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] font-black text-rose-950/62 transition hover:bg-pink-50 hover:text-pink-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 aria-[current=page]:bg-pink-600 aria-[current=page]:text-white sm:min-h-9 sm:min-w-9 sm:text-xs"
+                title={localeLabels[targetLocale].native}
+              >
+                {localeLabels[targetLocale].short}
+              </a>
+            ))}
+          </div>
           <a
             href={siteConfig.instagramUrl}
             {...getExternalLinkProps(siteConfig.instagramUrl)}
@@ -79,8 +102,8 @@ export function SiteHeader() {
           >
             <ShoppingBag className="size-4 sm:hidden" aria-hidden="true" />
             <Crown className="hidden size-4 sm:block" aria-hidden="true" />
-            <span className="hidden sm:inline">Join VIP</span>
-            <span className="sm:hidden">VIP</span>
+            <span className="hidden sm:inline">{dictionary.nav.joinVip}</span>
+            <span className="sm:hidden">{dictionary.nav.vipShort}</span>
           </a>
         </div>
       </div>

@@ -2,12 +2,26 @@ import Image from "next/image";
 import { Heart } from "lucide-react";
 
 import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
-import { legalLinks } from "@/data/legal";
 import { siteConfig } from "@/data/site";
-import { socials } from "@/data/socials";
+import type { SocialLink } from "@/data/socials";
+import { localePath, type Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
 import { getExternalLinkProps } from "@/lib/links";
 
-export function Footer() {
+type FooterProps = {
+  locale: Locale;
+  dictionary: Dictionary;
+  socials: SocialLink[];
+};
+
+export function Footer({ locale, dictionary, socials }: FooterProps) {
+  const legalLinks = [
+    { label: dictionary.legalNav.legal, href: localePath(locale, "/legal") },
+    { label: dictionary.legalNav.terms, href: localePath(locale, "/terms") },
+    { label: dictionary.legalNav.refund, href: localePath(locale, "/refund-policy") },
+    { label: dictionary.legalNav.privacy, href: localePath(locale, "/privacy") },
+  ];
+
   return (
     <footer className="mx-auto w-full max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
       <div className="rounded-[2rem] border border-pink-100 bg-white/74 p-6 shadow-sm backdrop-blur">
@@ -25,12 +39,12 @@ export function Footer() {
               </span>
               <div>
                 <p className="font-logo text-3xl text-pink-500">{siteConfig.brandName}</p>
-                <p className="text-sm font-bold text-rose-950/60">Your Kitten Master</p>
+                <p className="text-sm font-bold text-rose-950/60">{dictionary.footer.slogan}</p>
               </div>
             </div>
           </div>
 
-          <nav className="flex flex-wrap gap-2" aria-label="Footer social links">
+          <nav className="flex flex-wrap gap-2" aria-label={dictionary.footer.socialNav}>
             {socials.map((social) => (
               <a
                 key={social.label}
@@ -48,7 +62,7 @@ export function Footer() {
         </div>
 
         <nav
-          aria-label="Legal links"
+          aria-label={dictionary.footer.legalNav}
           className="mt-6 flex flex-wrap gap-2 border-t border-pink-100 pt-5"
         >
           {legalLinks.map((link) => (
@@ -65,9 +79,9 @@ export function Footer() {
         <div className="mt-5 flex flex-col gap-3 text-sm font-semibold text-rose-950/58 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-center gap-2">
             <Heart className="size-4 text-pink-500" aria-hidden="true" />
-            Public preview site. Private channel planned later.
+            {dictionary.footer.preview}
           </p>
-          <p>Copyright 2026 {siteConfig.brandName}. Merchant of Record: Raphael Tech Solutions.</p>
+          <p>{dictionary.footer.copyright}</p>
         </div>
       </div>
     </footer>

@@ -10,6 +10,27 @@ const consumerMediatorConfigured = Boolean(
   consumerMediator.name && consumerMediator.website,
 );
 
+const contactPhoneLabel =
+  process.env.LEGAL_CONTACT_PHONE?.trim() || "07 68 90 78 65";
+
+function phoneHrefFromLabel(label: string) {
+  const compact = label.replace(/[^\d+]/g, "");
+
+  if (compact.startsWith("+")) {
+    return compact;
+  }
+
+  if (compact.startsWith("00")) {
+    return `+${compact.slice(2)}`;
+  }
+
+  if (compact.startsWith("0")) {
+    return `+33${compact.slice(1)}`;
+  }
+
+  return compact;
+}
+
 export const legalConfig = {
   merchantName: "Raphael Tech Solutions",
   entrepreneurName: "Raphael Chauvier",
@@ -18,11 +39,17 @@ export const legalConfig = {
   siret: "10576542400012",
   apeCode: "6201Z",
   activity:
-    "Programmation informatique, developpement de sites web, conseil en systemes informatiques et mise a disposition d'infrastructures logicielles (API, SaaS).",
-  vatStatus: "TVA non applicable, article 293 B du Code general des impots",
+    "Programmation informatique, développement de sites web, conseil en systèmes informatiques et mise à disposition d'infrastructures logicielles (API, SaaS).",
+  vatStatus: "TVA non applicable, article 293 B du Code général des impôts",
   registeredAddress: "27 Rue Marcel Miquel, 92130 Issy-les-Moulineaux, France",
   supportContactLabel: "formulaire de contact securise du site",
   privacyContactLabel: "formulaire de contact securise du site",
+  supportEmailLocalPart: "support",
+  supportEmailDomain: "markshnaknaks.com",
+  supportEmailRouting:
+    "Cloudflare Email Routing catch-all forwards domain mail to the verified Marky inbox.",
+  contactPhoneLabel,
+  contactPhoneHref: phoneHrefFromLabel(contactPhoneLabel),
   contactPath: "/#contact",
   termsVersion: "2026-06-21",
   privacyVersion: "2026-06-21",
@@ -44,8 +71,8 @@ export const legalConfig = {
 } as const;
 
 export const legalLinks = [
-  { label: "Mentions legales", href: "/legal" },
+  { label: "Mentions légales", href: "/legal" },
   { label: "CGV", href: "/terms" },
   { label: "Remboursements", href: "/refund-policy" },
-  { label: "Confidentialite", href: "/privacy" },
+  { label: "Confidentialité", href: "/privacy" },
 ] as const;

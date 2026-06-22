@@ -15,7 +15,9 @@ import {
 } from "@/components/site/BrandIcon";
 import { SectionShell } from "@/components/site/SectionShell";
 import { paymentConfig } from "@/data/payments";
-import { products, type Product } from "@/data/products";
+import type { Product } from "@/data/products";
+import { localePath, type Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
 import type { BrandIconKey } from "@/lib/brand-icons";
 import { getExternalLinkProps } from "@/lib/links";
 
@@ -33,24 +35,9 @@ const providerIcon = {
   soon: Lock,
 };
 
-const providerLabel = {
-  stripe: "access pass",
-  crypto: "crypto option",
-  telegram: "VIP channel",
-  soon: "preview",
-};
-
 const providerBrandIcon: Partial<Record<Product["checkoutProvider"], BrandIconKey>> = {
   stripe: "stripe",
   telegram: "telegram",
-};
-
-const cryptoRailStatus = {
-  ready: "Ready",
-  installed: "Installed",
-  planned: "Planned",
-  research: "Later",
-  disabled: "Off",
 };
 
 const cryptoRailClass = {
@@ -61,28 +48,30 @@ const cryptoRailClass = {
   disabled: "border-slate-200 bg-slate-50 text-slate-500",
 };
 
-function getCta(product: Product) {
+function getCta(product: Product, dictionary: Dictionary) {
   if (!paymentConfig.salesEnabled) {
-    return product.status === "coming-soon" ? "Preview soon" : "Preview access";
+    return product.status === "coming-soon"
+      ? dictionary.products.cta.previewSoon
+      : dictionary.products.cta.previewAccess;
   }
 
   if (product.status === "coming-soon") {
-    return "Preview soon";
+    return dictionary.products.cta.previewSoon;
   }
 
   if (product.checkoutProvider === "stripe" && product.stripePaymentLink) {
-    return "Get access with Stripe";
+    return dictionary.products.cta.stripe;
   }
 
   if (product.checkoutProvider === "crypto" && product.cryptoCheckoutUrl) {
-    return "Pay with crypto";
+    return dictionary.products.cta.crypto;
   }
 
   if (product.checkoutProvider === "telegram" && product.telegramVipUrl) {
-    return "Join VIP";
+    return dictionary.products.cta.telegram;
   }
 
-  return "Preview access";
+  return dictionary.products.cta.previewAccess;
 }
 
 function getHref(product: Product) {
@@ -108,27 +97,27 @@ function canShowCryptoCheckout(product: Product) {
   );
 }
 
-function getBtcpayButton() {
+function getBtcpayButton(dictionary: Dictionary) {
   const btcReady = paymentConfig.crypto.btcpay.btcWalletReady;
   const ltcReady = paymentConfig.crypto.btcpay.ltcEnabled;
 
   if (btcReady && ltcReady) {
     return {
       icon: "bitcoin" as const,
-      label: "Pay with BTC/LTC",
+      label: dictionary.products.cta.btcLtc,
     };
   }
 
   if (ltcReady) {
     return {
       icon: "litecoin" as const,
-      label: "Pay with Litecoin",
+      label: dictionary.products.cta.litecoin,
     };
   }
 
   return {
     icon: "bitcoin" as const,
-    label: "Pay with Bitcoin",
+    label: dictionary.products.cta.bitcoin,
   };
 }
 
@@ -141,17 +130,23 @@ function canShowStablecoinCheckout(product: Product) {
   );
 }
 
-export function ProductCards() {
+type ProductCardsProps = {
+  locale: Locale;
+  dictionary: Dictionary;
+  products: Product[];
+};
+
+export function ProductCards({ locale, dictionary, products }: ProductCardsProps) {
   return (
     <SectionShell
       id="access-passes"
-      eyebrow="Access preview"
-      title="Digital access passes"
-      description="Private delivery, support follow-up and ticketed VIP requests."
+      eyebrow={dictionary.products.eyebrow}
+      title={dictionary.products.title}
+      description={dictionary.products.description}
       className="pt-8"
     >
       <div className="mb-5 flex flex-wrap gap-3">
-        {["Access lineup", "Private delivery", "Concierge support"].map((item) => (
+        {dictionary.products.badges.map((item) => (
           <Badge
             key={item}
             variant="outline"
@@ -167,9 +162,7 @@ export function ProductCards() {
         <div>
           <div className="mb-4 grid gap-3 rounded-3xl border border-pink-100 bg-white/72 p-3 shadow-sm backdrop-blur sm:grid-cols-3">
             {[
-              ["4 passes", "First lineup"],
-              ["Delivery", "Site token or Telegram follow-up"],
-              ["Operator", "Raphael Tech Solutions"],
+              ...dictionary.products.stats,
             ].map(([value, label]) => (
               <div key={value} className="rounded-2xl bg-pink-50/70 px-4 py-3">
                 <p className="text-sm font-black text-pink-700">{value}</p>
@@ -182,7 +175,7 @@ export function ProductCards() {
         {products.map((product) => {
           const ProviderIcon = providerIcon[product.checkoutProvider];
           const providerLogo = providerBrandIcon[product.checkoutProvider];
-          const cta = getCta(product);
+          const cta = getCta(product, dictionary);
           const disabled = product.status === "coming-soon";
           const checkoutDisabled =
             !paymentConfig.salesEnabled || disabled || !product.stripePaymentLink;
@@ -190,7 +183,7 @@ export function ProductCards() {
           const safeHref = checkoutDisabled ? "#contact" : href;
           const showCryptoCheckout = canShowCryptoCheckout(product);
           const showStablecoinCheckout = canShowStablecoinCheckout(product);
-          const btcpayButton = getBtcpayButton();
+          const btcpayButton = getBtcpayButton(dictionary);
 
           return (
             <article
@@ -218,7 +211,7 @@ export function ProductCards() {
                       <Gem className="size-5" aria-hidden="true" />
                     )}
                     <span className="text-sm font-black uppercase tracking-[0.18em]">
-                      {providerLabel[product.checkoutProvider]}
+                      {dictionary.products.providerLabels[product.checkoutProvider]}
                     </span>
                   </div>
                   <div className="h-16 rounded-3xl border border-white/70 bg-white/42 shadow-inner backdrop-blur-sm" />
@@ -272,7 +265,11 @@ export function ProductCards() {
                           className="mt-1 size-4 rounded border-pink-300 text-pink-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
                         />
                         <span>
-                          I accept the <a href="/terms" className="text-pink-700 underline decoration-pink-300 underline-offset-2">CGV</a>, immediate digital delivery and loss of withdrawal right once access is issued.
+                          {dictionary.products.consent.split(dictionary.products.termsLabel)[0]}
+                          <a href={localePath(locale, "/terms")} className="text-pink-700 underline decoration-pink-300 underline-offset-2">
+                            {dictionary.products.termsLabel}
+                          </a>
+                          {dictionary.products.consent.split(dictionary.products.termsLabel).slice(1).join(dictionary.products.termsLabel)}
                         </span>
                       </label>
                       <button
@@ -320,7 +317,7 @@ export function ProductCards() {
                             >
                               <BrandIcon name="circle" className="size-4" />
                             </span>
-                            Pay with USDC
+                            {dictionary.products.cta.usdc}
                           </button>
                         </>
                       ) : null}
@@ -337,18 +334,13 @@ export function ProductCards() {
         <div className="rounded-3xl border border-pink-100 bg-white/76 p-5 shadow-sm backdrop-blur">
           <h3 className="flex items-center gap-2 text-xl font-black text-pink-700">
             <CreditCard className="size-5" aria-hidden="true" />
-            Access
+            {dictionary.products.accessPanel.title}
           </h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Start with a digital access pass, then use Telegram for VIP support,
-            ticketed requests and delivery follow-up.
+            {dictionary.products.accessPanel.body}
           </p>
           <div className="mt-4 space-y-3">
-            {[
-              ["Delivery", "Private site token or Telegram follow-up."],
-              ["Support", "Order help and private request tickets."],
-              ["Checkout", "Stripe first; crypto only on verified rails."],
-            ].map(([title, text]) => (
+            {dictionary.products.accessPanel.rows.map(([title, text]) => (
               <div key={title} className="rounded-2xl border border-pink-100 bg-white/76 p-3">
                 <p className="text-sm font-black text-rose-950">{title}</p>
                 <p className="mt-1 text-xs leading-5 text-rose-950/58">{text}</p>
@@ -361,7 +353,7 @@ export function ProductCards() {
             className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 text-sm font-black text-pink-700 transition hover:border-pink-300 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
           >
             <Send className="size-4" aria-hidden="true" />
-            Request private pass
+            {dictionary.products.cta.requestPrivatePass}
           </a>
         </div>
       </div>
@@ -371,14 +363,14 @@ export function ProductCards() {
           <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("stripe")}>
             <BrandIcon name="stripe" className="size-5" />
           </span>
-          <h3 className="mt-4 text-lg font-black text-rose-950">Card checkout</h3>
+          <h3 className="mt-4 text-lg font-black text-rose-950">{dictionary.products.cards.stripe.title}</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
             {paymentConfig.salesEnabled
-              ? "Stripe Payment Links are live for card checkout."
-              : "Stripe Payment Links are ready for checkout."}
+              ? dictionary.products.cards.stripe.live
+              : dictionary.products.cards.stripe.ready}
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            Secure payment page
+            {dictionary.products.cards.stripe.note}
           </p>
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
@@ -401,9 +393,9 @@ export function ProductCards() {
               </span>
             ))}
           </div>
-          <h3 className="mt-4 text-lg font-black text-rose-950">Crypto rails</h3>
+          <h3 className="mt-4 text-lg font-black text-rose-950">{dictionary.products.cards.crypto.title}</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            USDC uses Solana Pay. BTCPay handles LTC and BTC on verified wallets.
+            {dictionary.products.cards.crypto.body}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {paymentConfig.crypto.rails.filter((rail) => rail.recommended).map((rail) => (
@@ -411,7 +403,7 @@ export function ProductCards() {
                 key={rail.id}
                 className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${cryptoRailClass[rail.status]}`}
               >
-                {rail.label} · {cryptoRailStatus[rail.status]}
+                {rail.label} · {dictionary.products.railStatus[rail.status]}
               </span>
             ))}
           </div>
@@ -420,12 +412,12 @@ export function ProductCards() {
           <span className="flex size-8 items-center justify-center rounded-full bg-white text-[var(--brand-color)] shadow-sm" style={brandIconStyle("telegram")}>
             <BrandIcon name="telegram" className="size-5" />
           </span>
-          <h3 className="mt-4 text-lg font-black text-rose-950">Telegram VIP</h3>
+          <h3 className="mt-4 text-lg font-black text-rose-950">{dictionary.products.cards.telegram.title}</h3>
           <p className="mt-2 text-sm leading-6 text-rose-950/65">
-            Announcements, support, private invite links and delivery follow-up.
+            {dictionary.products.cards.telegram.body}
           </p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            Updates and private invites
+            {dictionary.products.cards.telegram.note}
           </p>
         </div>
       </div>

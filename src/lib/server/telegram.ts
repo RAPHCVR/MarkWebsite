@@ -302,11 +302,13 @@ async function notifyPrivateRequest(ticket: Extract<PrivateRequestTicketResult, 
 export async function notifyContactRequest({
   requestId,
   name,
+  email,
   organization,
   message,
 }: {
   requestId?: string;
   name?: string;
+  email?: string;
   organization?: string;
   message: string;
 }) {
@@ -322,6 +324,7 @@ export async function notifyContactRequest({
       "New Marky contact request",
       requestId ? `Request: ${requestId}` : null,
       name ? `Name: ${name}` : null,
+      email ? `Reply email: ${email}` : null,
       organization ? `Brand: ${organization}` : null,
       "",
       message.slice(0, 1_500),

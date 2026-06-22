@@ -2,6 +2,14 @@ import type { BrandIconKey } from "@/lib/brand-icons";
 import { siteConfig } from "@/data/site";
 
 export type SocialLink = {
+  id:
+    | "instagram"
+    | "tiktok"
+    | "telegramChannel"
+    | "telegramChat"
+    | "x"
+    | "collabs"
+    | "privateChannel";
   label: string;
   handle: string;
   href: string;
@@ -13,6 +21,7 @@ export type SocialLink = {
 
 export const socials: SocialLink[] = [
   {
+    id: "instagram",
     label: "Instagram",
     handle: siteConfig.handle,
     href: siteConfig.instagramUrl,
@@ -21,6 +30,7 @@ export const socials: SocialLink[] = [
     icon: "instagram",
   },
   {
+    id: "tiktok",
     label: "TikTok",
     handle: siteConfig.handle,
     href: siteConfig.tiktokUrl,
@@ -29,6 +39,7 @@ export const socials: SocialLink[] = [
     icon: "tiktok",
   },
   {
+    id: "telegramChannel",
     label: "Telegram Channel",
     handle: "t.me/markreyvakh",
     href: siteConfig.telegramChannelUrl,
@@ -37,6 +48,7 @@ export const socials: SocialLink[] = [
     icon: "telegram",
   },
   {
+    id: "telegramChat",
     label: "Telegram Chat",
     handle: "private chat group",
     href: siteConfig.telegramChatUrl,
@@ -45,6 +57,7 @@ export const socials: SocialLink[] = [
     icon: "telegram",
   },
   {
+    id: "x",
     label: "X / Twitter",
     handle: "@MarkyReykvakh",
     href: siteConfig.xUrl,
@@ -53,6 +66,7 @@ export const socials: SocialLink[] = [
     icon: "x",
   },
   {
+    id: "collabs",
     label: "Collabs",
     handle: "business inbox",
     href: siteConfig.collabContactUrl,
@@ -61,6 +75,7 @@ export const socials: SocialLink[] = [
     icon: "gmail",
   },
   {
+    id: "privateChannel",
     label: "Private Channel",
     handle: "planned later",
     href: "#access-passes",

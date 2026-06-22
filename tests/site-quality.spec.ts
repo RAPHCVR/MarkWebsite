@@ -2,12 +2,27 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const sectionIds = ["top", "socials", "access-passes", "lookbook", "contact"];
-const publicTextRoutes = ["/", "/legal", "/terms", "/refund-policy", "/privacy"];
+const localizedRoutes = ["/en", "/fr", "/ru"];
+const localizedLegalRoutes = [
+  "/en/legal",
+  "/en/terms",
+  "/en/refund-policy",
+  "/en/privacy",
+  "/fr/legal",
+  "/fr/terms",
+  "/fr/refund-policy",
+  "/fr/privacy",
+  "/ru/legal",
+  "/ru/terms",
+  "/ru/refund-policy",
+  "/ru/privacy",
+];
+const publicTextRoutes = [...localizedRoutes, ...localizedLegalRoutes];
 const restrictedCommercialWording =
   /\b(photo\s*pack|pack\s+photo|video\s*pack|pack\s+vid[eé]o|adult\s+content|contenu\s+adulte|18\+|onlyfans|vente\s+de\s+photos?)\b/i;
 
 test("homepage renders all key sections without horizontal overflow", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   await expect(page).toHaveTitle("Marky - Your Kitten Master");
 
@@ -24,9 +39,25 @@ test("homepage renders all key sections without horizontal overflow", async ({ p
 });
 
 test("homepage exposes crawlable SEO discovery metadata", async ({ page, request }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/en",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/en",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="fr"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/fr",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="ru"]')).toHaveAttribute(
+    "href",
+    "https://markshnaknaks.com/ru",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
     "href",
     "https://markshnaknaks.com",
   );
@@ -69,10 +100,10 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
   expect(sitemap.status()).toBe(200);
   const sitemapText = await sitemap.text();
   expect(sitemapText).toContain("https://markshnaknaks.com");
-  expect(sitemapText).toContain("https://markshnaknaks.com/legal");
-  expect(sitemapText).toContain("https://markshnaknaks.com/terms");
-  expect(sitemapText).toContain("https://markshnaknaks.com/refund-policy");
-  expect(sitemapText).toContain("https://markshnaknaks.com/privacy");
+  expect(sitemapText).toContain("https://markshnaknaks.com/en");
+  expect(sitemapText).toContain("https://markshnaknaks.com/fr/legal");
+  expect(sitemapText).toContain("https://markshnaknaks.com/ru/privacy");
+  expect(sitemapText).toContain("hreflang=\"x-default\"");
 
   const manifest = await request.get("/manifest.webmanifest");
   expect(manifest.status()).toBe(200);
@@ -89,7 +120,7 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
 });
 
 test("interactive elements are named and external links are hardened", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   const audit = await page.evaluate(() => {
     const emptyInteractive = [...document.querySelectorAll("a,button")]
@@ -103,7 +134,7 @@ test("interactive elements are named and external links are hardened", async ({ 
       })
       .map((element) => element.outerHTML.slice(0, 120));
 
-    const unlabeledControls = [...document.querySelectorAll("input,textarea")]
+    const unlabeledControls = [...document.querySelectorAll("input:not([type='hidden']),textarea")]
       .filter(
         (element) =>
           !element.closest("label") &&
@@ -145,6 +176,8 @@ test("interactive elements are named and external links are hardened", async ({ 
 });
 
 test("public pages do not expose crawlable email addresses", async ({ page }) => {
+  test.slow();
+
   const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 
   for (const route of publicTextRoutes) {
@@ -159,7 +192,30 @@ test("public pages do not expose crawlable email addresses", async ({ page }) =>
   }
 });
 
+test("legal email is available only after an explicit reveal action", async ({ page }) => {
+  await page.goto("/fr/legal");
+
+  await expect(page.getByRole("link", { name: "07 68 90 78 65" })).toHaveAttribute(
+    "href",
+    "tel:+33768907865",
+  );
+  await expect(page.locator("body")).not.toContainText(
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
+  );
+  await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Révéler l'email" }).click();
+
+  const legalEmail = page.getByRole("link", {
+    name: /support@markshnaknaks\.com/i,
+  });
+  await expect(legalEmail).toBeVisible();
+  await expect(legalEmail).toHaveAttribute("href", "mailto:support@markshnaknaks.com");
+});
+
 test("public pages avoid payment-risk wording", async ({ page }) => {
+  test.slow();
+
   for (const route of publicTextRoutes) {
     await page.goto(route);
 
@@ -170,7 +226,7 @@ test("public pages avoid payment-risk wording", async ({ page }) => {
 });
 
 test("commerce wording stays aligned with access-platform positioning", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   await expect(page.getByText("Digital Access Pass").first()).toBeVisible();
   await expect(page.getByText("Premium Platform Membership").first()).toBeVisible();
@@ -179,7 +235,7 @@ test("commerce wording stays aligned with access-platform positioning", async ({
 });
 
 test("checkout links reflect runtime sales flags", async ({ page, request }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   const response = await request.get("/api/payments/status");
   const status = await response.json() as { salesEnabled?: boolean };
@@ -196,6 +252,53 @@ test("checkout links reflect runtime sales flags", async ({ page, request }) => 
   await expect(page.getByRole("link", { name: /preview soon/i })).toHaveAttribute("aria-disabled", "true");
   await expect(page.getByText(/private channel/i).first()).toBeVisible();
   await expect(page.getByText(/planned/i).first()).toBeVisible();
+});
+
+test("locale routing respects explicit URLs, browser language and legacy legal redirects", async ({ page, request }) => {
+  await page.goto("/ru");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ru");
+  await expect(page.getByText("Цифровые доступы").first()).toBeVisible();
+
+  await page.goto("/fr");
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page.getByRole("link", { name: "FR", exact: true })).toHaveAttribute("aria-current", "page");
+
+  const frenchRoot = await request.get("/", {
+    headers: { "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.5" },
+    maxRedirects: 0,
+  });
+  expect(frenchRoot.status()).toBe(307);
+  expect(frenchRoot.headers().location).toContain("/fr");
+  expect(frenchRoot.headers()["content-language"]).toBe("fr");
+  expect(frenchRoot.headers().vary).toContain("Accept-Language");
+
+  const cookieRoot = await request.get("/", {
+    headers: {
+      Cookie: "marky_locale=ru",
+      "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.5",
+    },
+    maxRedirects: 0,
+  });
+  expect(cookieRoot.status()).toBe(307);
+  expect(cookieRoot.headers().location).toContain("/ru");
+
+  const countryFallbackRoot = await request.get("/", {
+    headers: {
+      "Accept-Language": "",
+      "Cf-Ipcountry": "FR",
+    },
+    maxRedirects: 0,
+  });
+  expect(countryFallbackRoot.status()).toBe(307);
+  expect(countryFallbackRoot.headers().location).toContain("/fr");
+
+  const russianResponse = await request.get("/ru");
+  expect(russianResponse.status()).toBe(200);
+  expect(russianResponse.headers()["content-language"]).toBe("ru");
+
+  const legacyLegal = await request.get("/legal", { maxRedirects: 0 });
+  expect(legacyLegal.status()).toBe(307);
+  expect(legacyLegal.headers().location).toContain("/fr/legal");
 });
 
 test("Stripe checkout requires POST and terms acceptance", async ({ request }, testInfo) => {
@@ -372,7 +475,9 @@ test("contact form posts to the site endpoint", async ({ request }, testInfo) =>
   const response = await request.post("/api/contact", {
     maxRedirects: 0,
     form: {
+      locale: "fr",
       name: "Test Sender",
+      email: "sender@example.invalid",
       organization: "Test Brand",
       message: "Collab request smoke test.",
       website: "https://bot.invalid",
@@ -380,13 +485,13 @@ test("contact form posts to the site endpoint", async ({ request }, testInfo) =>
   });
 
   expect(response.status()).toBe(303);
-  expect(new URL(response.headers().location || "").pathname).toBe("/");
+  expect(new URL(response.headers().location || "").pathname).toBe("/fr");
   expect(new URL(response.headers().location || "").search).toBe("?contact=sent");
   expect(new URL(response.headers().location || "").hash).toBe("#contact");
 });
 
 test("social links use recognizable brand icons", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   for (const brand of [
     "instagram",
@@ -404,7 +509,7 @@ test("social links use recognizable brand icons", async ({ page }) => {
 });
 
 test("page has no automated accessibility violations", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
 
   const results = await new AxeBuilder({ page }).analyze();
 
