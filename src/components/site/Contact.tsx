@@ -1,10 +1,10 @@
 import { Mail, Send, Sparkles } from "lucide-react";
-import Script from "next/script";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionShell } from "@/components/site/SectionShell";
+import { TurnstileWidget } from "@/components/site/TurnstileWidget";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 
@@ -115,15 +115,12 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
           </div>
 
           {turnstileSiteKey ? (
-            <div className="mt-4 rounded-2xl border border-pink-100 bg-white/70 p-3">
-              <Script
-                src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-                strategy="lazyOnload"
-              />
-              <div
-                className="cf-turnstile"
-                data-sitekey={turnstileSiteKey}
-                data-theme="light"
+            <div className="mt-4 flex justify-center overflow-hidden rounded-2xl border border-pink-100 bg-white/70 p-3">
+              <TurnstileWidget
+                siteKey={turnstileSiteKey}
+                action="contact"
+                size="flexible"
+                className="w-full max-w-[420px]"
               />
             </div>
           ) : null}

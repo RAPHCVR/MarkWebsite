@@ -283,6 +283,30 @@ test("legal contact details are available only after an explicit reveal action",
   await expect(legalPhone).toHaveAttribute("href", "tel:+33123456789");
 });
 
+test("revealed legal contact survives navigation between legal pages", async ({ page }) => {
+  await page.route("**/api/legal-contact", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        email: "support@markshnaknaks.com",
+        phoneLabel: "01 23 45 67 89",
+        phoneHref: "+33123456789",
+      }),
+    });
+  });
+
+  await page.goto("/fr/legal");
+  await page.getByRole("button", { name: "Révéler le contact légal" }).click();
+  await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
+
+  await page.locator('a[href="/fr/refund-policy"]').last().click();
+  await expect(page).toHaveURL(/\/fr\/refund-policy$/);
+
+  await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Révéler le contact légal" })).toHaveCount(0);
+});
+
 test("public pages avoid payment-risk wording", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-desktop", "Public text scan only needs one viewport");
   test.slow();

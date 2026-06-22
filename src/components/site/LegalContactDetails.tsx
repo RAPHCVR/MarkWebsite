@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Mail, Phone } from "lucide-react";
-import Script from "next/script";
+
+import { TurnstileWidget } from "@/components/site/TurnstileWidget";
 
 type LegalContactDetailsProps = {
   labels: {
@@ -28,6 +29,60 @@ type RevealedContact = {
   phoneHref?: string | null;
 };
 
+const legalContactStorageKey = "marky_legal_contact_v1";
+const legalContactTtlMs = 30 * 60 * 1000;
+
+type StoredLegalContact = RevealedContact & {
+  expiresAt: number;
+};
+
+function readStoredContact() {
+  try {
+    const raw = window.sessionStorage.getItem(legalContactStorageKey);
+
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<StoredLegalContact>;
+
+    if (
+      typeof parsed.email !== "string" ||
+      typeof parsed.expiresAt !== "number" ||
+      parsed.expiresAt < Date.now()
+    ) {
+      window.sessionStorage.removeItem(legalContactStorageKey);
+      return null;
+    }
+
+    const phoneLabel = typeof parsed.phoneLabel === "string" ? parsed.phoneLabel : null;
+    const phoneHref = typeof parsed.phoneHref === "string" ? parsed.phoneHref : null;
+
+    return {
+      email: parsed.email,
+      phoneLabel,
+      phoneHref,
+    };
+  } catch {
+    window.sessionStorage.removeItem(legalContactStorageKey);
+    return null;
+  }
+}
+
+function storeContact(contact: RevealedContact) {
+  try {
+    window.sessionStorage.setItem(
+      legalContactStorageKey,
+      JSON.stringify({
+        ...contact,
+        expiresAt: Date.now() + legalContactTtlMs,
+      } satisfies StoredLegalContact),
+    );
+  } catch {
+    // Contact reveal still works even when browser storage is unavailable.
+  }
+}
+
 export function LegalContactDetails({
   labels,
   formHref,
@@ -37,9 +92,11 @@ export function LegalContactDetails({
   const [isHydrated, setIsHydrated] = useState(false);
   const [contact, setContact] = useState<RevealedContact | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "verify" | "error">("idle");
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setContact(readStoredContact());
       setIsHydrated(true);
     }, 0);
 
@@ -61,6 +118,7 @@ export function LegalContactDetails({
 
       if (response.status === 403) {
         setStatus("verify");
+        setTurnstileResetSignal((signal) => signal + 1);
         return;
       }
 
@@ -72,6 +130,7 @@ export function LegalContactDetails({
       const data = (await response.json()) as RevealedContact;
 
       setContact(data);
+      storeContact(data);
       setStatus("idle");
     } catch {
       setStatus("error");
@@ -123,18 +182,15 @@ export function LegalContactDetails({
             ) : (
               <form className="space-y-3" onSubmit={revealContact}>
                 {turnstileSiteKey ? (
-                  <>
-                    <Script
-                      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-                      strategy="lazyOnload"
+                  <div className="max-w-full overflow-hidden rounded-xl">
+                    <TurnstileWidget
+                      siteKey={turnstileSiteKey}
+                      action="legal-contact"
+                      size="compact"
+                      resetSignal={turnstileResetSignal}
+                      className="min-h-[120px]"
                     />
-                    <div
-                      className="cf-turnstile"
-                      data-sitekey={turnstileSiteKey}
-                      data-theme="light"
-                      data-size="compact"
-                    />
-                  </>
+                  </div>
                 ) : null}
                 <button
                   type="submit"
