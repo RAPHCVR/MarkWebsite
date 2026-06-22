@@ -86,7 +86,7 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
     "https://markshnaknaks.com",
   );
   await expect(
-    page.locator('meta[property="og:image"][content="https://markshnaknaks.com/images/marky-og.png"]'),
+    page.locator('meta[property="og:image"][content="https://markshnaknaks.com/images/marky-home-og.png"]'),
   ).toHaveCount(1);
   await expect(page.locator('meta[property="og:image:width"][content="1200"]')).toHaveCount(1);
   await expect(page.locator('meta[property="og:image:height"][content="630"]')).toHaveCount(1);

@@ -223,17 +223,17 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
             <div className="relative overflow-hidden rounded-[1.6rem] border border-pink-100 bg-gradient-to-b from-white/92 via-pink-50/86 to-white/78 p-4 shadow-inner sm:p-5">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_20%_20%,rgba(254,177,198,0.48),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.98),transparent_38%)]" />
 
-              <nav className="relative z-10 mb-4 flex items-center justify-between gap-3">
+              <nav className="relative z-10 mb-5 flex items-center justify-between gap-3">
                 <a
                   href={homeHref}
-                  className="inline-flex min-h-10 min-w-0 items-center gap-2 rounded-full border border-pink-100 bg-white/82 px-3 text-sm font-black text-pink-700 shadow-sm transition hover:border-pink-200 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                  className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-pink-100 bg-white/84 py-1 pl-1.5 pr-3 text-sm font-black text-pink-700 shadow-sm transition hover:border-pink-200 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
                 >
                   <Image
-                    src={siteConfig.logoImage}
+                    src={siteConfig.manifestIconImage}
                     alt=""
-                    width={36}
-                    height={36}
-                    className="size-7 rounded-full object-contain"
+                    width={40}
+                    height={40}
+                    className="size-8 rounded-full object-cover ring-1 ring-pink-100"
                   />
                   <span className="hidden truncate min-[360px]:inline">Marky</span>
                 </a>
@@ -269,14 +269,14 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
               </nav>
 
               <header className="relative z-10 text-center">
-                <div className="mx-auto grid size-28 place-items-center rounded-[2rem] border border-white bg-pink-100 p-2 shadow-[0_16px_38px_rgba(200,13,91,0.18)]">
+                <div className="mx-auto grid size-30 place-items-center rounded-[2.15rem] border border-white bg-white/72 p-1.5 shadow-[0_18px_42px_rgba(200,13,91,0.18)] ring-1 ring-pink-100/70">
                   <Image
-                    src="/images/marky-icon-512.png"
+                    src={siteConfig.manifestIconImage}
                     alt="Marky"
                     width={160}
                     height={160}
                     priority
-                    className="size-full rounded-[1.55rem] object-cover"
+                    className="size-full rounded-[1.7rem] object-cover"
                   />
                 </div>
                 <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-pink-600">
@@ -412,24 +412,27 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
                 </a>
               </section>
 
-              <section className="relative z-10 mt-4 grid gap-2">
+              <section className="relative z-10 mt-6 grid gap-3" aria-label="Support and safety">
                 <a
                   href={supportHref}
                   {...linkProps(supportHref)}
-                  className="rounded-[1.35rem] border border-pink-100 bg-white/76 p-4 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                  className="rounded-[1.45rem] border border-pink-200/80 bg-white/86 p-4 shadow-[0_14px_32px_rgba(200,13,91,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_40px_rgba(200,13,91,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-pink-50 text-pink-600">
-                      <LifeBuoy className="size-5" aria-hidden="true" />
+                    <span
+                      className="grid size-11 shrink-0 place-items-center rounded-2xl bg-pink-50 text-[var(--brand-color)] shadow-inner"
+                      style={brandIconStyle("telegram")}
+                    >
+                      <BrandIcon name="telegram" className="size-5" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-sm font-black text-rose-950">
+                      <span className="block text-[15px] font-black leading-tight text-rose-950">
                         {copy.supportTitle}
                       </span>
-                      <span className="mt-1 block text-xs font-bold leading-5 text-rose-950/56">
+                      <span className="mt-1.5 block text-xs font-bold leading-5 text-rose-950/58">
                         {copy.supportBody}
                       </span>
-                      <span className="mt-2 inline-flex items-center gap-1 text-xs font-black text-pink-700">
+                      <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-black text-pink-700">
                         {copy.supportCta}
                         <ExternalLink className="size-3.5" aria-hidden="true" />
                       </span>
@@ -437,7 +440,7 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
                   </div>
                 </a>
 
-                <div className="rounded-[1.35rem] border border-pink-100 bg-white/68 p-4 shadow-sm">
+                <div className="rounded-[1.35rem] border border-pink-100 bg-white/62 p-4 shadow-sm">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="size-4 text-pink-600" aria-hidden="true" />
                     <h2 className="text-sm font-black text-rose-950">{copy.safetyTitle}</h2>

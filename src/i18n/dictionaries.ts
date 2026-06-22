@@ -8,6 +8,9 @@ export const dictionaries = {
       description:
         "Marky's public platform for digital access passes, social links, private delivery and collab requests.",
       shortDescription: "Digital access, social links, private delivery and collabs.",
+      linksTitle: "Marky official links - @markshnaknaks",
+      linksDescription:
+        "Official Instagram, TikTok, Telegram, support and digital access passes for Marky.",
       ogLocale: "en_US",
     },
     nav: {
@@ -590,6 +593,9 @@ export const dictionaries = {
       description:
         "Plateforme publique de Marky pour les accès numériques, les liens sociaux, la livraison privée et les demandes pro.",
       shortDescription: "Accès numériques, liens sociaux, livraison privée et collabs.",
+      linksTitle: "Liens officiels Marky - @markshnaknaks",
+      linksDescription:
+        "Instagram, TikTok, Telegram, support et passes d'accès numériques officiels de Marky.",
       ogLocale: "fr_FR",
     },
     nav: {
@@ -934,6 +940,9 @@ export const dictionaries = {
       description:
         "Публичная платформа Marky для цифровых доступов, соцсетей, приватной доставки и деловых запросов.",
       shortDescription: "Цифровой доступ, соцсети, приватная доставка и коллабы.",
+      linksTitle: "Официальные ссылки Marky - @markshnaknaks",
+      linksDescription:
+        "Официальные Instagram, TikTok, Telegram, поддержка и цифровые доступы Marky.",
       ogLocale: "ru_RU",
     },
     nav: {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { LinksPage } from "@/app/LinksPage";
+import { siteConfig } from "@/data/site";
 import { getLocalizedProducts, getLocalizedSocials } from "@/i18n/content";
 import { assertLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -26,11 +27,31 @@ export async function generateMetadata({
   }
 
   const dictionary = getDictionary(locale);
+  const metadata = localizedMetadata(locale, dictionary, "/links");
+  const image = {
+    url: siteConfig.linksSocialImage,
+    width: 1200,
+    height: 630,
+    alt: dictionary.metadata.linksTitle,
+  };
 
   return {
-    ...localizedMetadata(locale, dictionary, "/links"),
+    ...metadata,
     title: {
-      absolute: `Marky links - ${dictionary.hero.titlePrefix} ${dictionary.hero.titleHighlight}`,
+      absolute: dictionary.metadata.linksTitle,
+    },
+    description: dictionary.metadata.linksDescription,
+    openGraph: {
+      ...metadata.openGraph,
+      title: dictionary.metadata.linksTitle,
+      description: dictionary.metadata.linksDescription,
+      images: [image],
+    },
+    twitter: {
+      ...metadata.twitter,
+      title: dictionary.metadata.linksTitle,
+      description: dictionary.metadata.linksDescription,
+      images: [image],
     },
   };
 }

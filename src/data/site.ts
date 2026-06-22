@@ -9,7 +9,8 @@ export const siteConfig = {
     "Marky's public platform for digital access passes, social links, private delivery and collab requests.",
   shortDescription:
     "Digital access, social links, private delivery and collabs.",
-  socialImage: "/images/marky-og.png",
+  socialImage: "/images/marky-home-og.png",
+  linksSocialImage: "/images/marky-links-og.png",
   iconImage: "/favicon.png",
   appleTouchIconImage: "/apple-touch-icon.png",
   manifestIconImage: "/images/marky-icon-512.png",
