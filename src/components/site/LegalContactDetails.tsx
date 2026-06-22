@@ -49,6 +49,11 @@ export function LegalContactDetails({
             <LegalContactReveal
               labels={labels}
               turnstileSiteKey={turnstileSiteKey}
+              deferChallenge
+              formClassName="max-w-[18rem]"
+              buttonClassName="w-full justify-center"
+              linkClassName="w-full justify-center"
+              widgetClassName="mx-auto"
             />
           </dd>
         </div>

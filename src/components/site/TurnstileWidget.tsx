@@ -6,13 +6,18 @@ import Script from "next/script";
 import { cn } from "@/lib/utils";
 
 type TurnstileSize = "normal" | "compact" | "flexible";
+type TurnstileAppearance = "always" | "execute" | "interaction-only";
+type TurnstileExecution = "render" | "execute";
 
 type TurnstileWidgetProps = {
   siteKey: string;
   action?: string;
+  appearance?: TurnstileAppearance;
+  execution?: TurnstileExecution;
   size?: TurnstileSize;
   className?: string;
   inputName?: string;
+  onVerify?: (token: string) => void;
   resetSignal?: number;
 };
 
@@ -24,6 +29,8 @@ type TurnstileApi = {
       theme?: "light" | "dark" | "auto";
       size?: TurnstileSize;
       action?: string;
+      appearance?: TurnstileAppearance;
+      execution?: TurnstileExecution;
       callback?: (token: string) => void;
       "expired-callback"?: () => void;
       "error-callback"?: () => void;
@@ -42,9 +49,12 @@ declare global {
 export function TurnstileWidget({
   siteKey,
   action,
+  appearance,
+  execution,
   size = "normal",
   className,
   inputName = "cf-turnstile-response",
+  onVerify,
   resetSignal,
 }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,15 +82,19 @@ export function TurnstileWidget({
       theme: "light",
       size,
       action,
+      appearance,
+      execution,
       callback: (token) => {
         if (inputRef.current) {
           inputRef.current.value = token;
         }
+
+        onVerify?.(token);
       },
       "expired-callback": clearToken,
       "error-callback": clearToken,
     });
-  }, [action, clearToken, siteKey, size]);
+  }, [action, appearance, clearToken, execution, onVerify, siteKey, size]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,7 +149,7 @@ export function TurnstileWidget({
       <input ref={inputRef} type="hidden" name={inputName} />
       <div
         ref={containerRef}
-        className={cn("min-h-[65px] max-w-full overflow-hidden", className)}
+        className={cn("max-w-full overflow-hidden", className)}
       />
     </>
   );

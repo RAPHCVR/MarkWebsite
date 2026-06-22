@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Mail, Phone } from "lucide-react";
 
@@ -94,6 +94,7 @@ export function LegalContactReveal({
   statusClassName,
   widgetClassName,
 }: LegalContactRevealProps) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [contact, setContact] = useState<RevealedContact | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "verify" | "error">("idle");
@@ -112,21 +113,19 @@ export function LegalContactReveal({
     return () => window.clearTimeout(timer);
   }, [deferChallenge]);
 
-  async function revealContact(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (turnstileSiteKey && deferChallenge && !isVerificationVisible) {
-      setIsVerificationVisible(true);
-      setStatus("verify");
-      return;
-    }
-
+  const submitReveal = useCallback(async (form: HTMLFormElement, token?: string) => {
     setStatus("loading");
 
     try {
+      const payload = new FormData(form);
+
+      if (token) {
+        payload.set("cf-turnstile-response", token);
+      }
+
       const response = await fetch("/api/legal-contact", {
         method: "POST",
-        body: new FormData(event.currentTarget),
+        body: payload,
       });
 
       if (response.status === 403) {
@@ -150,7 +149,30 @@ export function LegalContactReveal({
     } catch {
       setStatus("error");
     }
+  }, []);
+
+  async function revealContact(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (turnstileSiteKey && !isVerificationVisible) {
+      setIsVerificationVisible(true);
+      setStatus("verify");
+      return;
+    }
+
+    await submitReveal(event.currentTarget);
   }
+
+  const handleVerify = useCallback(
+    (token: string) => {
+      if (!formRef.current) {
+        return;
+      }
+
+      void submitReveal(formRef.current, token);
+    },
+    [submitReveal],
+  );
 
   if (contact) {
     return (
@@ -182,29 +204,35 @@ export function LegalContactReveal({
   }
 
   return (
-    <form className={cn("space-y-3", formClassName)} onSubmit={revealContact}>
+    <form ref={formRef} className={cn("space-y-3", formClassName)} onSubmit={revealContact}>
+      {!isVerificationVisible ? (
+        <button
+          type="submit"
+          disabled={!isHydrated || status === "loading"}
+          className={cn(
+            "inline-flex min-h-10 items-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 disabled:cursor-wait disabled:opacity-70",
+            buttonClassName,
+          )}
+        >
+          <Mail className="size-4" aria-hidden="true" />
+          {status === "loading" ? labels.revealLoading : labels.revealEmail}
+        </button>
+      ) : null}
       {turnstileSiteKey && isVerificationVisible ? (
-        <div className="max-w-full overflow-hidden rounded-xl">
+        <div className="mx-auto w-full max-w-[18rem] rounded-[1.25rem] border border-pink-100 bg-white/72 p-2 shadow-[0_12px_28px_rgba(236,72,153,0.12)]">
           <TurnstileWidget
             siteKey={turnstileSiteKey}
             action="legal-contact"
             size="compact"
+            onVerify={handleVerify}
             resetSignal={turnstileResetSignal}
-            className={cn("min-h-[120px]", widgetClassName)}
+            className={cn(
+              "mx-auto flex min-h-[140px] w-[150px] max-w-full items-center justify-center",
+              widgetClassName,
+            )}
           />
         </div>
       ) : null}
-      <button
-        type="submit"
-        disabled={!isHydrated || status === "loading"}
-        className={cn(
-          "inline-flex min-h-10 items-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200 disabled:cursor-wait disabled:opacity-70",
-          buttonClassName,
-        )}
-      >
-        <Mail className="size-4" aria-hidden="true" />
-        {status === "loading" ? labels.revealLoading : labels.revealEmail}
-      </button>
       {status === "verify" ? (
         <p className={cn("text-xs font-bold leading-5 text-rose-950/64", statusClassName)}>
           {labels.revealVerify}

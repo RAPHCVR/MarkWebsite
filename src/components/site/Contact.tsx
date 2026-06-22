@@ -139,7 +139,7 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
                 siteKey={turnstileSiteKey}
                 action="contact"
                 size="flexible"
-                className="w-full max-w-[420px]"
+                className="min-h-[65px] w-full max-w-[420px]"
               />
             </div>
           ) : null}
