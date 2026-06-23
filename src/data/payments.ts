@@ -164,11 +164,11 @@ export const stablecoinRails = [
         process.env.NEXT_PUBLIC_STABLECOIN_USDC_SOLANA_ENABLED === "true") &&
       (stablecoinProvider === "solana-pay" ? solanaPayReady : stablecoinRailReady),
     recommended: true,
-    buyerCost: "Lowest expected stablecoin network cost for small access passes.",
+    buyerCost: "Lowest expected stablecoin network cost for small orders.",
     operations:
       stablecoinProvider === "solana-pay"
-        ? "Solana Pay transfer request with order reference validation through RPC."
-        : "Use SHKeeper with a tested Solana wallet/RPC path; keep disabled until callbacks reconcile orders.",
+        ? "Solana Pay with order-reference validation."
+        : "Keep hidden until wallet, callbacks and order matching are tested.",
   },
   {
     id: "usdc-polygon",
@@ -181,9 +181,8 @@ export const stablecoinRails = [
       process.env.STABLECOIN_USDC_POLYGON_ENABLED === "true" &&
       stablecoinRailReady,
     recommended: false,
-    buyerCost: "Low fee EVM fallback if Solana support is awkward for wallets.",
-    operations:
-      "Good fallback because SHKeeper documents POLYGON-USDC; still needs wallet and RPC checks.",
+    buyerCost: "Low-fee EVM fallback.",
+    operations: "Fallback rail; enable only after wallet and callback tests.",
   },
   {
     id: "usdt-tron",
@@ -197,8 +196,7 @@ export const stablecoinRails = [
       stablecoinRailReady,
     recommended: false,
     buyerCost: "Popular, but Energy/Bandwidth fees can surprise buyers.",
-    operations:
-      "Enable only after testing fees and refill/energy strategy on the actual wallet.",
+    operations: "Enable only after testing real wallet fees.",
   },
 ] as const satisfies StablecoinRail[];
 
@@ -214,8 +212,8 @@ export const cryptoRails = [
     recommended: true,
     buyerCost: "Low when mempool is calm; slower finality than cards.",
     operations: btcpayBtcWalletReady
-      ? "BTCPay BTC wallet is marked ready for invoice creation."
-      : "Bitcoin Core is synced; link and smoke-test a BTC wallet in BTCPay before public checkout.",
+      ? "BTC checkout is ready."
+      : "Finish BTC wallet setup before public checkout.",
   },
   {
     id: "ltc-onchain",
@@ -228,8 +226,8 @@ export const cryptoRails = [
     recommended: true,
     buyerCost: "Very low network fees and familiar wallet support.",
     operations: btcpayLtcEnabled
-      ? "Litecoin checkout is enabled by feature flag."
-      : "Litecoin node is installed; explorer, wallet setup and invoice smoke test must pass before public checkout.",
+      ? "Litecoin checkout is ready."
+      : "Finish Litecoin wallet setup before public checkout.",
   },
   {
     id: "usdc-solana",
@@ -240,11 +238,11 @@ export const cryptoRails = [
     status: stablecoinCheckoutConfigured && stablecoinRails[0].enabled ? "ready" : "planned",
     icon: "circle",
     recommended: true,
-    buyerCost: "Usually the cheapest stablecoin rail for small digital access passes.",
+    buyerCost: "Usually the cheapest stablecoin rail for small orders.",
     operations:
       stablecoinCheckoutConfigured && stablecoinRails[0].enabled
-        ? "Solana Pay checkout is live: invoices are recorded in PostgreSQL and verified on-chain by reference."
-        : "Stablecoin checkout stays hidden until invoice creation, QR rendering and on-chain verification pass.",
+        ? "USDC checkout is live."
+        : "Stablecoin checkout stays hidden until verification passes.",
   },
   {
     id: "usdc-polygon",
@@ -256,7 +254,7 @@ export const cryptoRails = [
     icon: "polygon",
     recommended: false,
     buyerCost: "Cheap EVM fallback; slightly less universal than Solana for this audience.",
-    operations: "Keep as fallback if USDC Solana support is not stable enough.",
+    operations: "Keep as fallback if Solana support is not stable enough.",
   },
   {
     id: "usdt-tron",
@@ -268,7 +266,7 @@ export const cryptoRails = [
     icon: "tether",
     recommended: false,
     buyerCost: "Popular, but TRC20 energy can become expensive without resources.",
-    operations: "Keep as a later buyer-demand option, not launch default.",
+    operations: "Later option if buyers ask for it.",
   },
   {
     id: "ton-telegram",
@@ -279,8 +277,8 @@ export const cryptoRails = [
     status: "research",
     icon: "ton",
     recommended: false,
-    buyerCost: "Relevant to Telegram-native buyers, but needs a clean bot flow.",
-    operations: "Use only if Telegram delivery becomes the primary paid flow.",
+    buyerCost: "Relevant to Telegram-native buyers.",
+    operations: "Later option if Telegram-native payments become useful.",
   },
 ] as const satisfies CryptoRail[];
 
@@ -295,8 +293,7 @@ export const paymentConfig = {
   stripe: {
     mode: "payment-links",
     salesEnabled,
-    note:
-      "Stripe Payment Links are loaded from server-side environment variables and rendered only when sales are enabled.",
+    note: "Card checkout is shown only when sales are enabled.",
   },
   crypto: {
     preferredProvider: "btcpay-server" satisfies CryptoProvider,
@@ -334,7 +331,7 @@ export const paymentConfig = {
         mintEnv: "SOLANA_PAY_USDC_MINT",
         defaultRpcUrl: "https://api.mainnet-beta.solana.com",
         publicProviderCost:
-          "Free public RPC fallback for MVP; use SOLANA_PAY_RPC_URLS for multiple read-only RPC endpoints.",
+          "Free public RPC fallback; add SOLANA_PAY_RPC_URLS for redundancy.",
       },
     },
     btcpay: {
@@ -352,10 +349,10 @@ export const paymentConfig = {
       ltcEnabledEnv: "BTCPAY_LTC_ENABLED",
       publicCheckoutHost: "pay.markshnaknaks.com",
       supportedMethods: [
-        btcpayLtcEnabled ? "LTC on-chain" : "LTC after wallet setup and invoice smoke test",
+        btcpayLtcEnabled ? "LTC on-chain" : "LTC after wallet setup",
         btcpayBtcWalletReady
           ? "BTC on-chain"
-          : "BTC on-chain after wallet setup and invoice smoke test",
+          : "BTC on-chain after wallet setup",
       ],
     },
     wallets: [] satisfies CryptoWallet[],
@@ -365,6 +362,6 @@ export const paymentConfig = {
     chatUrl: siteConfig.telegramChatUrl,
     vipUrl: "#access-passes",
     requestBotUrl: "https://t.me/markshnaknaksbot?start=request",
-    deliveryRole: "VIP, support and delivery follow-up",
+    deliveryRole: "VIP and support",
   },
 };

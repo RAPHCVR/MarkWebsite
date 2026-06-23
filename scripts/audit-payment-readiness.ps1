@@ -42,7 +42,7 @@ function Get-NodeBlockchainInfo {
     [string]$Port
   )
 
-  $command = '{0} -datadir=/data -rpcuser="${1}" -rpcpassword="${2}" -rpcport={3} getblockchaininfo' -f $Cli, $UserEnv, $PasswordEnv, $Port
+  $command = '{0} -datadir=/data -rpcconnect=127.0.0.1 -rpcuser="${{{1}}}" -rpcpassword="${{{2}}}" -rpcport={3} getblockchaininfo' -f $Cli, $UserEnv, $PasswordEnv, $Port
   $raw = kubectl -n $BtcpayNamespace exec $Pod -- sh -lc $command 2>&1
 
   if ($LASTEXITCODE -ne 0) {

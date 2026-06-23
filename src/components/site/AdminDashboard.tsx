@@ -363,7 +363,7 @@ export function AdminDashboard() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-black text-rose-950">
-                      {request.subject || request.productTitle || "VIP Infrastructure Access"}
+                      {request.subject || request.productTitle || "VIP Request Pass"}
                     </p>
                     <p className="mt-1 font-mono text-xs text-rose-950/48">
                       {request.requestId}

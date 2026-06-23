@@ -99,20 +99,20 @@ Invoke-TelegramApiOptional -Method "setMyName" -Body @{
 } | Out-Null
 
 Invoke-TelegramApiOptional -Method "setMyShortDescription" -Body @{
-  short_description = "Access links, VIP support and request tickets."
+  short_description = "Access, support and VIP requests."
 } | Out-Null
 
 Invoke-TelegramApiOptional -Method "setMyDescription" -Body @{
-  description = "Marky Concierge links site delivery tokens to Telegram, routes support, and keeps Private Request Passes ticketed. Payments and private delivery remain on markshnaknaks.com."
+  description = "Marky Concierge helps with private access, support and VIP requests. Checkout and delivery stay on markshnaknaks.com."
 } | Out-Null
 
 Invoke-TelegramApiOptional -Method "setMyCommands" -Body @{
   commands = @(
-    @{ command = "start"; description = "Link a delivery token or open the site" },
+    @{ command = "start"; description = "Link a pass or open the site" },
     @{ command = "help"; description = "Show available commands" },
     @{ command = "support"; description = "Open the support chat" },
-    @{ command = "orders"; description = "Get help with site orders" },
-    @{ command = "request"; description = "Private Request Pass guidance" },
+    @{ command = "orders"; description = "Get delivery help" },
+    @{ command = "request"; description = "Send a VIP request" },
     @{ command = "chatid"; description = "Show this chat id for admin setup" }
   )
 } | Out-Null

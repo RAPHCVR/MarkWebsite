@@ -10,29 +10,29 @@ $catalog = @(
     Slug = "cosplay-starter-pack"
     ProductEnv = "STRIPE_PRODUCT_ID_COSPLAY_STARTER_PACK"
     PriceEnv = "STRIPE_PRICE_ID_COSPLAY_STARTER_PACK"
-    Name = "Digital Access Pass"
-    Description = "Personal creator platform access with private site delivery."
+    Name = "Starter Access"
+    Description = "Entry pass with private access on markshnaknaks.com."
   },
   @{
     Slug = "soft-catboy-drop"
     ProductEnv = "STRIPE_PRODUCT_ID_SOFT_CATBOY_DROP"
     PriceEnv = "STRIPE_PRICE_ID_SOFT_CATBOY_DROP"
-    Name = "Premium Platform Membership"
-    Description = "Membership-style access, updates and Telegram follow-up."
+    Name = "Premium Drop"
+    Description = "Premium pass with early updates and Telegram help."
   },
   @{
     Slug = "behind-the-scenes"
     ProductEnv = "STRIPE_PRODUCT_ID_BEHIND_THE_SCENES"
     PriceEnv = "STRIPE_PRICE_ID_BEHIND_THE_SCENES"
-    Name = "Content Delivery Token"
-    Description = "Time-limited delivery token for the next private release."
+    Name = "Backstage Pass"
+    Description = "Reserved access for backstage extras."
   },
   @{
     Slug = "vip-bundle"
     ProductEnv = "STRIPE_PRODUCT_ID_VIP_BUNDLE"
     PriceEnv = "STRIPE_PRICE_ID_VIP_BUNDLE"
-    Name = "VIP Infrastructure Access"
-    Description = "Ticketed private requests handled through Marky Concierge."
+    Name = "VIP Request Pass"
+    Description = "Private request handled through Marky Concierge."
   }
 )
 

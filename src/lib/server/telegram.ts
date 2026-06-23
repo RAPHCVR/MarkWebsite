@@ -177,7 +177,7 @@ export async function sendTelegramMessage({
         : forceReply
           ? {
               force_reply: true,
-              input_field_placeholder: "Write the customer reply...",
+              input_field_placeholder: "Write your reply...",
               selective: true,
             }
         : undefined,
@@ -264,15 +264,15 @@ export async function notifyDeliveryReady({
   return sendTelegramMessage({
     chatId: adminChatId,
     text: [
-      "New Marky access order",
+      "New Marky order",
       `Access: ${order.productTitle || order.productSlug || "unknown"}`,
       `Provider: ${order.provider}`,
       `Order: ${order.orderId}`,
-      `Delivery: ${getPublicUrl(deliveryUrl)}`,
+      `Access page: ${getPublicUrl(deliveryUrl)}`,
     ].join("\n"),
     buttons: [
       {
-        text: "Open delivery",
+        text: "Open access",
         url: getPublicUrl(deliveryUrl),
       },
       {
@@ -293,12 +293,12 @@ async function notifyPrivateRequest(ticket: Extract<PrivateRequestTicketResult, 
   return sendTelegramMessage({
     chatId: adminChatId,
     text: [
-      "New VIP Infrastructure Access ticket",
+      "New VIP request",
       `Request: ${ticket.requestId}`,
       `Order: ${ticket.orderId}`,
-      `Access: ${ticket.productTitle || "VIP Infrastructure Access"}`,
+      `Pass: ${ticket.productTitle || "VIP Request Pass"}`,
       `Quota: ${ticket.quotaUsed}/${ticket.quotaTotal}`,
-      `Customer reply token: ${ticket.replyToken}`,
+      `Reply token: ${ticket.replyToken}`,
       "",
       ticket.message,
     ].join("\n"),
@@ -337,7 +337,7 @@ export async function notifyContactRequest({
   return sendTelegramMessage({
     chatId: adminChatId,
     text: [
-      "New Marky contact request",
+      "New contact request",
       requestId ? `Request: ${requestId}` : null,
       name ? `Name: ${name}` : null,
       email ? `Reply email: ${email}` : null,
@@ -384,16 +384,16 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       return answerCallbackQuery(callbackQueryId, "Ticket not found.");
     }
 
-    await answerCallbackQuery(callbackQueryId, "Reply to the bot prompt.");
+    await answerCallbackQuery(callbackQueryId, "Reply to the next message.");
 
     return sendTelegramMessage({
       chatId: adminChatId,
       replyToMessageId: callbackQuery.message?.message_id,
       forceReply: true,
       text: [
-        "Reply to this message to answer the customer.",
+        "Reply here to answer.",
         `Request: ${ticket.requestId}`,
-        `Access: ${ticket.productTitle || ticket.subject || "VIP Infrastructure Access"}`,
+        `Pass: ${ticket.productTitle || ticket.subject || "VIP Request Pass"}`,
         `Reply token: ${replyToken}`,
         "",
         "Customer message:",
@@ -422,7 +422,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     if (!isTelegramAdminUserAllowed(from?.id)) {
       return sendTelegramMessage({
         chatId: String(chatId),
-        text: "This Telegram account is not allowed to answer customer tickets.",
+        text: "This Telegram account cannot reply to tickets.",
       });
     }
 
@@ -439,22 +439,22 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
         chatId: String(chatId),
         text:
           reply.reason === "empty-message"
-            ? "Reply was empty. Send the customer answer as text."
-            : "Could not find the private request ticket for this reply.",
+            ? "Send the reply as text."
+            : "Ticket not found.",
       });
     }
 
     if (!reply.customerChatId) {
       return sendTelegramMessage({
         chatId: String(chatId),
-        text: `Reply saved for ${reply.requestId}, but no customer Telegram chat is linked.`,
+        text: `Reply saved for ${reply.requestId}. No customer chat is linked yet.`,
       });
     }
 
     const delivered = await sendTelegramMessage({
       chatId: reply.customerChatId,
       text: [
-        "Marky Concierge reply",
+        "Marky Concierge",
         `Ticket: ${reply.requestId}`,
         "",
         reply.message,
@@ -469,8 +469,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     return sendTelegramMessage({
       chatId: String(chatId),
       text: delivered.ok
-        ? `Reply sent to customer for ${reply.requestId}.`
-        : `Reply saved for ${reply.requestId}, but Telegram delivery failed: ${deliveryError}.`,
+        ? `Reply sent for ${reply.requestId}.`
+        : `Reply saved for ${reply.requestId}. Delivery failed: ${deliveryError}.`,
     });
   }
 
@@ -480,7 +480,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       text: [
         "Marky Concierge chat id",
         `chat_id: ${chatId}`,
-        "Use this only for a private admin/support chat configured in Kubernetes.",
+        "Use only for the private admin/support chat.",
       ].join("\n"),
     });
   }
@@ -490,14 +490,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       chatId: String(chatId),
       text: [
         "Marky Concierge commands",
-        "/start - link a delivery token or open the site",
+        "/start - open the site or link a pass",
         "/support - open support chat",
-        "/orders - get order delivery help",
-        "/request - submit a paid private request ticket",
-        "/chatid - show this chat id for admin setup",
+        "/orders - open delivery help",
+        "/request - send a VIP request",
+        "/chatid - show this chat id",
       ].join("\n"),
       buttons: [
-        { text: "Open access passes", url: getPublicUrl("/#access-passes") },
+        { text: "Open passes", url: getPublicUrl("/#access-passes") },
         { text: "Support chat", url: siteConfig.telegramChatUrl },
       ],
     });
@@ -510,14 +510,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     return sendTelegramMessage({
       chatId: String(chatId),
       text: [
-        "VIP Infrastructure Access",
-        "Buy or open a pass on the site, link Telegram from the delivery page, then send:",
+        "VIP Request Pass",
+        "Link a pass first, then send:",
         "/request your message",
         "",
-        "Requests are ticketed here. They do not go to Marky's personal account.",
+        "Requests stay in Marky Concierge.",
       ].join("\n"),
       buttons: [
-        { text: "View access passes", url: getPublicUrl("/#access-passes") },
+        { text: "View passes", url: getPublicUrl("/#access-passes") },
         { text: "Support chat", url: siteConfig.telegramChatUrl },
       ],
     });
@@ -535,7 +535,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     if (!delivery) {
       return sendTelegramMessage({
         chatId: String(chatId),
-        text: "This access token is expired or invalid. Open the delivery page from the site or contact support.",
+        text: "This access link expired or is invalid. Open the access page again or contact support.",
         buttons: [{ text: "Support chat", url: siteConfig.telegramChatUrl }],
       });
     }
@@ -550,12 +550,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     return sendTelegramMessage({
       chatId: String(chatId),
       text: [
-        "Telegram linked to your Marky access.",
-        `Access: ${delivery.productTitle || delivery.productSlug}`,
-        "Keep using the site delivery page for secure downloads. Telegram is only the concierge/support channel.",
+        "Telegram linked.",
+        `Pass: ${delivery.productTitle || delivery.productSlug}`,
+        "Use the access page for downloads.",
       ].join("\n"),
       buttons: [
-        { text: "Open delivery", url: getPublicUrl(`/orders/${delivery.token}`) },
+        { text: "Open access", url: getPublicUrl(`/orders/${delivery.token}`) },
         ...(vipInviteLink ? [{ text: "Join VIP", url: vipInviteLink }] : []),
         { text: "Support chat", url: siteConfig.telegramChatUrl },
       ],
@@ -565,7 +565,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   if (text.startsWith("/support")) {
     return sendTelegramMessage({
       chatId: String(chatId),
-      text: "For order help and private request tickets, use the Marky chat.",
+      text: "For help or VIP requests, use the Marky chat.",
       buttons: [{ text: "Open chat", url: siteConfig.telegramChatUrl }],
     });
   }
@@ -573,7 +573,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   if (text.startsWith("/orders")) {
     return sendTelegramMessage({
       chatId: String(chatId),
-      text: "Paid site orders are delivered through private markshnaknaks.com access links. Open your delivery link or ask support.",
+      text: "Access links stay on markshnaknaks.com.",
       buttons: [{ text: "Open support", url: siteConfig.telegramChatUrl }],
     });
   }
@@ -585,12 +585,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       return sendTelegramMessage({
         chatId: String(chatId),
         text: [
-          "Send your private request in the same message.",
-          "Example:",
-          "/request I want to discuss a custom creator brief.",
+          "Send your request after the command.",
+          "/request your message",
         ].join("\n"),
         buttons: [
-          { text: "View access passes", url: getPublicUrl("/#access-passes") },
+          { text: "View passes", url: getPublicUrl("/#access-passes") },
           { text: "Support chat", url: siteConfig.telegramChatUrl },
         ],
       });
@@ -606,14 +605,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     if (!ticket.ok) {
       const reason =
         ticket.reason === "quota-exhausted"
-          ? "Your VIP Infrastructure Access quota is already used."
-          : "No active VIP Infrastructure Access entitlement is linked to this Telegram chat yet.";
+          ? "This VIP Request Pass has no remaining requests."
+          : "No active VIP Request Pass is linked here.";
 
       return sendTelegramMessage({
         chatId: String(chatId),
         text: reason,
         buttons: [
-          { text: "View access passes", url: getPublicUrl("/#access-passes") },
+          { text: "View passes", url: getPublicUrl("/#access-passes") },
           { text: "Support chat", url: siteConfig.telegramChatUrl },
         ],
       });
@@ -624,10 +623,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     return sendTelegramMessage({
       chatId: String(chatId),
       text: [
-        "Private request recorded.",
+        "VIP request sent.",
         `Ticket: ${ticket.requestId}`,
-        `Remaining quota: ${ticket.remaining}`,
-        "Support will follow up through the official channels.",
+        `Remaining: ${ticket.remaining}`,
+        "Reply will arrive here.",
       ].join("\n"),
       buttons: [
         { text: "Support chat", url: siteConfig.telegramChatUrl },
@@ -637,9 +636,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
   return sendTelegramMessage({
     chatId: String(chatId),
-    text: "Welcome to Marky Concierge. Use the official site for digital access passes, Telegram for updates and support. Send /help for commands.",
+    text: "Welcome to Marky Concierge. Open passes or send /help.",
     buttons: [
-      { text: "Open access passes", url: getPublicUrl("/#access-passes") },
+      { text: "Open passes", url: getPublicUrl("/#access-passes") },
       { text: "Telegram channel", url: siteConfig.telegramChannelUrl },
       { text: "Support chat", url: siteConfig.telegramChatUrl },
     ],

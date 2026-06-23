@@ -28,17 +28,17 @@ const localizedLegalValues: Record<
   en: {
     vatStatus: "VAT not applicable, article 293 B of the French General Tax Code",
     hosting:
-      "Application self-hosted on the publisher's Kubernetes infrastructure; Cloudflare provides DNS, proxy/security and private R2 object storage.",
+      "Hosted by the publisher with Cloudflare security and storage services.",
   },
   fr: {
     vatStatus: legalConfig.vatStatus,
     hosting:
-      "Application auto-hébergée sur l'infrastructure Kubernetes de l'éditeur; Cloudflare fournit DNS, proxy/sécurité et stockage objet privé R2.",
+      "Hébergé par l'éditeur avec services de sécurité et stockage Cloudflare.",
   },
   ru: {
     vatStatus: "НДС не применяется, статья 293 B Налогового кодекса Франции",
     hosting:
-      "Приложение размещено на Kubernetes-инфраструктуре издателя; Cloudflare предоставляет DNS, прокси, защиту и приватное объектное хранилище R2.",
+      "Размещено издателем с сервисами безопасности и хранения Cloudflare.",
   },
 };
 
@@ -130,7 +130,6 @@ export function LegalDocument({
         <LegalContactDetails
           labels={dictionary.legal.contactCard}
           formHref={localePath(locale, "/#contact")}
-          routingLabel={dictionary.legal.contactRouting}
           turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
         />
 

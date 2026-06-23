@@ -46,9 +46,9 @@ test("link hub is mobile-first, actionable and overflow-safe", async ({ page }) 
   await expect(page.getByRole("link", { name: /Instagram/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /TikTok/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Telegram Channel/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Access/i }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Passes$/i }).first()).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Official accounts only" }).last(),
+    page.getByRole("heading", { name: "Stay safe" }).last(),
   ).toBeVisible();
   await expect(page.getByText("Need help?")).toBeVisible();
 
@@ -167,7 +167,7 @@ test("localized legal pages expose page-matched hreflang metadata", async ({ pag
     "href",
     "https://markshnaknaks.com/fr/legal",
   );
-  await expect(page.getByText(/French version is the authoritative legal version/i)).toBeVisible();
+  await expect(page.getByText(/French version is authoritative/i)).toBeVisible();
 });
 
 test("interactive elements are named and external links are hardened", async ({ page }) => {
@@ -270,7 +270,7 @@ test("legal contact details are available only after an explicit reveal action",
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
   await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Révéler le contact légal" }).click();
+  await page.getByRole("button", { name: "Révéler les coordonnées" }).click();
 
   const legalEmail = page.getByRole("link", {
     name: /support@markshnaknaks\.com/i,
@@ -297,14 +297,14 @@ test("revealed legal contact survives navigation between legal pages", async ({ 
   });
 
   await page.goto("/fr/legal");
-  await page.getByRole("button", { name: "Révéler le contact légal" }).click();
+  await page.getByRole("button", { name: "Révéler les coordonnées" }).click();
   await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
 
   await page.locator('a[href="/fr/refund-policy"]').last().click();
   await expect(page).toHaveURL(/\/fr\/refund-policy$/);
 
   await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Révéler le contact légal" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Révéler les coordonnées" })).toHaveCount(0);
 });
 
 test("homepage direct contact is revealed only after an explicit reveal action", async ({ page }) => {
@@ -328,7 +328,7 @@ test("homepage direct contact is revealed only after an explicit reveal action",
     /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
   );
 
-  const revealButton = page.getByRole("button", { name: "Révéler le contact légal" });
+  const revealButton = page.getByRole("button", { name: "Révéler les coordonnées" });
 
   await revealButton.click();
   await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
@@ -352,10 +352,10 @@ test("commerce wording stays aligned with access-platform positioning", async ({
   await page.goto("/en");
 
   for (const label of [
-    "Digital Access Pass",
-    "Premium Platform Membership",
-    "Content Delivery Token",
-    "VIP Infrastructure Access",
+    "Starter Access",
+    "Premium Drop",
+    "Backstage Pass",
+    "VIP Request Pass",
   ]) {
     await expect(page.getByText(label).filter({ visible: true }).first()).toBeVisible();
   }
@@ -368,17 +368,16 @@ test("checkout links reflect runtime sales flags", async ({ page, request }) => 
   const status = await response.json() as { salesEnabled?: boolean };
 
   if (status.salesEnabled) {
-    await expect(page.getByRole("button", { name: /get access with stripe/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /pay by card/i }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /pay with usdc/i }).first()).toBeVisible();
   } else {
-    await expect(page.getByRole("button", { name: /get access with stripe/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /pay by card/i })).toHaveCount(0);
   }
 
   await expect(page.getByRole("link", { name: /buy with crypto/i })).toHaveCount(0);
-  await expect(page.getByText(/access lineup/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /preview soon/i })).toHaveAttribute("aria-disabled", "true");
-  await expect(page.getByText(/private channel/i).first()).toBeVisible();
-  await expect(page.getByText(/planned/i).first()).toBeVisible();
+  await expect(page.getByText(/Drops & passes/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /^soon$/i })).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByText(/Starter Access/i).filter({ visible: true }).first()).toBeVisible();
 });
 
 test("locale routing respects explicit URLs, browser language and legacy legal redirects", async ({ page, request }, testInfo) => {
@@ -386,7 +385,7 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
 
   await page.goto("/ru");
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
-  await expect(page.getByText("Цифровые доступы").first()).toBeVisible();
+  await expect(page.getByText("Пассы").first()).toBeVisible();
 
   await page.goto("/fr");
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
@@ -484,7 +483,7 @@ test("operational payment pages use the detected locale", async ({ request }) =>
   expect(stablecoinResponse.status()).toBe(200);
   const stablecoinHtml = await stablecoinResponse.text();
   expect(stablecoinHtml).toContain('lang="fr"');
-  expect(stablecoinHtml).toContain("Aucune facture stablecoin active.");
+  expect(stablecoinHtml).toContain("Aucun paiement en cours.");
   expect(stablecoinHtml).toContain("Retour aux accès");
 
   const cryptoReturnResponse = await request.get("/checkout/crypto-return", {
@@ -603,7 +602,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.btcpay?.supportedMethods?.length).toBeGreaterThanOrEqual(1);
   expect(status.btcpay?.healthUrl).toBe("https://pay.markshnaknaks.com/api/v1/health");
   expect(status.legal?.cryptoFiatAccountingField).toBe("creator_orders.fiat_value_eur_at_transaction");
-  expect(status.legal?.commercialVocabulary).toContain("Digital Access Pass");
+  expect(status.legal?.commercialVocabulary).toContain("Starter Access");
   expect(typeof status.legal?.b2cSalesAllowed).toBe("boolean");
   expect(status.legal?.salesBlockedByLegalGate).toBe(false);
   expect(status.admin?.accountingExportRoute).toBe("/api/admin/orders/export");
@@ -694,7 +693,6 @@ test("social links use recognizable brand icons", async ({ page }) => {
     "bitcoin",
     "litecoin",
     "circle",
-    "tether",
   ]) {
     await expect(page.locator(`[data-brand-icon="${brand}"]:visible`).first()).toBeVisible();
   }

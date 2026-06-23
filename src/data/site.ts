@@ -6,9 +6,9 @@ export const siteConfig = {
   publicUrl: "https://markshnaknaks.com",
   title: "Marky - Your Kitten Master",
   description:
-    "Marky's public platform for digital access passes, social links, private delivery and collab requests.",
+    "Official Marky links, drops and collabs.",
   shortDescription:
-    "Digital access, social links, private delivery and collabs.",
+    "Official links and drops.",
   socialImage: "/images/marky-home-og.png",
   linksSocialImage: "/images/marky-links-og.png",
   iconImage: "/favicon.png",

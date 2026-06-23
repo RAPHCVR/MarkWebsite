@@ -1085,7 +1085,7 @@ export async function grantEntitlementForOrder(orderId: string) {
       orderId,
       entitlementId: storedEntitlementId,
       quotaTotal: 3,
-      subject: "VIP Infrastructure Access",
+      subject: "VIP Request Pass",
     });
   }
 
@@ -1802,7 +1802,7 @@ export async function linkTelegramToDelivery({
       orderId: delivery.order.orderId,
       entitlementId: delivery.entitlementId,
       quotaTotal: 3,
-      subject: "VIP Infrastructure Access",
+      subject: "VIP Request Pass",
     });
 
     await getPool().query(

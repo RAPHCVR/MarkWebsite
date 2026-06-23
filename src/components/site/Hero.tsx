@@ -22,7 +22,6 @@ const compactHeroLabel: Record<string, string> = {
   "Telegram Channel": "Telegram",
   "Telegram Chat": "Chat",
   Collabs: "Collabs",
-  "Private Channel": "Channel later",
 };
 
 type HeroProps = {

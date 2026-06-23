@@ -7,20 +7,17 @@ type LegalContactDetailsProps = {
     email: string;
     revealEmail: string;
     phone: string;
-    routing: string;
     revealLoading: string;
     revealVerify: string;
     revealError: string;
   };
   formHref: string;
-  routingLabel: string;
   turnstileSiteKey?: string;
 };
 
 export function LegalContactDetails({
   labels,
   formHref,
-  routingLabel,
   turnstileSiteKey,
 }: LegalContactDetailsProps) {
   return (
@@ -55,15 +52,6 @@ export function LegalContactDetails({
               linkClassName="w-full justify-center"
               widgetClassName="mx-auto"
             />
-          </dd>
-        </div>
-
-        <div className="rounded-2xl bg-pink-50/72 p-3">
-          <dt className="text-xs font-black uppercase tracking-[0.16em] text-pink-500">
-            {labels.routing}
-          </dt>
-          <dd className="mt-1 font-bold leading-6 text-rose-950/74">
-            {routingLabel}
           </dd>
         </div>
       </dl>

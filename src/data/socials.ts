@@ -8,8 +8,7 @@ export type SocialLink = {
     | "telegramChannel"
     | "telegramChat"
     | "x"
-    | "collabs"
-    | "privateChannel";
+    | "collabs";
   label: string;
   handle: string;
   href: string;
@@ -25,7 +24,7 @@ export const socials: SocialLink[] = [
     label: "Instagram",
     handle: siteConfig.handle,
     href: siteConfig.instagramUrl,
-    description: "Public updates, looks and creator previews.",
+    description: "Looks and daily posts.",
     cta: "Open Instagram",
     icon: "instagram",
   },
@@ -34,7 +33,7 @@ export const socials: SocialLink[] = [
     label: "TikTok",
     handle: siteConfig.handle,
     href: siteConfig.tiktokUrl,
-    description: "Short updates, look checks and creator moments.",
+    description: "Short edits.",
     cta: "Watch clips",
     icon: "tiktok",
   },
@@ -43,16 +42,16 @@ export const socials: SocialLink[] = [
     label: "Telegram Channel",
     handle: "t.me/markreyvakh",
     href: siteConfig.telegramChannelUrl,
-    description: "Main channel for platform updates and announcements.",
+    description: "Drop alerts.",
     cta: "Join channel",
     icon: "telegram",
   },
   {
     id: "telegramChat",
     label: "Telegram Chat",
-    handle: "private chat group",
+    handle: "community",
     href: siteConfig.telegramChatUrl,
-    description: "Chat, support, requests and delivery follow-up.",
+    description: "Community chat.",
     cta: "Open chat",
     icon: "telegram",
   },
@@ -61,27 +60,17 @@ export const socials: SocialLink[] = [
     label: "X / Twitter",
     handle: "@MarkyReykvakh",
     href: siteConfig.xUrl,
-    description: "Quick updates, reposts and launch notes.",
+    description: "Updates and reposts.",
     cta: "Follow on X",
     icon: "x",
   },
   {
     id: "collabs",
     label: "Collabs",
-    handle: "secure form",
+    handle: "business",
     href: siteConfig.collabContactUrl,
-    description: "Campaigns, shoots, promos and business requests.",
+    description: "Brands, shoots and campaigns.",
     cta: "Open form",
     icon: "mail",
-  },
-  {
-    id: "privateChannel",
-    label: "Private Channel",
-    handle: "planned later",
-    href: "#access-passes",
-    description: "Future private channel access linked to site entitlements.",
-    cta: "View passes",
-    status: "soon",
-    icon: "circle",
   },
 ];

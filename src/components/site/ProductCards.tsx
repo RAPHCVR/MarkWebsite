@@ -48,6 +48,10 @@ const cryptoRailClass = {
   disabled: "border-slate-200 bg-slate-50 text-slate-500",
 };
 
+const publicCryptoRails = paymentConfig.crypto.rails
+  .filter((rail) => rail.recommended)
+  .slice(0, 3);
+
 function getCta(product: Product, dictionary: Dictionary) {
   if (!paymentConfig.salesEnabled) {
     return product.status === "coming-soon"
@@ -376,11 +380,11 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
         </div>
         <div className="rounded-3xl border border-pink-100 bg-white/72 p-5 shadow-sm backdrop-blur">
           <div className="flex flex-wrap gap-2">
-            {paymentConfig.crypto.rails.slice(0, 5).map((rail) => (
+            {publicCryptoRails.map((rail) => (
               <span
                 key={rail.id}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-black ${cryptoRailClass[rail.status]}`}
-                title={`${rail.asset} on ${rail.network}: ${rail.operations}`}
+                title={`${rail.asset} on ${rail.network}`}
               >
                 {rail.icon ? (
                   <span
@@ -399,12 +403,12 @@ export function ProductCards({ locale, dictionary, products }: ProductCardsProps
             {dictionary.products.cards.crypto.body}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {paymentConfig.crypto.rails.filter((rail) => rail.recommended).map((rail) => (
+            {publicCryptoRails.map((rail) => (
               <span
                 key={rail.id}
                 className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${cryptoRailClass[rail.status]}`}
               >
-                {rail.label} · {dictionary.products.railStatus[rail.status]}
+                {rail.label}
               </span>
             ))}
           </div>
