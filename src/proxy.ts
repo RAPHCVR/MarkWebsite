@@ -40,7 +40,7 @@ function withLocaleHeader(request: NextRequest, locale: Locale) {
   });
 
   response.headers.set("Content-Language", locale);
-  response.headers.set("Vary", localeVaryHeader);
+  response.headers.append("Vary", localeVaryHeader);
   response.cookies.set(localeCookieName, locale, {
     path: "/",
     sameSite: "lax",
@@ -64,8 +64,12 @@ export function proxy(request: NextRequest) {
     return withLocaleHeader(request, pathLocale);
   }
 
-  if (pathname === "/" || legacyPublicPaths.has(pathname)) {
-    const locale = legacyPublicPaths.has(pathname) ? "fr" : resolvePreferredLocale(request);
+  if (pathname === "/") {
+    return withLocaleHeader(request, resolvePreferredLocale(request));
+  }
+
+  if (legacyPublicPaths.has(pathname)) {
+    const locale = "fr";
     const url = request.nextUrl.clone();
     url.pathname = localePath(locale, pathname);
     url.search = search;

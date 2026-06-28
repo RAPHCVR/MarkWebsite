@@ -34,6 +34,10 @@ export async function generateMetadata(): Promise<Metadata> {
       description: dictionary.metadata.linksDescription,
       images: [image],
     },
+    other: {
+      ...metadata.other,
+      thumbnail: new URL(siteConfig.linksSocialImage, siteConfig.publicUrl).toString(),
+    },
   };
 }
 

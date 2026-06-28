@@ -102,6 +102,38 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
     "summary_large_image",
   );
 
+  const rootResponse = await request.get("/", {
+    headers: { "Accept-Language": "en-US,en;q=0.9" },
+    maxRedirects: 0,
+  });
+  expect(rootResponse.status()).toBe(200);
+  const rootHtml = await rootResponse.text();
+  expect(rootHtml).toContain(
+    '<meta property="og:image" content="https://markshnaknaks.com/images/marky-og.png"',
+  );
+  expect(rootHtml).toContain(
+    '<meta name="twitter:image" content="https://markshnaknaks.com/images/marky-og.png"',
+  );
+  expect(rootHtml).toContain(
+    '<meta name="thumbnail" content="https://markshnaknaks.com/images/mark-portrait-sketch.png"',
+  );
+
+  const linksResponse = await request.get("/links", {
+    headers: { "Accept-Language": "en-US,en;q=0.9" },
+    maxRedirects: 0,
+  });
+  expect(linksResponse.status()).toBe(200);
+  const linksHtml = await linksResponse.text();
+  expect(linksHtml).toContain(
+    '<meta property="og:image" content="https://markshnaknaks.com/images/marky-links-og.png"',
+  );
+  expect(linksHtml).toContain(
+    '<meta name="twitter:image" content="https://markshnaknaks.com/images/marky-links-og.png"',
+  );
+  expect(linksHtml).toContain(
+    '<meta name="thumbnail" content="https://markshnaknaks.com/images/marky-links-og.png"',
+  );
+
   const jsonLd = await page.locator('script[type="application/ld+json"]').textContent();
   const structuredData = JSON.parse(jsonLd || "{}") as {
     "@graph"?: Array<{
@@ -412,17 +444,16 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
     headers: { "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.5" },
     maxRedirects: 0,
   });
-  expect(frenchRoot.status()).toBe(307);
-  expect(frenchRoot.headers().location).toContain("/fr");
+  expect(frenchRoot.status()).toBe(200);
+  expect(frenchRoot.headers().location).toBeUndefined();
   expect(frenchRoot.headers()["content-language"]).toBe("fr");
-  expect(frenchRoot.headers().vary).toContain("Accept-Language");
 
   const spacedQualityRoot = await request.get("/", {
     headers: { "Accept-Language": "ru-RU; q=0.4, fr-FR; q=0.9, en; q=0.2" },
     maxRedirects: 0,
   });
-  expect(spacedQualityRoot.status()).toBe(307);
-  expect(spacedQualityRoot.headers().location).toContain("/fr");
+  expect(spacedQualityRoot.status()).toBe(200);
+  expect(spacedQualityRoot.headers()["content-language"]).toBe("fr");
 
   const cookieRoot = await request.get("/", {
     headers: {
@@ -431,8 +462,8 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
     },
     maxRedirects: 0,
   });
-  expect(cookieRoot.status()).toBe(307);
-  expect(cookieRoot.headers().location).toContain("/ru");
+  expect(cookieRoot.status()).toBe(200);
+  expect(cookieRoot.headers()["content-language"]).toBe("ru");
 
   const countryFallbackRoot = await request.get("/", {
     headers: {
@@ -441,8 +472,8 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
     },
     maxRedirects: 0,
   });
-  expect(countryFallbackRoot.status()).toBe(307);
-  expect(countryFallbackRoot.headers().location).toContain("/fr");
+  expect(countryFallbackRoot.status()).toBe(200);
+  expect(countryFallbackRoot.headers()["content-language"]).toBe("fr");
 
   const rejectedLanguageRoot = await request.get("/", {
     headers: {
@@ -451,8 +482,8 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
     },
     maxRedirects: 0,
   });
-  expect(rejectedLanguageRoot.status()).toBe(307);
-  expect(rejectedLanguageRoot.headers().location).toContain("/fr");
+  expect(rejectedLanguageRoot.status()).toBe(200);
+  expect(rejectedLanguageRoot.headers()["content-language"]).toBe("fr");
 
   const russianResponse = await request.get("/ru");
   expect(russianResponse.status()).toBe(200);

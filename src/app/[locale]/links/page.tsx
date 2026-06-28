@@ -53,6 +53,10 @@ export async function generateMetadata({
       description: dictionary.metadata.linksDescription,
       images: [image],
     },
+    other: {
+      ...metadata.other,
+      thumbnail: new URL(siteConfig.linksSocialImage, siteConfig.publicUrl).toString(),
+    },
   };
 }
 
