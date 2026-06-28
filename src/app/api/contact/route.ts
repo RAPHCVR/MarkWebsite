@@ -20,12 +20,31 @@ const maxLength = {
   message: 3_000,
 };
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const telegramPattern =
+  /^(?:@|https?:\/\/t\.me\/)?[A-Za-z0-9_]{5,32}(?:[/?#].*)?$/i;
+
 function clean(value: FormDataEntryValue | null, limit: number) {
   if (typeof value !== "string") {
     return "";
   }
 
   return value.trim().slice(0, limit);
+}
+
+function hasValidReplyChannel(email: string, telegram: string) {
+  const hasEmail = Boolean(email);
+  const hasTelegram = Boolean(telegram);
+
+  if (hasEmail && !emailPattern.test(email)) {
+    return false;
+  }
+
+  if (hasTelegram && !telegramPattern.test(telegram)) {
+    return false;
+  }
+
+  return hasEmail || hasTelegram;
 }
 
 type ContactRedirectStatus = "sent" | "missing" | "verify" | "limited";
@@ -82,7 +101,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(contactRedirect(locale, "verify"), 303);
   }
 
-  if (!message || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!message || !hasValidReplyChannel(email, telegram)) {
     return NextResponse.redirect(contactRedirect(locale, "missing"), 303);
   }
 

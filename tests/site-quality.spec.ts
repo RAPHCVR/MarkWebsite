@@ -752,6 +752,28 @@ test("contact form posts to the site endpoint", async ({ request }, testInfo) =>
   expect(redirectUrl.hash).toBe("#contact");
 });
 
+test("contact form accepts Telegram as the reply channel", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "API route check only needs one project");
+
+  const response = await request.post("/api/contact", {
+    maxRedirects: 0,
+    form: {
+      locale: "fr",
+      name: "Telegram Sender",
+      email: "",
+      telegram: "@markshnaknaks",
+      organization: "Test Brand",
+      message: "Collab request via Telegram.",
+    },
+  });
+
+  expect(response.status()).toBe(303);
+  const redirectUrl = new URL(response.headers().location || "");
+  expect(redirectUrl.pathname).toBe("/fr");
+  expect(redirectUrl.searchParams.get("contact")).toBe("sent");
+  expect(redirectUrl.hash).toBe("#contact");
+});
+
 test("social links use recognizable brand icons", async ({ page }) => {
   await page.goto("/en");
 

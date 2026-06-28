@@ -164,7 +164,6 @@ export function Contact({
               <Input
                 name="email"
                 type="email"
-                required
                 autoComplete="email"
                 placeholder={dictionary.contact.emailPlaceholder}
                 className="min-h-12 rounded-2xl border-pink-200 bg-white/80"
@@ -183,6 +182,9 @@ export function Contact({
                 placeholder={dictionary.contact.telegramPlaceholder}
                 className="min-h-12 rounded-2xl border-pink-200 bg-white/80"
               />
+              <span className="block text-xs font-semibold leading-5 text-rose-950/55">
+                {dictionary.contact.telegramFieldHint}
+              </span>
             </label>
             <label className="space-y-2 sm:col-span-2">
               <span className="text-sm font-bold text-rose-950">{dictionary.contact.message}</span>
