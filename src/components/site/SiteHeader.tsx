@@ -27,7 +27,7 @@ export function SiteHeader({ locale, dictionary }: SiteHeaderProps) {
           <span className="relative size-11 shrink-0 overflow-hidden rounded-2xl border border-pink-200 bg-pink-50 shadow-inner">
             <Image
               src={siteConfig.logoImage}
-              alt=""
+              alt={`${siteConfig.brandName} logo`}
               fill
               sizes="44px"
               className="object-cover"

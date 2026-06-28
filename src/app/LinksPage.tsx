@@ -230,7 +230,7 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
                 >
                   <Image
                     src={siteConfig.manifestIconImage}
-                    alt=""
+                    alt={`${siteConfig.brandName} logo`}
                     width={40}
                     height={40}
                     className="size-8 rounded-full object-cover ring-1 ring-pink-100"
@@ -272,7 +272,7 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
                 <div className="mx-auto grid size-30 place-items-center rounded-[2.15rem] border border-white bg-white/72 p-1.5 shadow-[0_18px_42px_rgba(200,13,91,0.18)] ring-1 ring-pink-100/70">
                   <Image
                     src={siteConfig.manifestIconImage}
-                    alt="Marky"
+                    alt={`${siteConfig.brandName} creator logo`}
                     width={160}
                     height={160}
                     priority

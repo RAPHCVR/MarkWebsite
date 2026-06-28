@@ -31,7 +31,7 @@ export function Footer({ locale, dictionary, socials }: FooterProps) {
               <span className="relative size-12 overflow-hidden rounded-2xl border border-pink-200 bg-pink-50 shadow-inner">
                 <Image
                   src={siteConfig.logoImage}
-                  alt=""
+                  alt={`${siteConfig.brandName} logo`}
                   fill
                   sizes="48px"
                   className="object-cover"
