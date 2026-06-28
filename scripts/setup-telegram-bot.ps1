@@ -103,16 +103,18 @@ Invoke-TelegramApiOptional -Method "setMyShortDescription" -Body @{
 } | Out-Null
 
 Invoke-TelegramApiOptional -Method "setMyDescription" -Body @{
-  description = "Marky Concierge helps with private access, support and VIP requests. Checkout and delivery stay on markshnaknaks.com."
+  description = "Marky Concierge opens passes, support and VIP requests for markshnaknaks.com."
 } | Out-Null
 
 Invoke-TelegramApiOptional -Method "setMyCommands" -Body @{
   commands = @(
-    @{ command = "start"; description = "Link a pass or open the site" },
+    @{ command = "start"; description = "Open Marky or link a pass" },
     @{ command = "help"; description = "Show available commands" },
+    @{ command = "passes"; description = "Open your access passes" },
     @{ command = "support"; description = "Open the support chat" },
-    @{ command = "orders"; description = "Get delivery help" },
+    @{ command = "orders"; description = "Open delivery help" },
     @{ command = "request"; description = "Send a VIP request" },
+    @{ command = "whoami"; description = "Show your Telegram id" },
     @{ command = "chatid"; description = "Show this chat id for admin setup" }
   )
 } | Out-Null

@@ -15,6 +15,12 @@ function parseDate(value: string | null) {
   return Number.isFinite(date.getTime()) ? date : undefined;
 }
 
+function parseLimit(value: string | null, fallback: number) {
+  const limit = Number(value);
+
+  return Number.isFinite(limit) ? limit : fallback;
+}
+
 export async function GET(request: NextRequest) {
   const blocked = await enforceAdminAccess(request);
 
@@ -24,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   const from = parseDate(request.nextUrl.searchParams.get("from"));
   const to = parseDate(request.nextUrl.searchParams.get("to"));
-  const limit = Number(request.nextUrl.searchParams.get("limit") || "100");
+  const limit = parseLimit(request.nextUrl.searchParams.get("limit"), 100);
   const rows = await listPrivateRequestsForAdminExport({ from, to, limit });
 
   return NextResponse.json({

@@ -61,7 +61,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/raphcvr/markwebsite@sha256:8bd41ac70623f7605fe36669f888b3efdd6768261ae0e2886d33fccea50a79f8
+          image: ghcr.io/raphcvr/markwebsite@sha256:8c92e27d0b8b36bcb64a10ad5ebb2ea1ff47521dbcd615eff2c70bab4eafa18b
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

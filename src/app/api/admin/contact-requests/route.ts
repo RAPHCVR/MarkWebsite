@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { enforceAdminAccess } from "@/lib/server/admin-auth";
-import { listOrdersForAccountingExport } from "@/lib/server/orders";
+import { listContactRequestsForAdminExport } from "@/lib/server/orders";
 
 export const runtime = "nodejs";
 
@@ -31,16 +31,13 @@ export async function GET(request: NextRequest) {
   const from = parseDate(request.nextUrl.searchParams.get("from"));
   const to = parseDate(request.nextUrl.searchParams.get("to"));
   const limit = parseLimit(request.nextUrl.searchParams.get("limit"), 100);
-  const rows = await listOrdersForAccountingExport({ from, to, limit });
+  const rows = await listContactRequestsForAdminExport({ from, to, limit });
 
   return NextResponse.json({
     ok: true,
-    orders: rows.map((row) => ({
+    contacts: rows.map((row) => ({
       ...row,
-      withdrawalWaiverAcceptedAt: row.withdrawalWaiverAcceptedAt?.toISOString() ?? null,
-      paidAt: row.paidAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
     })),
   });
 }

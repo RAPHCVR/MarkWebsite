@@ -9,8 +9,11 @@ export const siteConfig = {
     "Official Marky links, drops and collabs.",
   shortDescription:
     "Official links and drops.",
-  socialImage: "/images/marky-home-og.png",
+  socialImage: "/images/marky-og.png",
   linksSocialImage: "/images/marky-links-og.png",
+  searchImage: "/images/mark-portrait-sketch.png",
+  searchImageWidth: 894,
+  searchImageHeight: 1280,
   iconImage: "/favicon.png",
   appleTouchIconImage: "/apple-touch-icon.png",
   manifestIconImage: "/images/marky-icon-512.png",

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { LoaderCircle, Mail, Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 
 import { TurnstileWidget } from "@/components/site/TurnstileWidget";
 import { cn } from "@/lib/utils";
@@ -232,29 +232,23 @@ export function LegalContactReveal({
       {turnstileSiteKey && isVerificationVisible ? (
         <div
           className={cn(
-            "rounded-2xl border border-pink-100 bg-white/74 shadow-[0_12px_26px_rgba(236,72,153,0.10)]",
+            "w-fit max-w-full rounded-2xl border border-pink-100 bg-white/74 p-2 shadow-[0_12px_26px_rgba(236,72,153,0.10)]",
             useCompactChallenge
-              ? "mx-auto w-fit max-w-full p-2"
-              : "relative min-h-16 w-full max-w-[20rem] overflow-hidden p-3",
+              ? "mx-auto"
+              : "max-w-[300px]",
           )}
         >
-          {!useCompactChallenge ? (
-            <div className="flex min-h-10 items-center gap-3 text-xs font-black text-rose-950/68">
-              <LoaderCircle className="size-4 animate-spin text-pink-500" aria-hidden="true" />
-              <span>{labels.revealLoading}</span>
-            </div>
-          ) : null}
           <TurnstileWidget
             siteKey={turnstileSiteKey}
             action="legal-contact"
-            appearance={useCompactChallenge ? "always" : "interaction-only"}
-            size={useCompactChallenge ? "compact" : "flexible"}
+            appearance="always"
+            size={useCompactChallenge ? "compact" : "normal"}
             onVerify={handleVerify}
             resetSignal={turnstileResetSignal}
             className={cn(
               useCompactChallenge
-                ? "mx-auto flex min-h-[140px] w-[150px] max-w-full items-center justify-center"
-                : "absolute inset-0 z-10 h-full min-h-full w-full max-w-none",
+                ? "mx-auto flex min-h-[140px] w-[150px] items-center justify-center"
+                : "h-[65px] w-[300px] max-w-full",
               widgetClassName,
             )}
           />

@@ -45,6 +45,12 @@ function csvValue(value: unknown) {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+function parseLimit(value: string | null, fallback: number) {
+  const limit = Number(value);
+
+  return Number.isFinite(limit) ? limit : fallback;
+}
+
 export async function GET(request: NextRequest) {
   const blocked = await enforceAdminAccess(request);
 
@@ -54,7 +60,7 @@ export async function GET(request: NextRequest) {
 
   const from = parseDate(request.nextUrl.searchParams.get("from"));
   const to = parseDate(request.nextUrl.searchParams.get("to"));
-  const limit = Number(request.nextUrl.searchParams.get("limit") || "1000");
+  const limit = parseLimit(request.nextUrl.searchParams.get("limit"), 1_000);
   const rows = await listPrivateRequestsForAdminExport({ from, to, limit });
   const csvRows = rows.map((row) =>
     [

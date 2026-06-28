@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { listOrdersForAccountingExport } from "@/lib/server/orders";
 import { enforceAdminAccess } from "@/lib/server/admin-auth";
+import { listContactRequestsForAdminExport } from "@/lib/server/orders";
 
 export const runtime = "nodejs";
 
 const csvHeaders = [
-  "order_id",
-  "provider",
-  "provider_invoice_id",
-  "product_slug",
-  "product_title",
-  "amount_cents",
-  "currency",
-  "fiat_value_eur_at_transaction",
-  "fiat_currency",
-  "status",
-  "last_event_type",
-  "legal_terms_version",
-  "withdrawal_waiver_accepted_at",
-  "paid_at",
+  "request_id",
+  "name",
+  "email",
+  "organization",
+  "message",
+  "source",
+  "user_agent",
   "created_at",
-  "updated_at",
 ] as const;
 
 function parseDate(value: string | null) {
@@ -60,25 +52,17 @@ export async function GET(request: NextRequest) {
   const from = parseDate(request.nextUrl.searchParams.get("from"));
   const to = parseDate(request.nextUrl.searchParams.get("to"));
   const limit = parseLimit(request.nextUrl.searchParams.get("limit"), 1_000);
-  const rows = await listOrdersForAccountingExport({ from, to, limit });
+  const rows = await listContactRequestsForAdminExport({ from, to, limit });
   const csvRows = rows.map((row) =>
     [
-      row.orderId,
-      row.provider,
-      row.providerInvoiceId,
-      row.productSlug,
-      row.productTitle,
-      row.amountCents,
-      row.currency,
-      row.fiatValueEurAtTransaction,
-      row.fiatCurrency,
-      row.status,
-      row.lastEventType,
-      row.legalTermsVersion,
-      row.withdrawalWaiverAcceptedAt,
-      row.paidAt,
+      row.requestId,
+      row.name,
+      row.email,
+      row.organization,
+      row.message,
+      row.source,
+      row.userAgent,
       row.createdAt,
-      row.updatedAt,
     ]
       .map(csvValue)
       .join(","),
@@ -89,7 +73,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Cache-Control": "no-store",
       "Content-Disposition":
-        'attachment; filename="marky-orders-accounting.csv"',
+        'attachment; filename="marky-contact-requests.csv"',
       "Content-Type": "text/csv; charset=utf-8",
     },
   });

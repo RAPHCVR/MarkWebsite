@@ -6,6 +6,7 @@ import type { Dictionary } from "@/i18n/dictionaries";
 
 export function localizedMetadata(locale: Locale, dictionary: Dictionary, pathname = "/"): Metadata {
   const canonical = localeUrl(locale, pathname);
+  const searchImageUrl = new URL(siteConfig.searchImage, siteConfig.publicUrl).toString();
 
   return {
     title: {
@@ -43,6 +44,9 @@ export function localizedMetadata(locale: Locale, dictionary: Dictionary, pathna
     alternates: {
       canonical,
       languages: alternateLanguageUrls(pathname),
+    },
+    other: {
+      thumbnail: searchImageUrl,
     },
   };
 }

@@ -132,6 +132,17 @@ export type CreatorOrderAccountingRow = {
   updatedAt: Date;
 };
 
+export type CreatorContactRequestAdminRow = {
+  requestId: string;
+  name: string | null;
+  email: string | null;
+  organization: string | null;
+  message: string;
+  source: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+};
+
 export type CreatorOrder = {
   orderId: string;
   provider: string;
@@ -2044,4 +2055,44 @@ export async function listPrivateRequestsForAdminExport({
     updatedAt: row.updated_at as Date,
     closedAt: row.closed_at as Date | null,
   }));
+}
+
+export async function listContactRequestsForAdminExport({
+  from,
+  to,
+  limit = 1_000,
+}: AccountingExportOptions = {}) {
+  await ensureSchema();
+
+  const safeLimit = Math.min(5_000, Math.max(1, Math.floor(limit)));
+  const result = await getPool().query(
+    `
+      SELECT
+        request_id,
+        name,
+        email,
+        organization,
+        message,
+        source,
+        user_agent,
+        created_at
+      FROM creator_contact_requests
+      WHERE ($1::timestamptz IS NULL OR created_at >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
+      ORDER BY created_at DESC
+      LIMIT $3
+    `,
+    [from ?? null, to ?? null, safeLimit],
+  );
+
+  return result.rows.map((row) => ({
+    requestId: String(row.request_id),
+    name: row.name ? String(row.name) : null,
+    email: row.email ? String(row.email) : null,
+    organization: row.organization ? String(row.organization) : null,
+    message: String(row.message),
+    source: row.source ? String(row.source) : null,
+    userAgent: row.user_agent ? String(row.user_agent) : null,
+    createdAt: row.created_at as Date,
+  })) satisfies CreatorContactRequestAdminRow[];
 }

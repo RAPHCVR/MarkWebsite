@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { siteConfig } from "@/data/site";
 import { defaultLocale, isLocale } from "@/i18n/config";
 
+const searchImageUrl = new URL(siteConfig.searchImage, siteConfig.publicUrl).toString();
+
 const geist = Geist({
   subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-geist",
@@ -75,6 +77,9 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: siteConfig.publicUrl,
+  },
+  other: {
+    thumbnail: searchImageUrl,
   },
   robots: {
     index: true,

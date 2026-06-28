@@ -5,6 +5,7 @@ import {
   Download,
   KeyRound,
   Loader2,
+  Mail,
   RefreshCw,
   ShieldCheck,
   Ticket,
@@ -52,10 +53,22 @@ type PrivateRequest = {
   closedAt: string | null;
 };
 
+type ContactRequest = {
+  requestId: string;
+  name: string | null;
+  email: string | null;
+  organization: string | null;
+  message: string;
+  source: string | null;
+  userAgent: string | null;
+  createdAt: string;
+};
+
 type DashboardState = {
   status: "idle" | "loading" | "ready" | "error";
   orders: AdminOrder[];
   requests: PrivateRequest[];
+  contacts: ContactRequest[];
   error?: string;
 };
 
@@ -139,10 +152,16 @@ async function downloadCsv(path: string, token: string, filename: string) {
 
 export function AdminDashboard() {
   const [token, setToken] = useState("");
+  const [filters, setFilters] = useState({
+    from: "",
+    to: "",
+    limit: "100",
+  });
   const [state, setState] = useState<DashboardState>({
     status: "idle",
     orders: [],
     requests: [],
+    contacts: [],
   });
 
   const stats = useMemo(() => {
@@ -159,8 +178,29 @@ export function AdminDashboard() {
       paidCount: paidOrders.length,
       totalEur,
       openRequests: openRequests.length,
+      contactCount: state.contacts.length,
     };
-  }, [state.orders, state.requests]);
+  }, [state.contacts.length, state.orders, state.requests]);
+
+  const adminQuery = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (filters.from) {
+      params.set("from", filters.from);
+    }
+
+    if (filters.to) {
+      params.set("to", filters.to);
+    }
+
+    if (filters.limit) {
+      params.set("limit", filters.limit);
+    }
+
+    const query = params.toString();
+
+    return query ? `?${query}` : "";
+  }, [filters]);
 
   async function refresh(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -168,10 +208,14 @@ export function AdminDashboard() {
     setState((current) => ({ ...current, status: "loading", error: undefined }));
 
     try {
-      const [ordersPayload, requestsPayload] = await Promise.all([
-        fetchJson<{ orders: AdminOrder[] }>("/api/admin/orders?limit=100", token),
+      const [ordersPayload, requestsPayload, contactsPayload] = await Promise.all([
+        fetchJson<{ orders: AdminOrder[] }>(`/api/admin/orders${adminQuery}`, token),
         fetchJson<{ requests: PrivateRequest[] }>(
-          "/api/admin/private-requests?limit=100",
+          `/api/admin/private-requests${adminQuery}`,
+          token,
+        ),
+        fetchJson<{ contacts: ContactRequest[] }>(
+          `/api/admin/contact-requests${adminQuery}`,
           token,
         ),
       ]);
@@ -180,6 +224,7 @@ export function AdminDashboard() {
         status: "ready",
         orders: ordersPayload.orders,
         requests: requestsPayload.requests,
+        contacts: contactsPayload.contacts,
       });
     } catch (error) {
       setState((current) => ({
@@ -190,15 +235,21 @@ export function AdminDashboard() {
     }
   }
 
-  async function exportCsv(kind: "orders" | "requests") {
+  async function exportCsv(kind: "orders" | "requests" | "contacts") {
     try {
       setState((current) => ({ ...current, error: undefined }));
       await downloadCsv(
         kind === "orders"
-          ? "/api/admin/orders/export"
-          : "/api/admin/private-requests/export",
+          ? `/api/admin/orders/export${adminQuery}`
+          : kind === "requests"
+            ? `/api/admin/private-requests/export${adminQuery}`
+            : `/api/admin/contact-requests/export${adminQuery}`,
         token,
-        kind === "orders" ? "marky-orders-accounting.csv" : "marky-private-requests.csv",
+        kind === "orders"
+          ? "marky-orders-accounting.csv"
+          : kind === "requests"
+            ? "marky-private-requests.csv"
+            : "marky-contact-requests.csv",
       );
     } catch (error) {
       setState((current) => ({
@@ -229,6 +280,49 @@ export function AdminDashboard() {
             />
           </span>
         </label>
+        <div className="grid gap-3 sm:grid-cols-3 lg:col-span-3">
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-pink-500">
+              From
+            </span>
+            <Input
+              type="date"
+              value={filters.from}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, from: event.target.value }))
+              }
+              className="min-h-11 rounded-2xl border-pink-200 bg-white/80"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-pink-500">
+              To
+            </span>
+            <Input
+              type="date"
+              value={filters.to}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, to: event.target.value }))
+              }
+              className="min-h-11 rounded-2xl border-pink-200 bg-white/80"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-pink-500">
+              Limit
+            </span>
+            <Input
+              type="number"
+              min={1}
+              max={5000}
+              value={filters.limit}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, limit: event.target.value }))
+              }
+              className="min-h-11 rounded-2xl border-pink-200 bg-white/80"
+            />
+          </label>
+        </div>
         <Button
           type="submit"
           className="self-end rounded-full bg-pink-600 px-6 font-black text-white hover:bg-pink-700"
@@ -258,11 +352,12 @@ export function AdminDashboard() {
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Paid orders", String(stats.paidCount), ShieldCheck],
           ["EUR booked", `${stats.totalEur.toFixed(2)} EUR`, Download],
           ["Open requests", String(stats.openRequests), Ticket],
+          ["Contacts", String(stats.contactCount), Mail],
         ].map(([label, value, Icon]) => (
           <div key={label as string} className="rounded-3xl border border-pink-100 bg-pink-50/70 p-4">
             <Icon className="size-5 text-pink-500" aria-hidden="true" />
@@ -409,6 +504,59 @@ export function AdminDashboard() {
               </div>
             ) : null}
           </div>
+        </div>
+      </div>
+
+      <div className="mt-7">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-black text-rose-950">Contact requests</h2>
+          <button
+            type="button"
+            onClick={() => exportCsv("contacts")}
+            className="text-sm font-black text-pink-700 underline decoration-pink-300 underline-offset-4 disabled:opacity-40"
+          >
+            Export contacts
+          </button>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {state.contacts.map((contact) => (
+            <article
+              key={contact.requestId}
+              className="rounded-3xl border border-pink-100 bg-white/74 p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-rose-950">
+                    {contact.name || contact.organization || "Contact request"}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-rose-950/48">
+                    {contact.requestId}
+                  </p>
+                </div>
+                <p className="shrink-0 rounded-full bg-pink-50 px-3 py-1 text-xs font-black text-pink-700">
+                  {formatDate(contact.createdAt)}
+                </p>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm text-rose-950/68 sm:grid-cols-2">
+                <p>
+                  <span className="font-black text-rose-950">Email:</span>{" "}
+                  {contact.email || "n/a"}
+                </p>
+                <p>
+                  <span className="font-black text-rose-950">Brand:</span>{" "}
+                  {contact.organization || "n/a"}
+                </p>
+              </div>
+              <p className="mt-3 line-clamp-5 text-sm leading-6 text-rose-950/68">
+                {contact.message}
+              </p>
+            </article>
+          ))}
+          {!state.contacts.length ? (
+            <div className="rounded-3xl border border-dashed border-pink-200 bg-pink-50/72 p-5 text-center text-sm font-bold text-rose-950/55 lg:col-span-2">
+              No contact requests loaded.
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

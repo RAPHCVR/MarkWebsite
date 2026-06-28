@@ -13,6 +13,7 @@ type TelegramInlineButton = {
   text: string;
   url?: string;
   callbackData?: string;
+  webAppUrl?: string;
 };
 
 type SendTelegramMessageOptions = {
@@ -130,6 +131,25 @@ function getCommandText(text: string, command: string) {
   return text.replace(new RegExp(`^/${command}(?:@\\w+)?\\s*`, "i"), "").trim();
 }
 
+function isPrivateChat(chatType?: string) {
+  return !chatType || chatType === "private";
+}
+
+function getManualReplyPayload(text: string) {
+  const match = text.match(
+    /^\/reply(?:@\w+)?\s+([A-Za-z0-9_-]{16,64})(?:\s+([\s\S]+))?$/i,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    replyToken: match[1],
+    message: (match[2] || "").trim(),
+  };
+}
+
 export function getTelegramDeliveryLinkUrl(token: string) {
   return getTelegramBotUrl(`delivery_${token}`);
 }
@@ -146,7 +166,12 @@ export async function sendTelegramMessage({
   }
 
   const inlineKeyboard = buttons.map((button) => {
-    const payload: { text: string; url?: string; callback_data?: string } = {
+    const payload: {
+      text: string;
+      url?: string;
+      callback_data?: string;
+      web_app?: { url: string };
+    } = {
       text: button.text,
     };
 
@@ -156,6 +181,10 @@ export async function sendTelegramMessage({
 
     if (button.callbackData) {
       payload.callback_data = button.callbackData;
+    }
+
+    if (button.webAppUrl) {
+      payload.web_app = { url: button.webAppUrl };
     }
 
     return [payload];
@@ -356,6 +385,72 @@ export async function notifyContactRequest({
   });
 }
 
+async function handleAdminPrivateRequestReply({
+  chatId,
+  replyToken,
+  message,
+  from,
+}: {
+  chatId: string;
+  replyToken: string;
+  message: string;
+  from?: { id?: number; username?: string };
+}) {
+  if (!isTelegramAdminUserAllowed(from?.id)) {
+    return sendTelegramMessage({
+      chatId,
+      text: "This Telegram account cannot reply to tickets.",
+    });
+  }
+
+  const reply = await recordPrivateRequestAdminReplyFromTelegram({
+    replyToken,
+    message,
+    adminChatId: chatId,
+    adminUserId: from?.id,
+    adminUsername: from?.username,
+  });
+
+  if (!reply.ok) {
+    return sendTelegramMessage({
+      chatId,
+      text:
+        reply.reason === "empty-message"
+          ? "Send the reply as text."
+          : "Ticket not found.",
+    });
+  }
+
+  if (!reply.customerChatId) {
+    return sendTelegramMessage({
+      chatId,
+      text: `Reply saved for ${reply.requestId}. No customer chat is linked yet.`,
+    });
+  }
+
+  const delivered = await sendTelegramMessage({
+    chatId: reply.customerChatId,
+    text: [
+      "Marky Concierge",
+      `Ticket: ${reply.requestId}`,
+      "",
+      reply.message,
+    ].join("\n"),
+    buttons: [{ text: "Support chat", url: siteConfig.telegramChatUrl }],
+  });
+  const deliveryError =
+    "description" in delivered
+      ? delivered.description || delivered.status || "unknown error"
+      : "skipped";
+
+  return sendTelegramMessage({
+    chatId,
+    text: delivered.ok
+      ? `Reply sent for ${reply.requestId}.`
+      : `Reply saved for ${reply.requestId}. Delivery failed: ${deliveryError}.`,
+  });
+}
+
 export async function handleTelegramUpdate(update: TelegramUpdate) {
   const callbackQuery = update.callback_query;
 
@@ -403,11 +498,31 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   }
 
   const chatId = update.message?.chat?.id;
+  const chatType = update.message?.chat?.type;
   const text = update.message?.text?.trim() || "";
   const from = update.message?.from;
 
   if (!chatId) {
     return { ok: true, ignored: true };
+  }
+
+  const manualReply = getManualReplyPayload(text);
+  const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+
+  if (manualReply && adminChatId && String(chatId) === adminChatId) {
+    return handleAdminPrivateRequestReply({
+      chatId: String(chatId),
+      replyToken: manualReply.replyToken,
+      message: manualReply.message,
+      from,
+    });
+  }
+
+  if (text.startsWith("/reply")) {
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: "Admin command. Use it inside the private admin chat.",
+    });
   }
 
   const adminReplyToken = getReplyTokenFromAdminPrompt(
@@ -419,58 +534,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     process.env.TELEGRAM_ADMIN_CHAT_ID &&
     String(chatId) === process.env.TELEGRAM_ADMIN_CHAT_ID
   ) {
-    if (!isTelegramAdminUserAllowed(from?.id)) {
-      return sendTelegramMessage({
-        chatId: String(chatId),
-        text: "This Telegram account cannot reply to tickets.",
-      });
-    }
-
-    const reply = await recordPrivateRequestAdminReplyFromTelegram({
+    return handleAdminPrivateRequestReply({
+      chatId: String(chatId),
       replyToken: adminReplyToken,
       message: text,
-      adminChatId: String(chatId),
-      adminUserId: from?.id,
-      adminUsername: from?.username,
-    });
-
-    if (!reply.ok) {
-      return sendTelegramMessage({
-        chatId: String(chatId),
-        text:
-          reply.reason === "empty-message"
-            ? "Send the reply as text."
-            : "Ticket not found.",
-      });
-    }
-
-    if (!reply.customerChatId) {
-      return sendTelegramMessage({
-        chatId: String(chatId),
-        text: `Reply saved for ${reply.requestId}. No customer chat is linked yet.`,
-      });
-    }
-
-    const delivered = await sendTelegramMessage({
-      chatId: reply.customerChatId,
-      text: [
-        "Marky Concierge",
-        `Ticket: ${reply.requestId}`,
-        "",
-        reply.message,
-      ].join("\n"),
-      buttons: [{ text: "Support chat", url: siteConfig.telegramChatUrl }],
-    });
-    const deliveryError =
-      "description" in delivered
-        ? delivered.description || delivered.status || "unknown error"
-        : "skipped";
-
-    return sendTelegramMessage({
-      chatId: String(chatId),
-      text: delivered.ok
-        ? `Reply sent for ${reply.requestId}.`
-        : `Reply saved for ${reply.requestId}. Delivery failed: ${deliveryError}.`,
+      from,
     });
   }
 
@@ -485,19 +553,35 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     });
   }
 
+  if (text.startsWith("/whoami") || text.startsWith("/id")) {
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: [
+        "Telegram identity",
+        `chat_id: ${chatId}`,
+        from?.id ? `user_id: ${from.id}` : null,
+        from?.username ? `username: @${from.username}` : null,
+      ]
+        .filter((line): line is string => typeof line === "string")
+        .join("\n"),
+    });
+  }
+
   if (text.startsWith("/help")) {
     return sendTelegramMessage({
       chatId: String(chatId),
       text: [
         "Marky Concierge commands",
         "/start - open the site or link a pass",
+        "/passes - open your access passes",
         "/support - open support chat",
         "/orders - open delivery help",
         "/request - send a VIP request",
+        "/whoami - show your Telegram id",
         "/chatid - show this chat id",
       ].join("\n"),
       buttons: [
-        { text: "Open passes", url: getPublicUrl("/#access-passes") },
+        { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
         { text: "Support chat", url: siteConfig.telegramChatUrl },
       ],
     });
@@ -507,6 +591,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   const startPayload = getStartPayload(text);
 
   if (startPayload === "request") {
+    if (!isPrivateChat(chatType)) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: "Send VIP requests in a private chat with Marky Concierge.",
+        buttons: [{ text: "Open bot", url: getTelegramBotUrl("request") }],
+      });
+    }
+
     return sendTelegramMessage({
       chatId: String(chatId),
       text: [
@@ -517,13 +609,21 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
         "Requests stay in Marky Concierge.",
       ].join("\n"),
       buttons: [
-        { text: "View passes", url: getPublicUrl("/#access-passes") },
+        { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
         { text: "Support chat", url: siteConfig.telegramChatUrl },
       ],
     });
   }
 
   if (deliveryToken) {
+    if (!isPrivateChat(chatType)) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: "Open this access link in a private chat with Marky Concierge.",
+        buttons: [{ text: "Open bot", url: getTelegramBotUrl(`delivery_${deliveryToken}`) }],
+      });
+    }
+
     const delivery = await linkTelegramToDelivery({
       token: deliveryToken,
       chatId: String(chatId),
@@ -570,15 +670,37 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     });
   }
 
+  if (text.startsWith("/passes")) {
+    return sendTelegramMessage({
+      chatId: String(chatId),
+      text: "Open your Digital Access Passes.",
+      buttons: [
+        { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
+        { text: "Support chat", url: siteConfig.telegramChatUrl },
+      ],
+    });
+  }
+
   if (text.startsWith("/orders")) {
     return sendTelegramMessage({
       chatId: String(chatId),
       text: "Access links stay on markshnaknaks.com.",
-      buttons: [{ text: "Open support", url: siteConfig.telegramChatUrl }],
+      buttons: [
+        { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
+        { text: "Open support", url: siteConfig.telegramChatUrl },
+      ],
     });
   }
 
   if (text.startsWith("/request")) {
+    if (!isPrivateChat(chatType)) {
+      return sendTelegramMessage({
+        chatId: String(chatId),
+        text: "Send VIP requests in a private chat with Marky Concierge.",
+        buttons: [{ text: "Open bot", url: getTelegramBotUrl("request") }],
+      });
+    }
+
     const requestMessage = getCommandText(text, "request");
 
     if (!requestMessage) {
@@ -589,7 +711,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
           "/request your message",
         ].join("\n"),
         buttons: [
-          { text: "View passes", url: getPublicUrl("/#access-passes") },
+          { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
           { text: "Support chat", url: siteConfig.telegramChatUrl },
         ],
       });
@@ -612,7 +734,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
         chatId: String(chatId),
         text: reason,
         buttons: [
-          { text: "View passes", url: getPublicUrl("/#access-passes") },
+          { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
           { text: "Support chat", url: siteConfig.telegramChatUrl },
         ],
       });
@@ -638,7 +760,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     chatId: String(chatId),
     text: "Welcome to Marky Concierge. Open passes or send /help.",
     buttons: [
-      { text: "Open passes", url: getPublicUrl("/#access-passes") },
+      { text: "Open passes", webAppUrl: getPublicUrl("/orders?tg=true") },
       { text: "Telegram channel", url: siteConfig.telegramChannelUrl },
       { text: "Support chat", url: siteConfig.telegramChatUrl },
     ],

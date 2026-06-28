@@ -86,7 +86,10 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
     "https://markshnaknaks.com",
   );
   await expect(
-    page.locator('meta[property="og:image"][content="https://markshnaknaks.com/images/marky-home-og.png"]'),
+    page.locator('meta[property="og:image"][content="https://markshnaknaks.com/images/marky-og.png"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('meta[name="thumbnail"][content="https://markshnaknaks.com/images/mark-portrait-sketch.png"]'),
   ).toHaveCount(1);
   await expect(page.locator('meta[property="og:image:width"][content="1200"]')).toHaveCount(1);
   await expect(page.locator('meta[property="og:image:height"][content="630"]')).toHaveCount(1);
@@ -104,6 +107,13 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
     "@graph"?: Array<{
       "@type"?: string;
       mainEntity?: { "@id"?: string; "@type"?: string; name?: string; sameAs?: string[] };
+      primaryImageOfPage?: {
+        "@type"?: string;
+        url?: string;
+        width?: number;
+        height?: number;
+      };
+      thumbnailUrl?: string;
       sameAs?: string[];
     }>;
   };
@@ -119,6 +129,13 @@ test("homepage exposes crawlable SEO discovery metadata", async ({ page, request
       entry.sameAs?.includes("https://instagram.com/markshnaknaks"),
     ),
   ).toBe(true);
+  expect(profilePage?.primaryImageOfPage).toMatchObject({
+    "@type": "ImageObject",
+    url: "https://markshnaknaks.com/images/mark-portrait-sketch.png",
+    width: 894,
+    height: 1280,
+  });
+  expect(profilePage?.thumbnailUrl).toBe("https://markshnaknaks.com/images/mark-portrait-sketch.png");
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
@@ -231,7 +248,7 @@ test("public pages do not expose crawlable email addresses", async ({ page }, te
   test.slow();
 
   const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-  const rawPhonePattern = /(01\s?23\s?45\s?67\s?89|0123456789|\+33123456789)/;
+  const rawPhonePattern = /(07\s?68\s?90\s?78\s?65|0768907865|\+33\s?7\s?68\s?90\s?78\s?65|\+33768907865)/;
 
   for (const route of publicTextRoutes) {
     await page.goto(route);
@@ -255,8 +272,8 @@ test("legal contact details are available only after an explicit reveal action",
       contentType: "application/json",
       body: JSON.stringify({
         email: "support@markshnaknaks.com",
-        phoneLabel: "01 23 45 67 89",
-        phoneHref: "+33123456789",
+        phoneLabel: "+33 7 68 90 78 65",
+        phoneHref: "+33768907865",
       }),
     });
   });
@@ -266,7 +283,7 @@ test("legal contact details are available only after an explicit reveal action",
   await expect(page.locator("body")).not.toContainText(
     /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
   );
-  await expect(page.locator("body")).not.toContainText("01 23 45 67 89");
+  await expect(page.locator("body")).not.toContainText("+33 7 68 90 78 65");
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
   await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
 
@@ -278,9 +295,9 @@ test("legal contact details are available only after an explicit reveal action",
   await expect(legalEmail).toBeVisible();
   await expect(legalEmail).toHaveAttribute("href", "mailto:support@markshnaknaks.com");
 
-  const legalPhone = page.getByRole("link", { name: "01 23 45 67 89" });
+  const legalPhone = page.getByRole("link", { name: "+33 7 68 90 78 65" });
   await expect(legalPhone).toBeVisible();
-  await expect(legalPhone).toHaveAttribute("href", "tel:+33123456789");
+  await expect(legalPhone).toHaveAttribute("href", "tel:+33768907865");
 });
 
 test("revealed legal contact survives navigation between legal pages", async ({ page }) => {
@@ -290,8 +307,8 @@ test("revealed legal contact survives navigation between legal pages", async ({ 
       contentType: "application/json",
       body: JSON.stringify({
         email: "support@markshnaknaks.com",
-        phoneLabel: "01 23 45 67 89",
-        phoneHref: "+33123456789",
+        phoneLabel: "+33 7 68 90 78 65",
+        phoneHref: "+33768907865",
       }),
     });
   });
@@ -314,8 +331,8 @@ test("homepage direct contact is revealed only after an explicit reveal action",
       contentType: "application/json",
       body: JSON.stringify({
         email: "support@markshnaknaks.com",
-        phoneLabel: "01 23 45 67 89",
-        phoneHref: "+33123456789",
+        phoneLabel: "+33 7 68 90 78 65",
+        phoneHref: "+33768907865",
       }),
     });
   });
@@ -332,7 +349,7 @@ test("homepage direct contact is revealed only after an explicit reveal action",
 
   await revealButton.click();
   await expect(page.getByRole("link", { name: /support@markshnaknaks\.com/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: "01 23 45 67 89" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "+33 7 68 90 78 65" })).toBeVisible();
 });
 
 test("public pages avoid payment-risk wording", async ({ page }, testInfo) => {
@@ -444,6 +461,14 @@ test("locale routing respects explicit URLs, browser language and legacy legal r
   const legacyLegal = await request.get("/legal", { maxRedirects: 0 });
   expect(legacyLegal.status()).toBe(307);
   expect(legacyLegal.headers().location).toContain("/fr/legal");
+
+  const legacyLink = await request.get("/link", { maxRedirects: 0 });
+  expect(legacyLink.status()).toBe(307);
+  expect(legacyLink.headers().location).toContain("/links");
+
+  const localizedLink = await request.get("/fr/link", { maxRedirects: 0 });
+  expect(localizedLink.status()).toBe(307);
+  expect(localizedLink.headers().location).toContain("/fr/links");
 });
 
 test("Russian copy avoids accidental English placeholder phrases", async ({ page }, testInfo) => {
@@ -575,6 +600,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
       cloudflareAccessConfigured?: boolean;
       accountingExportRoute?: string;
       privateRequestsExportRoute?: string;
+      contactRequestsExportRoute?: string;
     };
     legal?: {
       b2cSalesAllowed?: boolean;
@@ -607,6 +633,7 @@ test("payment status endpoint reports readiness without exposing secrets", async
   expect(status.legal?.salesBlockedByLegalGate).toBe(false);
   expect(status.admin?.accountingExportRoute).toBe("/api/admin/orders/export");
   expect(status.admin?.privateRequestsExportRoute).toBe("/api/admin/private-requests/export");
+  expect(status.admin?.contactRequestsExportRoute).toBe("/api/admin/contact-requests/export");
   expect(typeof status.admin?.cloudflareAccessConfigured).toBe("boolean");
   expect(typeof status.contact?.turnstileRequired).toBe("boolean");
   expect(JSON.stringify(status)).not.toMatch(/sk_live|pk_live|api_key|webhook_secret/i);
@@ -624,6 +651,14 @@ test("admin private request export is protected", async ({ request }, testInfo) 
   test.skip(testInfo.project.name !== "chromium-desktop", "Admin route check only needs one project");
 
   const response = await request.get("/api/admin/private-requests/export");
+
+  expect([401, 503]).toContain(response.status());
+});
+
+test("admin contact request export is protected", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "Admin route check only needs one project");
+
+  const response = await request.get("/api/admin/contact-requests/export");
 
   expect([401, 503]).toContain(response.status());
 });

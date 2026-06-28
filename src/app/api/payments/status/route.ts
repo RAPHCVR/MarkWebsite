@@ -107,6 +107,7 @@ export function GET() {
       dashboardRoute: "/admin",
       accountingExportRoute: "/api/admin/orders/export",
       privateRequestsExportRoute: "/api/admin/private-requests/export",
+      contactRequestsExportRoute: "/api/admin/contact-requests/export",
     },
     contact: {
       turnstileSiteKeyConfigured: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),

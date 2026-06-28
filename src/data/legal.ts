@@ -1,4 +1,4 @@
-const contactPhoneLabel = process.env.LEGAL_CONTACT_PHONE?.trim() || "";
+const rawContactPhoneLabel = process.env.LEGAL_CONTACT_PHONE?.trim() || "";
 
 function phoneHrefFromLabel(label: string) {
   const compact = label.replace(/[^\d+]/g, "");
@@ -18,6 +18,23 @@ function phoneHrefFromLabel(label: string) {
   return compact;
 }
 
+function phoneDisplayFromHref(href: string) {
+  if (!href) {
+    return "";
+  }
+
+  if (href.startsWith("+33") && href.length === 12) {
+    return `+33 ${href.slice(3, 4)} ${href.slice(4, 6)} ${href.slice(6, 8)} ${href.slice(8, 10)} ${href.slice(10, 12)}`;
+  }
+
+  return href.replace(/(\+\d{1,3})(\d+)/, (_match, country: string, rest: string) =>
+    `${country} ${rest.replace(/(\d{2})(?=\d)/g, "$1 ").trim()}`,
+  );
+}
+
+const contactPhoneHref = phoneHrefFromLabel(rawContactPhoneLabel);
+const contactPhoneLabel = phoneDisplayFromHref(contactPhoneHref);
+
 export const legalConfig = {
   merchantName: "Raphael Tech Solutions",
   entrepreneurName: "Raphael Chauvier",
@@ -34,7 +51,7 @@ export const legalConfig = {
   supportEmailLocalPart: "support",
   supportEmailDomain: "markshnaknaks.com",
   contactPhoneLabel,
-  contactPhoneHref: phoneHrefFromLabel(contactPhoneLabel),
+  contactPhoneHref,
   contactPath: "/#contact",
   termsVersion: "2026-06-22",
   privacyVersion: "2026-06-22",
