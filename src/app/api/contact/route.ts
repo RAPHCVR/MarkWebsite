@@ -16,6 +16,7 @@ const maxLength = {
   name: 120,
   email: 254,
   organization: 160,
+  telegram: 80,
   message: 3_000,
 };
 
@@ -29,10 +30,17 @@ function clean(value: FormDataEntryValue | null, limit: number) {
 
 type ContactRedirectStatus = "sent" | "missing" | "verify" | "limited";
 
-function contactRedirect(localeValue: string, status: ContactRedirectStatus) {
+function contactRedirect(
+  localeValue: string,
+  status: ContactRedirectStatus,
+  telegramLinkToken?: string | null,
+) {
   const locale = assertLocale(localeValue) || defaultLocale;
   const url = new URL(localePath(locale, "/"), siteConfig.publicUrl);
   url.searchParams.set("contact", status);
+  if (telegramLinkToken && /^[A-Za-z0-9_-]{16,64}$/.test(telegramLinkToken)) {
+    url.searchParams.set("telegramContact", telegramLinkToken);
+  }
   url.hash = "contact";
   return url;
 }
@@ -44,12 +52,12 @@ export async function POST(request: NextRequest) {
   const name = clean(form.get("name"), maxLength.name);
   const email = clean(form.get("email"), maxLength.email).toLowerCase();
   const organization = clean(form.get("organization"), maxLength.organization);
+  const telegram = clean(form.get("telegram"), maxLength.telegram);
   const message = clean(form.get("message"), maxLength.message);
   const turnstileToken = clean(form.get("cf-turnstile-response"), 4_000);
-  const redirectUrl = contactRedirect(locale, "sent");
 
   if (website) {
-    return NextResponse.redirect(redirectUrl, 303);
+    return NextResponse.redirect(contactRedirect(locale, "sent"), 303);
   }
 
   const rateLimited = await enforceRateLimit(request, {
@@ -79,24 +87,42 @@ export async function POST(request: NextRequest) {
   }
 
   let requestId: string | undefined;
+  let replyToken: string | undefined;
+  let telegramUserId: string | null | undefined;
+  let telegramChatId: string | null | undefined;
+  let telegramUsername: string | null | undefined;
+  let telegramLinkToken: string | null | undefined;
 
   if (isOrdersDatabaseConfigured()) {
-    requestId = await recordContactRequest({
+    const storedRequest = await recordContactRequest({
       name,
       email,
       organization,
+      telegram,
       message,
       userAgent: request.headers.get("user-agent") ?? undefined,
     }).catch(() => undefined);
+
+    requestId = storedRequest?.requestId;
+    replyToken = storedRequest?.replyToken;
+    telegramLinkToken = storedRequest?.telegramLinkToken;
+    telegramUserId = storedRequest?.telegramUserId;
+    telegramChatId = storedRequest?.telegramChatId;
+    telegramUsername = storedRequest?.telegramUsername;
   }
 
   await notifyContactRequest({
     requestId,
+    replyToken,
     name,
     email,
     organization,
+    telegram,
+    telegramChatId,
+    telegramUserId,
+    telegramUsername,
     message,
   }).catch(() => undefined);
 
-  return NextResponse.redirect(redirectUrl, 303);
+  return NextResponse.redirect(contactRedirect(locale, "sent", telegramLinkToken), 303);
 }

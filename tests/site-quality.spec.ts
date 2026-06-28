@@ -742,9 +742,14 @@ test("contact form posts to the site endpoint", async ({ request }, testInfo) =>
   });
 
   expect(response.status()).toBe(303);
-  expect(new URL(response.headers().location || "").pathname).toBe("/fr");
-  expect(new URL(response.headers().location || "").search).toBe("?contact=sent");
-  expect(new URL(response.headers().location || "").hash).toBe("#contact");
+  const redirectUrl = new URL(response.headers().location || "");
+  expect(redirectUrl.pathname).toBe("/fr");
+  expect(redirectUrl.searchParams.get("contact")).toBe("sent");
+  const telegramContact = redirectUrl.searchParams.get("telegramContact");
+  if (telegramContact) {
+    expect(telegramContact).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
+  }
+  expect(redirectUrl.hash).toBe("#contact");
 });
 
 test("social links use recognizable brand icons", async ({ page }) => {

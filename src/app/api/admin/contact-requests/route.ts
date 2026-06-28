@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     contacts: rows.map((row) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),
+      adminRepliedAt: row.adminRepliedAt?.toISOString() ?? null,
     })),
   });
 }

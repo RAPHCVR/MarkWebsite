@@ -161,7 +161,10 @@ export function LinksPage({ locale, dictionary, products, socials }: LinksPagePr
   const homeHref = localePath(locale, "/");
   const collabHref = localePath(locale, "/#contact");
   const telegramHref = socialMap.get("telegramChannel")?.href || paymentConfig.telegram.channelUrl;
-  const supportHref = paymentConfig.telegram.requestBotUrl || telegramHref;
+  const supportHref =
+    paymentConfig.telegram.contactBotUrl ||
+    paymentConfig.telegram.requestBotUrl ||
+    telegramHref;
 
   const quickActions = [
     {

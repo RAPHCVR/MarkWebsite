@@ -22,6 +22,7 @@ type HomePageProps = {
   socials: SocialLink[];
   galleryItems: GalleryItem[];
   contactStatus?: ContactStatus | null;
+  contactTelegramLinkToken?: string | null;
 };
 
 export function HomePage({
@@ -31,6 +32,7 @@ export function HomePage({
   socials,
   galleryItems,
   contactStatus,
+  contactTelegramLinkToken,
 }: HomePageProps) {
   return (
     <main id="top" className="min-h-screen overflow-hidden">
@@ -46,7 +48,12 @@ export function HomePage({
       <SocialHub dictionary={dictionary} socials={socials} />
       <ProductCards locale={locale} dictionary={dictionary} products={products} />
       <Lookbook dictionary={dictionary} galleryItems={galleryItems} />
-      <Contact locale={locale} dictionary={dictionary} status={contactStatus} />
+      <Contact
+        locale={locale}
+        dictionary={dictionary}
+        status={contactStatus}
+        telegramLinkToken={contactTelegramLinkToken}
+      />
       <Footer locale={locale} dictionary={dictionary} socials={socials} />
       <MobileActionBar locale={locale} dictionary={dictionary} />
     </main>

@@ -63,9 +63,13 @@ type ContactRequestRecord = {
   name: string;
   email: string;
   organization: string;
+  telegram?: string;
   message: string;
   source?: string;
   userAgent?: string;
+  telegramChatId?: string;
+  telegramUserId?: string | number;
+  telegramUsername?: string;
 };
 
 type PrivateRequestTicketRecord = {
@@ -82,6 +86,8 @@ type PrivateRequestAdminReplyRecord = {
   adminUserId?: string | number;
   adminUsername?: string;
 };
+
+type ContactAdminReplyRecord = PrivateRequestAdminReplyRecord;
 
 type RateLimitCheck = {
   action: string;
@@ -137,10 +143,27 @@ export type CreatorContactRequestAdminRow = {
   name: string | null;
   email: string | null;
   organization: string | null;
+  telegram: string | null;
+  telegramChatId: string | null;
+  telegramUserId: string | null;
+  telegramUsername: string | null;
   message: string;
   source: string | null;
+  status: string;
+  lastAdminReply: string | null;
+  adminReplyCount: number;
+  adminRepliedAt: Date | null;
   userAgent: string | null;
   createdAt: Date;
+};
+
+export type ContactRequestRecordResult = {
+  requestId: string;
+  replyToken: string;
+  telegramLinkToken: string;
+  telegramChatId: string | null;
+  telegramUserId: string | null;
+  telegramUsername: string | null;
 };
 
 export type CreatorOrder = {
@@ -270,17 +293,47 @@ async function ensureSchema() {
       name text,
       email text,
       organization text,
+      telegram text,
+      telegram_chat_id text,
+      telegram_user_id text,
+      telegram_username text,
+      telegram_linked_at timestamptz,
       message text NOT NULL,
       source text,
+      status text NOT NULL DEFAULT 'open',
+      last_admin_reply text,
+      admin_reply_count integer NOT NULL DEFAULT 0,
+      admin_replied_at timestamptz,
+      telegram_reply_token text,
+      telegram_link_token text,
       user_agent text,
       created_at timestamptz NOT NULL DEFAULT now()
     );
 
     ALTER TABLE creator_contact_requests
-      ADD COLUMN IF NOT EXISTS email text;
+      ADD COLUMN IF NOT EXISTS email text,
+      ADD COLUMN IF NOT EXISTS telegram text,
+      ADD COLUMN IF NOT EXISTS telegram_chat_id text,
+      ADD COLUMN IF NOT EXISTS telegram_user_id text,
+      ADD COLUMN IF NOT EXISTS telegram_username text,
+      ADD COLUMN IF NOT EXISTS telegram_linked_at timestamptz,
+      ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'open',
+      ADD COLUMN IF NOT EXISTS last_admin_reply text,
+      ADD COLUMN IF NOT EXISTS admin_reply_count integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS admin_replied_at timestamptz,
+      ADD COLUMN IF NOT EXISTS telegram_reply_token text,
+      ADD COLUMN IF NOT EXISTS telegram_link_token text;
 
     CREATE INDEX IF NOT EXISTS creator_contact_requests_created_at_idx
       ON creator_contact_requests(created_at DESC);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS creator_contact_requests_telegram_reply_token_idx
+      ON creator_contact_requests(telegram_reply_token)
+      WHERE telegram_reply_token IS NOT NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS creator_contact_requests_telegram_link_token_idx
+      ON creator_contact_requests(telegram_link_token)
+      WHERE telegram_link_token IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS creator_rate_limits (
       rate_key text NOT NULL,
@@ -431,6 +484,27 @@ function getPrivateRequestReplyToken(requestId: string) {
     .update(`telegram-private-reply:${requestId}`)
     .digest("base64url")
     .slice(0, 32);
+}
+
+function getContactRequestReplyToken(requestId: string) {
+  return createHash("sha256")
+    .update(`telegram-contact-reply:${requestId}`)
+    .digest("base64url")
+    .slice(0, 32);
+}
+
+function createContactTelegramLinkToken() {
+  return randomBytes(24).toString("base64url");
+}
+
+function normalizeTelegramUsername(value?: string | null) {
+  const username = value
+    ?.trim()
+    .replace(/^@+/, "")
+    .replace(/^https?:\/\/t\.me\//i, "")
+    .replace(/[/?#].*$/, "");
+
+  return username && /^[A-Za-z0-9_]{5,32}$/.test(username) ? username : null;
 }
 
 function getProductFiatValueEur(product: Product) {
@@ -1904,12 +1978,22 @@ export async function recordContactRequest({
   name,
   email,
   organization,
+  telegram,
   message,
   source = "markshnaknaks.com/contact",
   userAgent,
-}: ContactRequestRecord) {
+  telegramChatId,
+  telegramUserId,
+  telegramUsername,
+}: ContactRequestRecord): Promise<ContactRequestRecordResult> {
   await ensureSchema();
 
+  const requestId = `contact-${randomUUID()}`;
+  const userIdText = telegramUserId === undefined ? null : String(telegramUserId);
+  const cleanTelegramUsername =
+    normalizeTelegramUsername(telegramUsername) || normalizeTelegramUsername(telegram);
+  const replyToken = getContactRequestReplyToken(requestId);
+  const telegramLinkToken = createContactTelegramLinkToken();
   const result = await getPool().query(
     `
       INSERT INTO creator_contact_requests (
@@ -1917,25 +2001,297 @@ export async function recordContactRequest({
         name,
         email,
         organization,
+        telegram,
+        telegram_chat_id,
+        telegram_user_id,
+        telegram_username,
+        telegram_linked_at,
         message,
         source,
+        telegram_reply_token,
+        telegram_link_token,
         user_agent
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING request_id
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $6 IS NULL THEN null ELSE now() END, $9, $10, $11, $12, $13)
+      RETURNING request_id, telegram_chat_id, telegram_user_id, telegram_username
     `,
     [
-      `contact-${randomUUID()}`,
+      requestId,
       name || null,
       email || null,
       organization || null,
+      telegram || null,
+      telegramChatId || null,
+      userIdText,
+      cleanTelegramUsername,
       message,
       source,
+      replyToken,
+      telegramLinkToken,
       userAgent || null,
     ],
   );
 
-  return String(result.rows[0]?.request_id);
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        telegram_chat_id: string | null;
+        telegram_user_id: string | null;
+        telegram_username: string | null;
+      }
+    | undefined;
+
+  return {
+    requestId: String(row?.request_id ?? requestId),
+    replyToken,
+    telegramLinkToken,
+    telegramChatId: row?.telegram_chat_id ? String(row.telegram_chat_id) : null,
+    telegramUserId: row?.telegram_user_id ? String(row.telegram_user_id) : null,
+    telegramUsername: row?.telegram_username
+      ? String(row.telegram_username)
+      : cleanTelegramUsername,
+  };
+}
+
+export async function getContactRequestReplyPrompt(replyToken: string) {
+  await ensureSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        request_id,
+        name,
+        email,
+        organization,
+        telegram,
+        telegram_chat_id,
+        telegram_user_id,
+        telegram_username,
+        message
+      FROM creator_contact_requests
+      WHERE telegram_reply_token = $1
+      LIMIT 1
+    `,
+    [replyToken],
+  );
+
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        name: string | null;
+        email: string | null;
+        organization: string | null;
+        telegram: string | null;
+        telegram_chat_id: string | null;
+        telegram_user_id: string | null;
+        telegram_username: string | null;
+        message: string;
+      }
+    | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    requestId: String(row.request_id),
+    name: row.name ? String(row.name) : null,
+    email: row.email ? String(row.email) : null,
+    organization: row.organization ? String(row.organization) : null,
+    telegram: row.telegram ? String(row.telegram) : null,
+    telegramChatId: row.telegram_chat_id ? String(row.telegram_chat_id) : null,
+    telegramUserId: row.telegram_user_id ? String(row.telegram_user_id) : null,
+    telegramUsername: row.telegram_username ? String(row.telegram_username) : null,
+    message: String(row.message),
+  };
+}
+
+export async function linkTelegramToContactRequest({
+  linkToken,
+  chatId,
+  userId,
+  username,
+  firstName,
+}: {
+  linkToken: string;
+  chatId: string;
+  userId?: string | number;
+  username?: string;
+  firstName?: string;
+}) {
+  await ensureSchema();
+
+  const cleanUsername = normalizeTelegramUsername(username);
+  const userIdText = userId === undefined ? null : String(userId);
+
+  const result = await getPool().query(
+    `
+      UPDATE creator_contact_requests
+      SET
+        telegram_chat_id = $2,
+        telegram_user_id = $3,
+        telegram_username = COALESCE($4, telegram_username),
+        telegram = COALESCE(telegram, CASE WHEN $4 IS NULL THEN NULL ELSE '@' || $4 END),
+        telegram_linked_at = now()
+      WHERE telegram_link_token = $1
+      RETURNING
+        request_id,
+        telegram_reply_token,
+        name,
+        email,
+        organization,
+        message,
+        last_admin_reply,
+        admin_reply_count
+    `,
+    [linkToken, chatId, userIdText, cleanUsername],
+  );
+
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        telegram_reply_token: string | null;
+        name: string | null;
+        email: string | null;
+        organization: string | null;
+        message: string;
+        last_admin_reply: string | null;
+        admin_reply_count: number;
+      }
+    | undefined;
+
+  if (!row?.telegram_reply_token) {
+    return null;
+  }
+
+  await getPool().query(
+    `
+      INSERT INTO creator_delivery_events (
+        event_id,
+        order_id,
+        event_type,
+        metadata
+      )
+      VALUES ($1, $2, 'contact.telegram_linked', $3::jsonb)
+    `,
+    [
+      `delivery-event-${randomUUID()}`,
+      `contact:${row.request_id}`,
+      JSON.stringify({
+        requestId: row.request_id,
+        telegramChatId: chatId,
+        telegramUserId: userIdText,
+        telegramUsername: cleanUsername,
+        telegramFirstName: firstName ?? null,
+      }),
+    ],
+  ).catch(() => undefined);
+
+  return {
+    requestId: String(row.request_id),
+    replyToken: String(row.telegram_reply_token),
+    name: row.name ? String(row.name) : null,
+    email: row.email ? String(row.email) : null,
+    organization: row.organization ? String(row.organization) : null,
+    message: String(row.message),
+    lastAdminReply: row.last_admin_reply ? String(row.last_admin_reply) : null,
+    adminReplyCount: Number(row.admin_reply_count ?? 0),
+  };
+}
+
+export async function recordContactAdminReplyFromTelegram({
+  replyToken,
+  message,
+  adminChatId,
+  adminUserId,
+  adminUsername,
+}: ContactAdminReplyRecord) {
+  await ensureSchema();
+
+  const cleanMessage = message.trim().slice(0, 2_000);
+
+  if (!cleanMessage) {
+    return { ok: false as const, reason: "empty-message" as const };
+  }
+
+  const result = await getPool().query(
+    `
+      UPDATE creator_contact_requests
+      SET
+        last_admin_reply = $2,
+        admin_reply_count = admin_reply_count + 1,
+        admin_replied_at = now(),
+        status = CASE
+          WHEN status IN ('open', 'answered') THEN 'answered'
+          ELSE status
+        END
+      WHERE telegram_reply_token = $1
+      RETURNING
+        request_id,
+        telegram_chat_id,
+        telegram_user_id,
+        telegram_username,
+        name,
+        email,
+        admin_reply_count
+    `,
+    [replyToken, cleanMessage],
+  );
+
+  const row = result.rows[0] as
+    | {
+        request_id: string;
+        telegram_chat_id: string | null;
+        telegram_user_id: string | null;
+        telegram_username: string | null;
+        name: string | null;
+        email: string | null;
+        admin_reply_count: number;
+      }
+    | undefined;
+
+  if (!row) {
+    return { ok: false as const, reason: "not-found" as const };
+  }
+
+  await getPool().query(
+    `
+      INSERT INTO creator_delivery_events (
+        event_id,
+        order_id,
+        event_type,
+        metadata
+      )
+      VALUES ($1, $2, 'contact.admin_replied', $3::jsonb)
+    `,
+    [
+      `delivery-event-${randomUUID()}`,
+      `contact:${row.request_id}`,
+      JSON.stringify({
+        requestId: row.request_id,
+        telegramAdminChatId: adminChatId,
+        telegramAdminUserId:
+          adminUserId === undefined ? null : String(adminUserId),
+        telegramAdminUsername: adminUsername ?? null,
+        adminReplyCount: Number(row.admin_reply_count),
+      }),
+    ],
+  ).catch(() => undefined);
+
+  return {
+    ok: true as const,
+    requestId: String(row.request_id),
+    customerChatId: row.telegram_user_id
+      ? String(row.telegram_user_id)
+      : row.telegram_chat_id
+        ? String(row.telegram_chat_id)
+        : null,
+    telegramUsername: row.telegram_username ? String(row.telegram_username) : null,
+    name: row.name ? String(row.name) : null,
+    email: row.email ? String(row.email) : null,
+    message: cleanMessage,
+    adminReplyCount: Number(row.admin_reply_count),
+  };
 }
 
 export async function listOrdersForAccountingExport({
@@ -2072,8 +2428,16 @@ export async function listContactRequestsForAdminExport({
         name,
         email,
         organization,
+        telegram,
+        telegram_chat_id,
+        telegram_user_id,
+        telegram_username,
         message,
         source,
+        status,
+        last_admin_reply,
+        admin_reply_count,
+        admin_replied_at,
         user_agent,
         created_at
       FROM creator_contact_requests
@@ -2090,8 +2454,16 @@ export async function listContactRequestsForAdminExport({
     name: row.name ? String(row.name) : null,
     email: row.email ? String(row.email) : null,
     organization: row.organization ? String(row.organization) : null,
+    telegram: row.telegram ? String(row.telegram) : null,
+    telegramChatId: row.telegram_chat_id ? String(row.telegram_chat_id) : null,
+    telegramUserId: row.telegram_user_id ? String(row.telegram_user_id) : null,
+    telegramUsername: row.telegram_username ? String(row.telegram_username) : null,
     message: String(row.message),
     source: row.source ? String(row.source) : null,
+    status: row.status ? String(row.status) : "open",
+    lastAdminReply: row.last_admin_reply ? String(row.last_admin_reply) : null,
+    adminReplyCount: Number(row.admin_reply_count ?? 0),
+    adminRepliedAt: row.admin_replied_at as Date | null,
     userAgent: row.user_agent ? String(row.user_agent) : null,
     createdAt: row.created_at as Date,
   })) satisfies CreatorContactRequestAdminRow[];

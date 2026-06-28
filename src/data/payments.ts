@@ -362,6 +362,7 @@ export const paymentConfig = {
     chatUrl: siteConfig.telegramChatUrl,
     vipUrl: "#access-passes",
     requestBotUrl: "https://t.me/markshnaknaksbot?start=request",
+    contactBotUrl: "https://t.me/markshnaknaksbot?start=contact",
     deliveryRole: "VIP and support",
   },
 };

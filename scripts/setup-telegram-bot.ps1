@@ -112,6 +112,7 @@ Invoke-TelegramApiOptional -Method "setMyCommands" -Body @{
     @{ command = "help"; description = "Show available commands" },
     @{ command = "passes"; description = "Open your access passes" },
     @{ command = "support"; description = "Open the support chat" },
+    @{ command = "contact"; description = "Send a contact request" },
     @{ command = "orders"; description = "Open delivery help" },
     @{ command = "request"; description = "Send a VIP request" },
     @{ command = "whoami"; description = "Show your Telegram id" },

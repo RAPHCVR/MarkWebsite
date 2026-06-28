@@ -58,8 +58,16 @@ type ContactRequest = {
   name: string | null;
   email: string | null;
   organization: string | null;
+  telegram: string | null;
+  telegramChatId: string | null;
+  telegramUserId: string | null;
+  telegramUsername: string | null;
   message: string;
   source: string | null;
+  status: string;
+  lastAdminReply: string | null;
+  adminReplyCount: number;
+  adminRepliedAt: string | null;
   userAgent: string | null;
   createdAt: string;
 };
@@ -114,6 +122,18 @@ function getAdminHeaders(token: string) {
         Authorization: `Bearer ${token.trim()}`,
       }
     : undefined;
+}
+
+function getTelegramProfileUrl(username: string | null) {
+  if (!username) {
+    return null;
+  }
+
+  const cleanUsername = username.replace(/^@+/, "").trim();
+
+  return /^[A-Za-z0-9_]{5,32}$/.test(cleanUsername)
+    ? `https://t.me/${cleanUsername}`
+    : null;
 }
 
 async function fetchJson<T>(path: string, token: string): Promise<T> {
@@ -546,10 +566,53 @@ export function AdminDashboard() {
                   <span className="font-black text-rose-950">Brand:</span>{" "}
                   {contact.organization || "n/a"}
                 </p>
+                <p>
+                  <span className="font-black text-rose-950">Telegram:</span>{" "}
+                  {(() => {
+                    const telegramProfileUrl = getTelegramProfileUrl(
+                      contact.telegramUsername || contact.telegram,
+                    );
+
+                    return telegramProfileUrl ? (
+                      <a
+                        href={telegramProfileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-bold text-pink-700 underline decoration-pink-300 underline-offset-4"
+                      >
+                        @{telegramProfileUrl.split("/").at(-1)}
+                      </a>
+                    ) : contact.telegramUserId || contact.telegramChatId ? (
+                      "Bot linked"
+                    ) : (
+                      "n/a"
+                    );
+                  })()}
+                </p>
+                <p>
+                  <span className="font-black text-rose-950">Status:</span>{" "}
+                  {contact.status}
+                </p>
               </div>
               <p className="mt-3 line-clamp-5 text-sm leading-6 text-rose-950/68">
                 {contact.message}
               </p>
+              {contact.lastAdminReply ? (
+                <div className="mt-3 rounded-2xl border border-pink-100 bg-pink-50/72 p-3">
+                  <p className="text-[0.68rem] font-black uppercase tracking-[0.14em] text-pink-500">
+                    Last contact reply
+                  </p>
+                  <p className="mt-1 line-clamp-3 text-sm leading-6 text-rose-950/68">
+                    {contact.lastAdminReply}
+                  </p>
+                  <p className="mt-2 text-xs font-bold text-rose-950/45">
+                    {contact.adminReplyCount} repl{contact.adminReplyCount === 1 ? "y" : "ies"}
+                    {contact.adminRepliedAt
+                      ? ` · ${formatDate(contact.adminRepliedAt)}`
+                      : ""}
+                  </p>
+                </div>
+              ) : null}
             </article>
           ))}
           {!state.contacts.length ? (

@@ -3,11 +3,14 @@ import { Mail, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { BrandIcon, brandIconStyle } from "@/components/site/BrandIcon";
 import { LegalContactReveal } from "@/components/site/LegalContactReveal";
 import { SectionShell } from "@/components/site/SectionShell";
 import { TurnstileWidget } from "@/components/site/TurnstileWidget";
+import { paymentConfig } from "@/data/payments";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
+import { getExternalLinkProps } from "@/lib/links";
 
 export type ContactStatus = "sent" | "missing" | "verify" | "limited";
 
@@ -15,11 +18,27 @@ type ContactProps = {
   locale: Locale;
   dictionary: Dictionary;
   status?: ContactStatus | null;
+  telegramLinkToken?: string | null;
 };
 
-export function Contact({ locale, dictionary, status }: ContactProps) {
+function getTelegramContactUrl(token: string) {
+  const url = new URL(paymentConfig.telegram.contactBotUrl);
+  url.searchParams.set("start", `contact_${token}`);
+  return url.toString();
+}
+
+export function Contact({
+  locale,
+  dictionary,
+  status,
+  telegramLinkToken,
+}: ContactProps) {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const statusMessage = status ? dictionary.contact.status[status] : null;
+  const telegramContactUrl =
+    status === "sent" && telegramLinkToken
+      ? getTelegramContactUrl(telegramLinkToken)
+      : null;
 
   return (
     <SectionShell
@@ -46,6 +65,19 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
           >
             <Mail className="size-4" aria-hidden="true" />
             {dictionary.contact.cardCta}
+          </a>
+          <a
+            href={paymentConfig.telegram.contactBotUrl}
+            {...getExternalLinkProps(paymentConfig.telegram.contactBotUrl)}
+            className="mt-3 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-pink-200 bg-white/78 px-5 text-sm font-black text-pink-700 shadow-sm transition hover:border-pink-300 hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+          >
+            <span
+              className="text-[var(--brand-color)]"
+              style={brandIconStyle("telegram")}
+            >
+              <BrandIcon name="telegram" className="size-4" />
+            </span>
+            {dictionary.contact.telegramBotCta}
           </a>
           <div className="mt-5 rounded-3xl border border-pink-100 bg-pink-50/72 p-4">
             <p className="text-sm font-black text-rose-950">
@@ -76,12 +108,32 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
         >
           <input type="hidden" name="locale" value={locale} />
           {statusMessage ? (
-            <p
+            <div
               className="mb-5 rounded-2xl border border-pink-100 bg-pink-50/80 px-4 py-3 text-sm font-bold leading-6 text-rose-950/72"
               role="status"
             >
-              {statusMessage}
-            </p>
+              <p>{statusMessage}</p>
+              {telegramContactUrl ? (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs font-semibold text-rose-950/55">
+                    {dictionary.contact.telegramReplyHint}
+                  </p>
+                  <a
+                    href={telegramContactUrl}
+                    {...getExternalLinkProps(telegramContactUrl)}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-pink-200 bg-white px-4 text-xs font-black text-pink-700 shadow-sm transition hover:border-pink-300 hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-200"
+                  >
+                    <span
+                      className="text-[var(--brand-color)]"
+                      style={brandIconStyle("telegram")}
+                    >
+                      <BrandIcon name="telegram" className="size-4" />
+                    </span>
+                    {dictionary.contact.telegramReplyCta}
+                  </a>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
@@ -122,6 +174,16 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
               <span className="text-sm font-bold text-rose-950">{dictionary.contact.brand}</span>
               <Input name="organization" autoComplete="organization" placeholder={dictionary.contact.brandPlaceholder} className="min-h-12 rounded-2xl border-pink-200 bg-white/80" />
             </label>
+            <label className="space-y-2">
+              <span className="text-sm font-bold text-rose-950">{dictionary.contact.telegram}</span>
+              <Input
+                name="telegram"
+                inputMode="text"
+                autoComplete="off"
+                placeholder={dictionary.contact.telegramPlaceholder}
+                className="min-h-12 rounded-2xl border-pink-200 bg-white/80"
+              />
+            </label>
             <label className="space-y-2 sm:col-span-2">
               <span className="text-sm font-bold text-rose-950">{dictionary.contact.message}</span>
               <Textarea
@@ -157,6 +219,9 @@ export function Contact({ locale, dictionary, status }: ContactProps) {
           </p>
           <p className="mt-2 text-center text-xs font-medium text-rose-950/50">
             {dictionary.contact.privacyNote}
+          </p>
+          <p className="mt-2 text-center text-xs font-medium text-rose-950/50">
+            {dictionary.contact.telegramNote}
           </p>
         </form>
       </div>

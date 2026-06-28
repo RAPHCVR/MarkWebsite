@@ -9,7 +9,10 @@ import { getRequestDictionary } from "@/i18n/server";
 export const dynamic = "force-dynamic";
 
 type RootPageProps = {
-  searchParams?: Promise<{ contact?: string | string[] }>;
+  searchParams?: Promise<{
+    contact?: string | string[];
+    telegramContact?: string | string[];
+  }>;
 };
 
 function getContactStatus(value: string | string[] | undefined): ContactStatus | null {
@@ -21,6 +24,12 @@ function getContactStatus(value: string | string[] | undefined): ContactStatus |
     status === "limited"
     ? status
     : null;
+}
+
+function getTelegramContactToken(value: string | string[] | undefined) {
+  const token = Array.isArray(value) ? value[0] : value;
+
+  return token && /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : null;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,6 +50,9 @@ export default async function Home({ searchParams }: RootPageProps) {
       socials={getLocalizedSocials(dictionary)}
       galleryItems={getLocalizedGallery(dictionary)}
       contactStatus={getContactStatus(resolvedSearchParams.contact)}
+      contactTelegramLinkToken={getTelegramContactToken(
+        resolvedSearchParams.telegramContact,
+      )}
     />
   );
 }

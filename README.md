@@ -130,10 +130,15 @@ action, so it remains available to humans without being present as a raw
 crawlable address in initial HTML.
 
 The collab form posts to `POST /api/contact`. When `DATABASE_URL` is configured,
-requests are stored in `creator_contact_requests` with the visitor reply email;
-when `TELEGRAM_ADMIN_CHAT_ID` is configured, the same request is also relayed to
-the private admin chat. The direct legal email and phone remain available from
-the legal pages for formal requests without exposing the email in initial HTML.
+requests are stored in `creator_contact_requests` with the visitor reply email
+and optional Telegram handle; when `TELEGRAM_ADMIN_CHAT_ID` is configured, the
+same request is also relayed to the private admin chat. After a successful site
+submission, the page can offer a private `contact_<token>` bot deep link. When
+the visitor opens that link, the bot stores the Telegram `chat_id`, so Marky can
+reply from the admin chat. A raw `@username` alone remains a fallback profile
+link, not a guaranteed bot DM channel. The direct legal email and phone remain
+available from the legal pages for formal requests without exposing the email in
+initial HTML.
 Turnstile can be enabled with `NEXT_PUBLIC_TURNSTILE_SITE_KEY`,
 `TURNSTILE_SECRET_KEY`, `TURNSTILE_REQUIRED=true` and
 `NEXT_PUBLIC_TURNSTILE_REQUIRED=true`. In production, keep Turnstile required
@@ -227,6 +232,7 @@ Private access delivery is site-owned and backed by Cloudflare R2:
 - File downloads use `/api/delivery/assets/<assetId>?token=...`, which validates the token and redirects to a short-lived signed R2 URL.
 - Telegram is support and optional admin notification, not the source of truth for delivery access.
 - VIP Infrastructure Access requests are ticketed through `@markshnaknaksbot` with `/request <message>` in a private bot chat after Telegram is linked from the delivery page.
+- Contact requests can also be created through `@markshnaknaksbot` with `/contact <message>`, or linked from the website form through the one-time `contact_<token>` start payload displayed after submission.
 - Admins answer tickets from the private Telegram admin chat: the bot posts each request with a `Répondre` inline button, then forwards the admin reply back to the linked customer chat and records it in PostgreSQL. If Telegram's forced reply UI is not available, admins can use `/reply <reply-token> <message>` in the same private admin chat.
 - `/passes` and the bot menu open the Telegram Web App at `https://markshnaknaks.com/orders?tg=true`, which lists linked Digital Access Passes inside Telegram after Telegram Web App init-data verification.
 - Use `scripts/upsert-r2-delivery-asset.ps1` to upload a real private asset and register it in `creator_assets` without manual SQL. New uploads default to the `access-assets/<product-slug>/...` R2 prefix.
